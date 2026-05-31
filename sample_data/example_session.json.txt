@@ -1,0 +1,10 @@
+{
+  "rater_id": "DEMO",
+  "date": "2026-05-31",
+  "n_questions": 5,
+  "n_distractors": 15,
+  "kappa": {
+    "kappa": 0.74,
+    "interpretation": "Substantial agreement"
+  }
+}
