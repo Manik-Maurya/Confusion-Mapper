@@ -1,8 +1,6 @@
 <h1 align="center">ConfusionMapper</h1>
 
-<p align="center">
-  <img src="assets/thumbnail.png" width="900">
-</p>
+![ConfusionMapper](assets/thumbnail.png)
 
 <p align="center">
   <strong>Human vs AI Agreement for Cognitive Error Classification</strong>
@@ -156,4 +154,3 @@ MIT License
 <p align="center">
   <strong>Detect. Measure. Understand.</strong>
 </p>
-<img src="assets/thumbnail.png" width="900">
