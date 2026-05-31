@@ -1,6 +1,6 @@
 <h1 align="center">ConfusionMapper</h1>
 
-![ConfusionMapper](assets/thumbnail.png)
+<img src="./assets/thumbnail.png" width="800">
 
 <p align="center">
   <strong>Human vs AI Agreement for Cognitive Error Classification</strong>
