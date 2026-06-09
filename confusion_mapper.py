@@ -33,7 +33,7 @@ USAGE
 RESEARCH CONTEXT
 ----------------
 This tool is the pre-data-collection quality gate for "The Confusion
-Fingerprint Study" — a pre-registered three-arm RCT (n=108) at IIT Kanpur
+Fingerprint Study" — a pre-registered three-arm RCT (n=90,government junior high schools, Kanpur Dehat) at IIT Kanpur
 testing whether classifying the cognitive TYPE of a student error produces
 better 2-week delayed retention than correctness-only adaptive learning.
 
