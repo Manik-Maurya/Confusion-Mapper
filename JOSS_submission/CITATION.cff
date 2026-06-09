@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use ConfusionMapper in your research, please cite it as below."
+type: software
+title: "ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research"
+version: 1.0.0
+date-released: "2026-06-10"
+authors:
+  - family-names: Maurya
+    given-names: Manik
+    orcid: "https://orcid.org/0009-0005-3554-693X"
+    affiliation: "Department of Cognitive Science, Indian Institute of Technology Kanpur"
+    email: manikmaurya.in@gmail.com
+repository-code: "https://github.com/Manik-Maurya/Confusion-Mapper"
+url: "https://github.com/Manik-Maurya/Confusion-Mapper"
+license: MIT
+abstract: >
+  ConfusionMapper is a Python desktop application for inter-rater reliability
+  (IRR) computation in cognitive error taxonomy research. It operationalises a
+  two-rater classification workflow — human researcher and AI rater — over
+  multiple-choice question distractors, computes Cohen's kappa, and visualises
+  agreement through an interactive dashboard.
+keywords:
+  - inter-rater reliability
+  - Cohen's kappa
+  - cognitive error classification
+  - educational research
+  - adaptive learning
+  - educational data mining
+  - Python
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Maurya
+      given-names: Manik
+      orcid: "https://orcid.org/0009-0005-3554-693X"
+  title: "ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research"
+  journal: "Journal of Open Source Software"
+  year: 2026
+  url: "https://github.com/Manik-Maurya/Confusion-Mapper"
