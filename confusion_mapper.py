@@ -6,7 +6,7 @@ AI-Assisted Distractor Classification & Inter-Rater Reliability Tool
 for Educational Research
 
 Built for Stanford Code in Place 2026 — Final Project
-Manik Maurya · IIT Kanpur Cognitive Science / Omega Incorporated
+Manik Maurya · IIT Kanpur Cognitive Science (Research Intern)
 
 WHAT THIS DOES
 --------------
