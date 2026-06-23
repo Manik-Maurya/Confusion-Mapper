@@ -37,7 +37,7 @@ jobs:
         run: python examples/demo.py
 
   paper:
-    name: JOSS paper build check
+    name: Build JOSS paper draft
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

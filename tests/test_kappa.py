@@ -55,7 +55,7 @@ class TestCohenKappaPerfectAgreement:
           human = ai = ["RF", "PK", "CF", "INT"]
           Po = 4/4 = 1.0
           Pe = (1/4)(1/4) × 4 categories = 4/16 = 0.25
-          k = (1.0 − 0.25) / (1.0 − 0.25) = 0.75 / 0.75 = 1.0
+          k = (1.0 - 0.25) / (1.0 - 0.25) = 0.75 / 0.75 = 1.0
         """
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["RF", "PK", "CF", "INT"]
@@ -97,7 +97,7 @@ class TestCohenKappaKnownValues:
              = 0.16 + 0.06 + 0.02 + 0.04
              = 0.28
 
-          k = (0.8 − 0.28) / (1.0 − 0.28)
+          k = (0.8 - 0.28) / (1.0 - 0.28)
             = 0.52 / 0.72
             = 0.7222...
             ~ 0.7222 (rounded to 4 d.p.)
@@ -137,7 +137,7 @@ class TestCohenKappaKnownValues:
              = 4/64 + 6/64 + 2/64 + 4/64
              = 16/64 = 0.25
 
-          k = (0.5 − 0.25) / (1.0 − 0.25)
+          k = (0.5 - 0.25) / (1.0 - 0.25)
             = 0.25 / 0.75
             = 0.3333...
         """
@@ -161,7 +161,7 @@ class TestCohenKappaKnownValues:
 
           Po = 0/4 = 0.0
           Pe = (1/4)(1/4) × 4 = 0.25
-          k = (0.0 − 0.25) / (1.0 − 0.25) = −0.25 / 0.75 = −0.3333...
+          k = (0.0 - 0.25) / (1.0 - 0.25) = -0.25 / 0.75 = -0.3333...
         """
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["PK", "CF", "INT", "RF"]
@@ -197,7 +197,7 @@ class TestCohenKappaEdgeCases:
         Po = 0.0
         Pe: human CF=1/1=1.0, RF=0; ai CF=0, RF=1/1=1.0
         Pe = (1.0)(0.0) + (0.0)(1.0) + ... = 0.0
-        k = (0.0 − 0.0) / (1.0 − 0.0) = 0.0
+        k = (0.0 - 0.0) / (1.0 - 0.0) = 0.0
         """
         result = compute_cohens_kappa(["CF"], ["RF"])
         assert result["kappa"] == 0.0
@@ -434,7 +434,7 @@ class TestAdditionalProperties:
         Proof sketch:
           Po = agreements/n is unchanged by swapping the two lists.
           Pe = Σ_k p_h_k × p_ai_k = Σ_k p_ai_k × p_h_k  (multiplication is commutative).
-          Therefore k = (Po − Pe)/(1 − Pe) is identical in both directions.
+          Therefore k = (Po - Pe)/(1 - Pe) is identical in both directions.
         """
         human = ["CF", "CF", "RF", "RF", "PK", "INT", "CF", "RF", "INT", "PK"]
         ai    = ["CF", "RF", "RF", "CF", "PK", "INT", "CF", "RF", "PK",  "PK"]

@@ -1,58 +1,56 @@
 """
-==============================================================================
 ConfusionMapper v1.0
-==============================================================================
-AI-Assisted Distractor Classification & Inter-Rater Reliability Tool
-for Educational Research
 
-Built for Stanford Code in Place 2026, Final Project
-Manik Maurya | Department of Cognitive Science, IIT Kanpur (Research Intern)
+A tool for classifying wrong answer choices in multiple-choice questions by
+the type of cognitive error they represent, and for measuring how well a human
+researcher and an AI agree on those labels.
 
-WHAT THIS DOES
+Manik Maurya, Department of Cognitive Science, IIT Kanpur.
+
+What this does
 --------------
-In educational research, MCQ distractors (wrong answer options) reveal HOW
-a student is thinking, not just THAT they got it wrong. This tool classifies
-each distractor into one of four cognitive error types:
+Wrong answers on a multiple-choice question reveal something about how the
+student is thinking, not just that they got it wrong. This tool sorts each
+distractor into one of four cognitive error types:
 
-  RF , Recall Failure     (no memory trace; random or implausible answer)
-  PK , Partial Knowledge  (almost right; correct direction, incomplete model)
-  CF , Confabulation      (confident wrong belief; coherent misconception)
-  INT, Interference       (correct answer for a DIFFERENT topic)
+  RF   Recall Failure     (no memory trace; random or implausible answer)
+  PK   Partial Knowledge  (almost right; correct direction, incomplete model)
+  CF   Confabulation      (confident wrong belief; coherent misconception)
+  INT  Interference       (correct answer for a different topic)
 
-A human researcher and an AI independently classify each distractor.
-Cohen's Kappa (kappa) measures their agreement. Research target: kappa >= 0.70.
+A human researcher and an AI independently label each distractor. Cohen's
+kappa measures their agreement. The research target is kappa >= 0.70.
 
-USAGE
+Usage
 -----
   python confusion_mapper.py
 
-  Optional, enable AI rater mode:
-    export OPENAI_API_KEY="your-key-here"   (Mac/Linux)
+  To turn on the AI rater:
+    export OPENAI_API_KEY="your-key-here"   (Mac / Linux)
     set OPENAI_API_KEY=your-key-here        (Windows)
 
-RESEARCH CONTEXT
+Research context
 ----------------
-This tool is the pre-data-collection quality gate for "The Confusion
-Fingerprint Study", a pre-registered three-arm RCT (n=90) in government junior high schools, Kanpur Dehat, Uttar Pradesh.
-testing whether classifying the cognitive TYPE of a student error produces
-better 2-week delayed retention than correctness-only adaptive learning.
+This tool is the pre-data-collection reliability check for a preregistered
+three-arm RCT (n=90) in government junior high schools in Kanpur Dehat,
+Uttar Pradesh. The study tests whether labelling the cognitive type of a
+student error improves two-week delayed retention compared with
+correctness-only adaptive feedback.
 
-The Confusion Fingerprint Index (CFI):
-  CFI-CF  = CF errors / total errors        [primary predictor]
-  CFI-INT = INT errors / (INT + RF errors)  [secondary predictor]
-  CFI-RF  = RF errors / total errors        [weak/null predictor]
+Confusion Fingerprint Index (CFI):
+  CFI-CF  = CF errors / total errors        (primary predictor)
+  CFI-INT = INT errors / (INT + RF errors)  (secondary predictor)
+  CFI-RF  = RF errors / total errors        (weak / null predictor)
 
-Cohen's Kappa formula:  kappa = (Po - Pe) / (1 - Pe)
-  Po = observed proportional agreement
+Cohen's kappa:  kappa = (Po - Pe) / (1 - Pe)
+  Po = observed proportion of agreement
   Pe = agreement expected by chance
 
-REQUIREMENTS
+Requirements
 ------------
-  Python 3.8+
-  tkinter (built into Python, no install needed)
-  openai  (optional: pip install openai, for AI rater mode)
-
-==============================================================================
+  Python 3.9 or higher
+  tkinter (part of the standard library on most systems)
+  openai  (optional; pip install openai; needed for the AI rater)
 """
 
 import os
@@ -657,7 +655,7 @@ def _draw_kappa_gauge(parent, kappa):
     # Five coloured zone arcs, kappa zones: 0.0, 0.20, 0.40, 0.70, 0.80, 1.0
     # In tkinter: angle 0° = 3 o'clock, increases counter-clockwise.
     # We want kappa=0 at 180° (9 o'clock) and kappa=1 at 0° (3 o'clock).
-    # A value kappa maps to start_angle = 180 − kappax180.
+    # A value kappa maps to start_angle = 180 - kappax180.
     zones = [
         (0.00, 0.20, C["z0"]),
         (0.20, 0.40, C["z1"]),
