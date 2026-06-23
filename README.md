@@ -2,7 +2,7 @@
 
 A Python tool for classifying wrong answer choices in multiple-choice questions by the type of cognitive error they represent, and for computing how well a human researcher and an AI rater agree on those labels.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20807432.svg)](https://doi.org/10.5281/zenodo.20807432)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20807432-1682D4?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.20807432)
 [![Tests](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml/badge.svg)](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
