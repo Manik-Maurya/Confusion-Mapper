@@ -23,13 +23,10 @@ bibliography: paper.bib
 
 ConfusionMapper is a Python tool that operationalizes a human-AI hybrid inter-rater
 reliability (IRR) protocol for classifying the cognitive type of errors embedded in
-multiple-choice question (MCQ) distractors. It implements the Confusion Fingerprint
-Index (CFI) taxonomy [@Maurya2026CFI], which partitions incorrect answer choices into
-four theoretically grounded, mutually exclusive cognitive categories: **Recall Failure**
-(RF; absent retrieval trace), **Partial Knowledge** (PK; incomplete but directionally
-correct understanding), **Confabulation** (CF; coherent but incorrect mental model held
-with high confidence), and **Interference** (INT; cross-domain knowledge activated in
-the wrong context). A calibration set of MCQ distractors is classified independently
+multiple-choice question (MCQ) distractors. It implements the Confusion Fingerprint Index (CFI)
+taxonomy [@Maurya2026CFI], which partitions incorrect answer choices into four
+mutually exclusive cognitive categories: Recall Failure (RF), Partial Knowledge
+(PK), Confabulation (CF), and Interference (INT). A calibration set of MCQ distractors is classified independently
 by a human researcher and by an AI rater driven by the OpenAI API [@OpenAI2023].
 Cohen's κ [@Cohen1960] is computed on the paired labels; a per-category 4×4 confusion
 matrix and per-type agreement statistics are derived from the same annotation pass.
@@ -49,24 +46,19 @@ logistically prohibitive in many educational contexts, particularly low-resource
 settings where no credentialed second rater is available and per-item annotation costs
 exceed small-grant budgets [@Haladyna2002].
 
-The demonstrated capability of large language models to perform structured text
-annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a human-AI
-hybrid IRR paradigm: a human expert and an AI model independently label the same items,
-and Cohen's κ is computed on the paired outputs. Recent empirical work on LLM raters in
-qualitative analysis, however, finds that human-LLM agreement varies substantially
-across the categories of a single rubric, from moderate (κ ~ 0.4) on some themes to
-substantial (κ > 0.6) on neighbouring themes within the same coding scheme
-[@Borse2025LLMIRR]. This per-category heterogeneity makes it essential that researchers
-measure agreement on *their own* taxonomy before treating LLM output as a usable label,
-rather than assuming model-level benchmarks transfer. Yet this paradigm is being
-adopted in educational research without dedicated, transparent tooling. No existing
-open-source research software package provides (1) a structured, taxonomy-specific AI
-prompt integrated with a GUI annotation review workflow, (2) a 4×4 confusion matrix
-that reveals the precise category boundaries where human-AI disagreement
-concentrates, not just the aggregate coefficient, and (3) a pre-registration-compliant
-go/no-go reliability gate with session-level CSV export for registered-report
-transparency. ConfusionMapper provides all three in a single, dependency-minimal Python
-module.
+Large language models can perform structured text annotation at high accuracy
+[@OpenAI2023], enabling a human-AI hybrid IRR paradigm: a human expert and an AI
+independently label the same items, and Cohen's κ is computed on the paired outputs.
+Recent work on LLM raters in qualitative analysis, however, shows that human-LLM
+agreement varies substantially across categories of a single rubric, from moderate
+(κ ~ 0.4) to substantial (κ > 0.6) on neighbouring themes [@Borse2025LLMIRR]. This
+heterogeneity makes it essential that researchers measure agreement on *their own*
+taxonomy before treating LLM output as a usable label. No existing open-source
+package provides (1) a taxonomy-specific AI prompt with a GUI review workflow, (2) a
+category-level confusion matrix that locates where human-AI disagreement
+concentrates, and (3) a pre-registration-compliant go/no-go reliability gate with
+session-level CSV export. ConfusionMapper provides all three in a single,
+dependency-minimal Python module.
 
 The tool was developed as the methodological reliability gate for a pre-registered RCT
 investigating whether error-type-specific feedback improves learning outcomes compared
@@ -76,21 +68,18 @@ pre-registration compliance rather than general-purpose flexibility.
 
 # State of the Field
 
-General IRR computation is well supported. The R `irr` package [@Gamer2012] provides
-Cohen's κ, weighted κ, ICC, and Fleiss's κ. Python's `sklearn.metrics.cohen_kappa_score`
-computes κ over pre-formatted arrays but offers no session management, no
-taxonomy-specific AI prompting, and no GUI. Qualitative data analysis
-platforms (MAXQDA, NVivo, ATLAS.ti) calculate κ for coded segments but assume two
-human raters, use proprietary project formats, and do not export confusion matrices
-structured for four-category nominal taxonomies.
+General IRR computation is well supported. R's `irr` package [@Gamer2012] provides
+Cohen's κ, weighted κ, ICC, and Fleiss's κ. Python's
+`sklearn.metrics.cohen_kappa_score` computes κ over pre-formatted arrays but offers
+no session management, taxonomy-specific AI prompting, or GUI. QDA platforms
+(MAXQDA, NVivo, ATLAS.ti) calculate κ but assume two human raters and use
+proprietary formats.
 
-Critically, none of these tools treats AI as a first-class rater. ConfusionMapper is
-designed specifically around the CFI taxonomy, where the distinction between CF
-(confident wrong model) and INT (cross-domain activation) is subtle enough that the
-confusion matrix cell [CF, INT] is diagnostically important in its own right. The tool
-makes this cell, and all fifteen off-diagonal cells of the 4×4 matrix, directly visible,
-enabling targeted prompt refinement when category boundaries prove porous under
-human-AI comparison [@Artstein2008].
+None of these tools treats AI as a first-class rater or surfaces the per-cell
+disagreement structure that taxonomic refinement requires. ConfusionMapper makes the
+full 4×4 matrix directly visible, enabling targeted prompt revision when specific
+category boundaries (notably CF versus INT in CFI) prove porous under human-AI
+comparison [@Artstein2008].
 
 # Software Description
 
@@ -116,17 +105,21 @@ rather than collapsing agreement to a single aggregate coefficient.
 
 The graphical interface (tkinter) presents each distractor item alongside its human and
 AI label with color-coded agreement highlighting and a running κ display. The AI prompt
-is deterministic and structured to produce a single CFI label without chain-of-thought
-verbosity; temperature is set to zero for reproducibility across sessions. On gate
+is deterministic and structured to produce a single CFI label;
+temperature is set to zero for reproducibility across sessions. On gate
 passage (κ >= 0.70), a confirmation dialog is shown and the complete session is exported
 to CSV.
 
-The test suite (`tests/test_kappa.py`) comprises 35+ assertions across five classes:
-perfect agreement, hand-verified known-value κ calculations with worked examples,
-below-chance agreement, edge cases (n = 0, n = 1), κ symmetry, interpretation threshold
-mapping, confusion matrix cell counting and row/column sum integrity, per-type sum
-consistency, and cross-function agreement consistency. All tests are self-contained and
-require no API credentials or graphical environment.
+Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` keyword that switches between nominal (Cohen, 1960), linear (Cicchetti-Allison), and quadratic (Fleiss-Cohen) weighting schemes so the tool can be used on ordinal taxonomies. `bootstrap_kappa_ci` returns a 95% confidence interval for kappa using either the percentile bootstrap or the bias-corrected and accelerated (BCa) bootstrap [@Efron1987], with the random seed exposed for full reproducibility. `load_taxonomy_from_json` lets a researcher swap the default CFI categories for any two-or-more category nominal scheme via a small JSON config, broadening the tool's applicability beyond the CFI study while preserving the same workflow.
+
+The test suite (`tests/test_kappa.py`) comprises 55 assertions covering the κ formula,
+edge cases, weighted-κ schemes, bootstrap CI determinism, custom-taxonomy loading, and
+row/column-sum invariants. All tests are self-contained and require no API credentials
+or graphical environment.
+
+# Reproducibility
+
+All randomness in ConfusionMapper is seedable. The AI rater calls the OpenAI Chat Completions API with `model="gpt-4o"` and `temperature=0.0`; the full system prompt is embedded verbatim in `classify_with_ai`. The bootstrap CI routine accepts a `seed` parameter, so reported intervals can be regenerated bit-identically. Session CSV exports record human labels, AI labels, item text, the bootstrap seed, and the exact AI model snapshot, which together constitute a minimum reproducibility record [@Nosek2018].
 
 # Acknowledgements
 

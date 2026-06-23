@@ -1,0 +1,29 @@
+{
+  "_comment": "Example custom taxonomy file. Pass this to load_taxonomy_from_json() to swap the default CFI categories for your own coding scheme. Each label needs a code (short unique id), a name (human-readable), and a definition (used in the AI prompt). The 'number', 'color', and 'example' fields are optional. Codes must be unique. At least two labels are required. The position in this list defines ordinal rank for weighted-kappa computations.",
+  "labels": [
+    {
+      "code": "PROC",
+      "name": "Procedural Slip",
+      "number": "1",
+      "definition": "The student knows the concept but made an arithmetic or transcription error.",
+      "example": "Computing 7 x 8 = 54 instead of 56.",
+      "color": "#4a90d9"
+    },
+    {
+      "code": "CONC",
+      "name": "Conceptual Gap",
+      "number": "2",
+      "definition": "The student is missing a prerequisite idea needed to attempt the problem.",
+      "example": "Treating velocity and acceleration as the same quantity.",
+      "color": "#f5a623"
+    },
+    {
+      "code": "MISC",
+      "name": "Persistent Misconception",
+      "number": "3",
+      "definition": "The student holds a coherent but incorrect mental model and applies it consistently.",
+      "example": "Believing heavier objects fall faster in a vacuum.",
+      "color": "#e74c3c"
+    }
+  ]
+}

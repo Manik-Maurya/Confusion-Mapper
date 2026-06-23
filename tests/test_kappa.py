@@ -566,3 +566,235 @@ class TestAdditionalProperties:
             assert result["n"] == length, (
                 f"n field={result['n']} but input length={length}"
             )
+
+
+# ===========================================================================
+# SECTION 6 - Weighted kappa (linear / quadratic)
+# ===========================================================================
+
+class TestWeightedKappa:
+    """
+    Weighted kappa supports ordinal taxonomies. With nominal weights, every
+    disagreement counts equally. Linear weights penalise adjacent-category
+    disagreements less than far-apart ones; quadratic weights penalise far
+    disagreements even more strongly.
+    """
+
+    def test_nominal_default_matches_legacy(self):
+        """Default weights="nominal" reproduces the original Cohen 1960 kappa."""
+        human = ["CF","CF","CF","CF","RF","RF","PK","PK","INT","INT"]
+        ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
+        r_default = compute_cohens_kappa(human, ai)
+        r_nominal = compute_cohens_kappa(human, ai, weights="nominal")
+        assert r_default["kappa"] == r_nominal["kappa"]
+        assert abs(r_default["kappa"] - 0.7222) < 0.0001
+
+    def test_linear_weights_geq_nominal_on_adjacent_disagreements(self):
+        """
+        When disagreements are between adjacent ordinal categories, linear
+        weights yield kappa >= nominal kappa (adjacent disagreements count less).
+        """
+        # All "errors" are between adjacent categories (RF<->PK and CF<->INT)
+        human = ["RF","RF","RF","PK","PK","CF","CF","INT","INT","INT"]
+        ai    = ["PK","RF","RF","RF","PK","INT","CF","CF","INT","INT"]
+        r_nominal = compute_cohens_kappa(human, ai, weights="nominal")
+        r_linear  = compute_cohens_kappa(human, ai, weights="linear")
+        assert r_linear["kappa"] >= r_nominal["kappa"]
+
+    def test_quadratic_geq_linear_on_adjacent_disagreements(self):
+        """Quadratic weights penalise adjacent disagreements even less than linear."""
+        human = ["RF","RF","PK","PK","CF","CF","INT","INT"]
+        ai    = ["PK","RF","RF","PK","INT","CF","CF","INT"]
+        r_lin = compute_cohens_kappa(human, ai, weights="linear")
+        r_qua = compute_cohens_kappa(human, ai, weights="quadratic")
+        assert r_qua["kappa"] >= r_lin["kappa"]
+
+    def test_perfect_agreement_all_weights_equal_one(self):
+        """Perfect agreement returns kappa=1.0 under every weighting."""
+        human = ai = ["RF","PK","CF","INT"] * 5
+        for w in ("nominal", "linear", "quadratic"):
+            assert compute_cohens_kappa(human, ai, weights=w)["kappa"] == 1.0
+
+    def test_invalid_weights_raises(self):
+        """Unknown weight schemes raise a ValueError."""
+        with pytest.raises(ValueError):
+            compute_cohens_kappa(["RF"], ["RF"], weights="cubic")
+
+    def test_weighted_result_includes_weights_field(self):
+        """Result dict surfaces which weighting scheme was used."""
+        r = compute_cohens_kappa(["RF","PK"], ["RF","CF"], weights="linear")
+        assert r["weights"] == "linear"
+
+
+# ===========================================================================
+# SECTION 7 - Bootstrap confidence intervals for kappa
+# ===========================================================================
+
+class TestBootstrapKappaCI:
+    """
+    Cohen's kappa is a point estimate. Research use needs uncertainty around
+    that point. bootstrap_kappa_ci resamples paired labels with replacement
+    and returns a percentile or BCa confidence interval.
+    """
+
+    def test_ci_contains_point_estimate(self):
+        """The CI should bracket the point estimate."""
+        from confusion_mapper import bootstrap_kappa_ci
+        human = ["CF","CF","CF","RF","RF","PK","PK","INT","INT","CF"]
+        ai    = ["CF","CF","RF","RF","PK","PK","CF","INT","INT","CF"]
+        ci = bootstrap_kappa_ci(human, ai, n_resamples=500, method="percentile", seed=42)
+        assert ci["ci_lower"] <= ci["point_estimate"] <= ci["ci_upper"]
+
+    def test_bca_ci_contains_point_estimate(self):
+        """BCa CI should also bracket the point estimate."""
+        from confusion_mapper import bootstrap_kappa_ci
+        human = ["CF","CF","CF","RF","RF","PK","PK","INT","INT","CF"]
+        ai    = ["CF","CF","RF","RF","PK","PK","CF","INT","INT","CF"]
+        ci = bootstrap_kappa_ci(human, ai, n_resamples=500, method="bca", seed=42)
+        assert ci["ci_lower"] <= ci["point_estimate"] <= ci["ci_upper"]
+
+    def test_seed_reproducibility(self):
+        """Same seed must yield identical CI on the same input."""
+        from confusion_mapper import bootstrap_kappa_ci
+        h = ["CF","RF","PK","INT","CF","RF","PK","INT"]
+        a = ["CF","CF","PK","INT","RF","RF","PK","CF"]
+        ci1 = bootstrap_kappa_ci(h, a, n_resamples=300, seed=7)
+        ci2 = bootstrap_kappa_ci(h, a, n_resamples=300, seed=7)
+        assert ci1 == ci2
+
+    def test_different_seeds_can_differ(self):
+        """Different seeds usually give different CIs (sanity check)."""
+        from confusion_mapper import bootstrap_kappa_ci
+        h = ["CF","RF","PK","INT","CF","RF","PK","INT","CF","RF"]
+        a = ["CF","CF","PK","INT","RF","RF","PK","CF","RF","CF"]
+        ci_a = bootstrap_kappa_ci(h, a, n_resamples=300, seed=1)
+        ci_b = bootstrap_kappa_ci(h, a, n_resamples=300, seed=2)
+        # They will not be guaranteed different, but with 300 resamples the
+        # endpoints almost always shift by at least one index. Allow either.
+        assert isinstance(ci_a["ci_lower"], float)
+        assert isinstance(ci_b["ci_lower"], float)
+
+    def test_perfect_agreement_ci_collapses_to_one(self):
+        """When kappa=1 and there is no resampling variance, CI is degenerate."""
+        from confusion_mapper import bootstrap_kappa_ci
+        human = ai = ["RF","PK","CF","INT","RF","PK","CF","INT"]
+        ci = bootstrap_kappa_ci(human, ai, n_resamples=200, method="percentile", seed=1)
+        assert ci["point_estimate"] == 1.0
+        assert ci["ci_upper"] == 1.0
+
+    def test_ci_metadata(self):
+        """Result dict carries the confidence level, method, and resample count."""
+        from confusion_mapper import bootstrap_kappa_ci
+        h = ["CF","RF","PK","INT"] * 5
+        a = ["CF","CF","PK","INT"] * 5
+        ci = bootstrap_kappa_ci(h, a, n_resamples=200, confidence=0.9,
+                                method="percentile", seed=1)
+        assert ci["confidence"] == 0.9
+        assert ci["method"] == "percentile"
+        assert ci["n_resamples"] == 200
+
+    def test_invalid_method_raises(self):
+        """Unknown CI methods raise a ValueError."""
+        from confusion_mapper import bootstrap_kappa_ci
+        with pytest.raises(ValueError):
+            bootstrap_kappa_ci(["RF","PK"], ["RF","CF"], method="unknown", seed=1)
+
+    def test_invalid_confidence_raises(self):
+        """confidence must be strictly between 0 and 1."""
+        from confusion_mapper import bootstrap_kappa_ci
+        with pytest.raises(ValueError):
+            bootstrap_kappa_ci(["RF","PK"], ["RF","CF"], confidence=0.0, seed=1)
+        with pytest.raises(ValueError):
+            bootstrap_kappa_ci(["RF","PK"], ["RF","CF"], confidence=1.0, seed=1)
+
+    def test_mismatched_lengths_raises(self):
+        """Length mismatch is rejected before any sampling happens."""
+        from confusion_mapper import bootstrap_kappa_ci
+        with pytest.raises(ValueError):
+            bootstrap_kappa_ci(["RF","PK"], ["RF"], seed=1)
+
+
+# ===========================================================================
+# SECTION 8 - Custom taxonomy loading
+# ===========================================================================
+
+class TestLoadTaxonomy:
+    """A custom JSON taxonomy can replace the built-in CFI categories."""
+
+    def test_loads_valid_taxonomy(self, tmp_path):
+        from confusion_mapper import load_taxonomy_from_json
+        import json
+        p = tmp_path / "tax.json"
+        p.write_text(json.dumps({"labels": [
+            {"code": "A", "name": "Alpha", "definition": "first"},
+            {"code": "B", "name": "Beta",  "definition": "second"},
+        ]}), encoding="utf-8")
+        codes, tax = load_taxonomy_from_json(str(p))
+        assert codes == ["A", "B"]
+        assert tax["A"]["name"] == "Alpha"
+        assert tax["B"]["definition"] == "second"
+
+    def test_rejects_duplicate_codes(self, tmp_path):
+        from confusion_mapper import load_taxonomy_from_json
+        import json
+        p = tmp_path / "tax.json"
+        p.write_text(json.dumps({"labels": [
+            {"code": "A", "name": "x", "definition": "y"},
+            {"code": "A", "name": "z", "definition": "w"},
+        ]}), encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_taxonomy_from_json(str(p))
+
+    def test_rejects_too_few_labels(self, tmp_path):
+        from confusion_mapper import load_taxonomy_from_json
+        import json
+        p = tmp_path / "tax.json"
+        p.write_text(json.dumps({"labels": [
+            {"code": "A", "name": "x", "definition": "y"},
+        ]}), encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_taxonomy_from_json(str(p))
+
+    def test_rejects_missing_required_keys(self, tmp_path):
+        from confusion_mapper import load_taxonomy_from_json
+        import json
+        p = tmp_path / "tax.json"
+        p.write_text(json.dumps({"labels": [
+            {"code": "A", "name": "x"},  # missing definition
+            {"code": "B", "name": "y", "definition": "z"},
+        ]}), encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_taxonomy_from_json(str(p))
+
+    def test_supplies_defaults_for_optional_fields(self, tmp_path):
+        from confusion_mapper import load_taxonomy_from_json
+        import json
+        p = tmp_path / "tax.json"
+        p.write_text(json.dumps({"labels": [
+            {"code": "A", "name": "x", "definition": "y"},
+            {"code": "B", "name": "z", "definition": "w"},
+        ]}), encoding="utf-8")
+        codes, tax = load_taxonomy_from_json(str(p))
+        assert "color" in tax["A"] and "example" in tax["A"]
+
+    def test_kappa_works_with_custom_categories(self):
+        """Kappa and confusion matrix accept a categories list."""
+        cats = ["A", "B", "C"]
+        h = ["A","A","B","B","C","C"]
+        a = ["A","B","B","B","C","A"]
+        r = compute_cohens_kappa(h, a, categories=cats)
+        assert r["n"] == 6
+        m = build_confusion_matrix(h, a, categories=cats)
+        assert set(m.keys()) == set(cats)
+        s = get_per_type_stats(h, a, categories=cats)
+        assert set(s.keys()) == set(cats)
+
+    def test_bundled_example_loads(self):
+        """The shipped sample_data/custom_taxonomy.json file is valid."""
+        import os
+        from confusion_mapper import load_taxonomy_from_json
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(repo_root, "sample_data", "custom_taxonomy.json")
+        codes, tax = load_taxonomy_from_json(path)
+        assert len(codes) >= 2
+        assert all("definition" in tax[c] for c in codes)

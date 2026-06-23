@@ -261,57 +261,108 @@ BUILTIN_QUESTIONS = [
 # SECTION 3, COHEN'S KAPPA & STATISTICS
 # ==============================================================================
 
-def compute_cohens_kappa(human_labels, ai_labels):
+def compute_cohens_kappa(human_labels, ai_labels, weights="nominal", categories=None):
     """
-    Compute Cohen's Kappa between two raters.
+    Compute Cohen's kappa between two raters.
 
-    Formula:   kappa = (Po - Pe) / (1 - Pe)
-
-    Po = observed proportional agreement (how often both raters agreed)
-    Pe = expected agreement by chance (product of marginal proportions)
-
-    Interpretation guide:
-      kappa < 0.20       Slight
-      0.20 - 0.40    Fair
-      0.40 - 0.60    Moderate
-      0.60 - 0.80    Substantial  <- research target is kappa >= 0.70
-      0.80 - 1.00    Almost Perfect
+    Supports three weighting schemes:
+      - "nominal"   (default): every disagreement counts equally. This is the
+                    standard Cohen (1960) kappa.
+      - "linear"    Cicchetti-Allison weights, |i - j| / (k - 1). Use when the
+                    categories form an ordinal scale and adjacent-category
+                    disagreements should count less than far-apart ones.
+      - "quadratic" Fleiss-Cohen weights, (i - j)**2 / (k - 1)**2. Sharper
+                    penalisation of far-apart disagreements. Equivalent to the
+                    intraclass correlation coefficient (ICC) under certain
+                    assumptions.
 
     Args:
-        human_labels (list): e.g. ["CF", "RF", "INT", "PK", ...]
-        ai_labels    (list): same length as human_labels
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels, same length as human_labels.
+        weights      (str): "nominal" | "linear" | "quadratic".
+        categories   (list[str] | None): explicit category order. If None,
+                     uses the module-level ERROR_TYPES. Required for weighted
+                     kappa because position in this list defines ordinal rank.
 
     Returns:
-        dict with kappa, interpretation, po, pe, n, agreements
+        dict with keys: kappa, interpretation, po, pe, n, agreements, weights.
+
+    Worked nominal example:
+        human = ["CF","CF","CF","CF","RF","RF","PK","PK","INT","INT"]
+        ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
+        Po = 8/10 = 0.8
+        Pe = 0.16 + 0.06 + 0.02 + 0.04 = 0.28
+        kappa = (0.8 - 0.28) / (1 - 0.28) = 0.7222
+
+    Worked linear example (same data, ordinal order [RF, PK, CF, INT]):
+        Adjacent-category disagreements (e.g. PK to CF) get weight 1/3
+        instead of 1, so the penalised observed agreement is higher.
     """
+    if categories is None:
+        categories = ERROR_TYPES
+    k = len(categories)
     n = len(human_labels)
+
     if n == 0:
         return {
             "kappa": 0.0,
             "interpretation": "No data to compute kappa.",
             "po": 0.0, "pe": 0.0,
             "n": 0, "agreements": 0,
+            "weights": weights,
         }
 
-    # Po, observed agreement
     agreements = sum(1 for h, a in zip(human_labels, ai_labels) if h == a)
-    po = agreements / n
 
-    # Pe, expected agreement by chance
-    # For each error type: (proportion human chose it) * (proportion AI chose it)
-    pe = 0.0
-    for label in ERROR_TYPES:
-        p_human = human_labels.count(label) / n
-        p_ai    = ai_labels.count(label)    / n
-        pe     += p_human * p_ai
-
-    # Kappa, guarded against division by zero
-    if pe >= 1.0:
-        kappa = 1.0
+    if weights == "nominal":
+        po = agreements / n
+        pe = 0.0
+        for label in categories:
+            p_human = human_labels.count(label) / n
+            p_ai    = ai_labels.count(label) / n
+            pe += p_human * p_ai
+        if pe >= 1.0:
+            kappa = 1.0
+        else:
+            kappa = (po - pe) / (1.0 - pe)
     else:
-        kappa = (po - pe) / (1.0 - pe)
+        if weights not in ("linear", "quadratic"):
+            raise ValueError(
+                f"weights must be 'nominal', 'linear', or 'quadratic'; got {weights!r}"
+            )
+        if k < 2:
+            raise ValueError("weighted kappa requires at least 2 categories")
+        idx = {c: i for i, c in enumerate(categories)}
+        denom = (k - 1) ** (1 if weights == "linear" else 2)
 
-    # Interpretation
+        def w(i, j):
+            d = abs(i - j)
+            return (d if weights == "linear" else d * d) / denom
+
+        # Observed and expected (chance) co-occurrence matrices over categories.
+        obs = [[0] * k for _ in range(k)]
+        for h, a in zip(human_labels, ai_labels):
+            if h in idx and a in idx:
+                obs[idx[h]][idx[a]] += 1
+        row_tot = [sum(row) for row in obs]
+        col_tot = [sum(obs[r][c] for r in range(k)) for c in range(k)]
+
+        weighted_disagreement_obs = 0.0
+        weighted_disagreement_exp = 0.0
+        for i in range(k):
+            for j in range(k):
+                wij = w(i, j)
+                weighted_disagreement_obs += wij * obs[i][j]
+                weighted_disagreement_exp += wij * (row_tot[i] * col_tot[j] / n)
+
+        if weighted_disagreement_exp == 0:
+            kappa = 1.0 if weighted_disagreement_obs == 0 else 0.0
+        else:
+            kappa = 1.0 - weighted_disagreement_obs / weighted_disagreement_exp
+
+        po = agreements / n
+        pe = 1.0 - weighted_disagreement_exp / n if weighted_disagreement_exp <= n else 0.0
+
     if kappa < 0.20:
         interp = "Slight, rubric needs substantial revision before research use."
     elif kappa < 0.40:
@@ -332,29 +383,255 @@ def compute_cohens_kappa(human_labels, ai_labels):
         "pe":             round(pe, 4),
         "n":              n,
         "agreements":     agreements,
+        "weights":        weights,
     }
 
 
-def build_confusion_matrix(human_labels, ai_labels):
+def bootstrap_kappa_ci(human_labels, ai_labels,
+                       n_resamples=10000, confidence=0.95,
+                       method="bca", weights="nominal",
+                       categories=None, seed=None):
     """
-    Build a 4x4 confusion matrix.
-    Rows = human labels, Columns = AI labels.
-    Returns a nested dict: matrix[human_label][ai_label] = count.
+    Bootstrap a confidence interval for Cohen's kappa.
+
+    Cohen's kappa is a point estimate. Research use needs uncertainty around
+    that point. This function resamples the paired (human, ai) tuples with
+    replacement, computes kappa on each resample, and returns the lower and
+    upper bounds of a confidence interval. Two methods are supported:
+
+      - "percentile": the simple percentile bootstrap. Returns the
+                      alpha/2 and 1 - alpha/2 quantiles of the bootstrap
+                      kappa distribution.
+      - "bca":        bias-corrected and accelerated (Efron, 1987).
+                      Adjusts the percentile endpoints using a bias-correction
+                      term from the bootstrap distribution and an acceleration
+                      term from the leave-one-out jackknife. Recommended for
+                      skewed sampling distributions.
+
+    Args:
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels, same length.
+        n_resamples  (int): number of bootstrap samples. Default 10000.
+        confidence   (float): confidence level in (0, 1). Default 0.95.
+        method       (str): "percentile" or "bca". Default "bca".
+        weights      (str): forwarded to compute_cohens_kappa.
+        categories   (list[str] | None): forwarded.
+        seed         (int | None): RNG seed for reproducibility.
+
+    Returns:
+        dict with keys:
+            point_estimate (float): kappa on the original sample.
+            ci_lower       (float): lower bound of the CI.
+            ci_upper       (float): upper bound of the CI.
+            confidence     (float): confidence level used.
+            method         (str): method used.
+            n_resamples    (int): number of resamples used.
     """
-    matrix = {row: {col: 0 for col in ERROR_TYPES} for row in ERROR_TYPES}
+    import random
+    import statistics
+
+    n = len(human_labels)
+    if n != len(ai_labels):
+        raise ValueError("human_labels and ai_labels must be the same length")
+    if n < 2:
+        # CI is undefined for a single observation. Return a degenerate result.
+        point = compute_cohens_kappa(human_labels, ai_labels,
+                                     weights=weights, categories=categories)["kappa"]
+        return {"point_estimate": point, "ci_lower": point, "ci_upper": point,
+                "confidence": confidence, "method": method, "n_resamples": 0}
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be between 0 and 1 exclusive")
+    if method not in ("percentile", "bca"):
+        raise ValueError(f"method must be 'percentile' or 'bca'; got {method!r}")
+
+    rng = random.Random(seed)
+
+    pairs = list(zip(human_labels, ai_labels))
+    point = compute_cohens_kappa(human_labels, ai_labels,
+                                 weights=weights, categories=categories)["kappa"]
+
+    boot_kappas = []
+    for _ in range(n_resamples):
+        sample = [rng.choice(pairs) for _ in range(n)]
+        h = [p[0] for p in sample]
+        a = [p[1] for p in sample]
+        boot_kappas.append(
+            compute_cohens_kappa(h, a, weights=weights, categories=categories)["kappa"]
+        )
+    boot_kappas.sort()
+    alpha = 1 - confidence
+
+    def qnorm(p):
+        # Beasley-Springer-Moro inverse normal CDF approximation.
+        if p <= 0 or p >= 1:
+            if p == 0: return float("-inf")
+            if p == 1: return float("inf")
+            raise ValueError("p must be in (0, 1)")
+        a_c = [-3.969683028665376e+01,  2.209460984245205e+02,
+               -2.759285104469687e+02,  1.383577518672690e+02,
+               -3.066479806614716e+01,  2.506628277459239e+00]
+        b_c = [-5.447609879822406e+01,  1.615858368580409e+02,
+               -1.556989798598866e+02,  6.680131188771972e+01,
+               -1.328068155288572e+01]
+        c_c = [-7.784894002430293e-03, -3.223964580411365e-01,
+               -2.400758277161838e+00, -2.549732539343734e+00,
+                4.374664141464968e+00,  2.938163982698783e+00]
+        d_c = [ 7.784695709041462e-03,  3.224671290700398e-01,
+                2.445134137142996e+00,  3.754408661907416e+00]
+        plow = 0.02425
+        phigh = 1 - plow
+        if p < plow:
+            q = math.sqrt(-2 * math.log(p))
+            return (((((c_c[0]*q+c_c[1])*q+c_c[2])*q+c_c[3])*q+c_c[4])*q+c_c[5]) /                    ((((d_c[0]*q+d_c[1])*q+d_c[2])*q+d_c[3])*q+1)
+        if p > phigh:
+            q = math.sqrt(-2 * math.log(1 - p))
+            return -(((((c_c[0]*q+c_c[1])*q+c_c[2])*q+c_c[3])*q+c_c[4])*q+c_c[5]) /                     ((((d_c[0]*q+d_c[1])*q+d_c[2])*q+d_c[3])*q+1)
+        q = p - 0.5
+        r = q * q
+        return (((((a_c[0]*r+a_c[1])*r+a_c[2])*r+a_c[3])*r+a_c[4])*r+a_c[5]) * q /                (((((b_c[0]*r+b_c[1])*r+b_c[2])*r+b_c[3])*r+b_c[4])*r+1)
+
+    def pnorm(z):
+        return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+    if method == "percentile":
+        lo_idx = max(0, int(math.floor((alpha / 2) * n_resamples)))
+        hi_idx = min(n_resamples - 1, int(math.ceil((1 - alpha / 2) * n_resamples)) - 1)
+        return {"point_estimate": point,
+                "ci_lower": round(boot_kappas[lo_idx], 4),
+                "ci_upper": round(boot_kappas[hi_idx], 4),
+                "confidence": confidence, "method": "percentile",
+                "n_resamples": n_resamples}
+
+    # BCa
+    below = sum(1 for x in boot_kappas if x < point)
+    prop_below = below / n_resamples if n_resamples > 0 else 0.5
+    # Guard against degenerate cases.
+    prop_below = min(max(prop_below, 1e-6), 1 - 1e-6)
+    z0 = qnorm(prop_below)
+
+    # Acceleration via leave-one-out jackknife.
+    jack = []
+    for i in range(n):
+        h_jk = human_labels[:i] + human_labels[i+1:]
+        a_jk = ai_labels[:i]    + ai_labels[i+1:]
+        jack.append(compute_cohens_kappa(h_jk, a_jk,
+                                         weights=weights, categories=categories)["kappa"])
+    jack_mean = sum(jack) / n
+    num = sum((jack_mean - x) ** 3 for x in jack)
+    den = 6 * (sum((jack_mean - x) ** 2 for x in jack)) ** 1.5
+    a_hat = num / den if den != 0 else 0.0
+
+    z_lo = qnorm(alpha / 2)
+    z_hi = qnorm(1 - alpha / 2)
+    alpha_1 = pnorm(z0 + (z0 + z_lo) / (1 - a_hat * (z0 + z_lo)))
+    alpha_2 = pnorm(z0 + (z0 + z_hi) / (1 - a_hat * (z0 + z_hi)))
+    lo_idx = max(0, min(n_resamples - 1, int(math.floor(alpha_1 * n_resamples))))
+    hi_idx = max(0, min(n_resamples - 1, int(math.ceil(alpha_2 * n_resamples)) - 1))
+
+    return {"point_estimate": point,
+            "ci_lower": round(boot_kappas[lo_idx], 4),
+            "ci_upper": round(boot_kappas[hi_idx], 4),
+            "confidence": confidence, "method": "bca",
+            "n_resamples": n_resamples}
+
+
+def load_taxonomy_from_json(json_path):
+    """
+    Load a custom error-type taxonomy from a JSON file.
+
+    The file must contain a top-level "labels" array of objects with these
+    required keys: "code" (short unique identifier), "name" (human-readable),
+    "definition" (full description used in the AI prompt). Optional keys:
+    "number" (display index, default position+1), "color" (hex string for
+    GUI, default grey), "example" (default empty string).
+
+    Example custom_taxonomy.json:
+        {
+          "labels": [
+            {"code": "A", "name": "Alpha", "definition": "...", "color": "#f00"},
+            {"code": "B", "name": "Beta",  "definition": "...", "color": "#0f0"}
+          ]
+        }
+
+    Args:
+        json_path (str): path to a JSON file.
+
+    Returns:
+        (list[str], dict): a tuple of (codes_in_order, taxonomy_dict). The
+        taxonomy_dict has the same shape as the built-in TAXONOMY constant.
+
+    Raises:
+        ValueError: if the file is malformed, codes are not unique, or
+                    required keys are missing.
+    """
+    with open(json_path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if "labels" not in data or not isinstance(data["labels"], list):
+        raise ValueError("taxonomy JSON must have a top-level 'labels' array")
+    if len(data["labels"]) < 2:
+        raise ValueError("taxonomy must contain at least 2 labels")
+
+    codes, tax = [], {}
+    for i, entry in enumerate(data["labels"]):
+        for required in ("code", "name", "definition"):
+            if required not in entry:
+                raise ValueError(f"label {i} is missing required key {required!r}")
+        code = entry["code"]
+        if code in tax:
+            raise ValueError(f"duplicate label code: {code!r}")
+        codes.append(code)
+        tax[code] = {
+            "name":       entry["name"],
+            "number":     str(entry.get("number", i + 1)),
+            "definition": entry["definition"],
+            "example":    entry.get("example", ""),
+            "color":      entry.get("color", "#888888"),
+        }
+    return codes, tax
+
+
+def build_confusion_matrix(human_labels, ai_labels, categories=None):
+    """
+    Build a confusion matrix where rows are human labels and columns are AI labels.
+
+    Args:
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels, same length as human_labels.
+        categories   (list[str] | None): explicit category order. If None,
+                     uses the module-level ERROR_TYPES.
+
+    Returns:
+        dict: matrix[human_label][ai_label] = count. Sum of diagonal cells
+        equals the number of agreements; sum of all cells equals len(human_labels).
+    """
+    if categories is None:
+        categories = ERROR_TYPES
+    matrix = {row: {col: 0 for col in categories} for row in categories}
     for h, a in zip(human_labels, ai_labels):
         if h in matrix and a in matrix[h]:
             matrix[h][a] += 1
     return matrix
 
 
-def get_per_type_stats(human_labels, ai_labels):
+def get_per_type_stats(human_labels, ai_labels, categories=None):
     """
-    Compute agreement percentage per error type.
-    Returns dict: type_code -> {total, agreed, pct}
+    Compute per-category agreement statistics.
+
+    Args:
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels, same length as human_labels.
+        categories   (list[str] | None): explicit category order. If None,
+                     uses the module-level ERROR_TYPES.
+
+    Returns:
+        dict: code -> {"total": items the human labelled this code,
+                       "agreed": items where AI matched the human,
+                       "pct": agreement percentage (0 to 100)}.
     """
+    if categories is None:
+        categories = ERROR_TYPES
     stats = {}
-    for label in ERROR_TYPES:
+    for label in categories:
         indices = [i for i, h in enumerate(human_labels) if h == label]
         if not indices:
             stats[label] = {"total": 0, "agreed": 0, "pct": 0}

@@ -83,7 +83,40 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-33 tests, runs in under a second. Covers the kappa formula (with hand-verified worked examples), the confusion matrix, the per-type statistics, and the mathematical invariants that tie them together. Doesn't need an API key or a display.
+55 tests, runs in under a second. Covers the kappa formula (with hand-verified worked examples), weighted kappa (nominal / linear / quadratic), bootstrap confidence intervals (percentile + BCa, seedable), custom-taxonomy loading, the confusion matrix, and the mathematical invariants that tie everything together. Doesn't need an API key or a display.
+
+## Advanced features
+
+All three are stdlib-only and tested.
+
+**Weighted kappa for ordinal taxonomies.** Pass `weights="linear"` or
+`weights="quadratic"` to penalise far-apart disagreements more than adjacent ones:
+
+```python
+from confusion_mapper import compute_cohens_kappa
+r = compute_cohens_kappa(human, ai, weights="linear")
+print(r["kappa"], r["weights"])
+```
+
+**Bootstrap 95% confidence interval (BCa or percentile).** Cohen's kappa is a point
+estimate; this gives you uncertainty around it. The `seed` makes the interval
+bit-identically reproducible:
+
+```python
+from confusion_mapper import bootstrap_kappa_ci
+ci = bootstrap_kappa_ci(human, ai, n_resamples=10000, method="bca", seed=42)
+print(f"kappa = {ci['point_estimate']} (95% CI {ci['ci_lower']} to {ci['ci_upper']})")
+```
+
+**Custom taxonomy via JSON.** Swap the default CFI categories for any 2-or-more
+category nominal scheme. A working example sits at
+`sample_data/custom_taxonomy.json`:
+
+```python
+from confusion_mapper import load_taxonomy_from_json, compute_cohens_kappa
+codes, tax = load_taxonomy_from_json("sample_data/custom_taxonomy.json")
+r = compute_cohens_kappa(human, ai, categories=codes)
+```
 
 ## Why a 4x4 confusion matrix instead of just kappa
 
