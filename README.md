@@ -125,4 +125,4 @@ Initial development was completed as part of Stanford Code in Place 2026. The to
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT License © 2026 Manik Maurya. See [LICENSE](LICENSE) for details.
