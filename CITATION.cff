@@ -1,0 +1,87 @@
+cff-version: 1.2.0
+message: >-
+  If you use ConfusionMapper in your research, please cite it using
+  the metadata below.
+type: software
+title: "ConfusionMapper"
+abstract: >-
+  ConfusionMapper is a Python tool for human–AI hybrid inter-rater
+  reliability (IRR) assessment of cognitive error taxonomy classification
+  in multiple-choice question distractors. It implements the Confusion
+  Fingerprint Index (CFI) taxonomy, computes Cohen's kappa, builds a
+  full 4×4 confusion matrix across all category pairs, and enforces a
+  pre-registration-compliant reliability gate (κ ≥ 0.70) before
+  downstream data collection may proceed.
+authors:
+  - family-names: "Maurya"
+    given-names: "Manik"
+    orcid: "https://orcid.org/0009-0005-3554-693X"
+    email: "manikmaurya.in@gmail.com"
+    affiliation: >-
+      Department of Cognitive Science, Indian Institute of Technology
+      Kanpur, India
+version: "1.0.0"
+date-released: "2026-06-22"
+license: MIT
+repository-code: "https://github.com/Manik-Maurya/Confusion-Mapper"
+url: "https://github.com/Manik-Maurya/Confusion-Mapper"
+# doi: "10.5281/zenodo.XXXXXXX"   ← ADD THIS after creating a Zenodo release
+keywords:
+  - inter-rater reliability
+  - Cohen's kappa
+  - cognitive science
+  - educational assessment
+  - multiple-choice questions
+  - distractor classification
+  - Confusion Fingerprint Index
+  - human-AI collaboration
+  - Python
+  - pre-registration
+preferred-citation:
+  type: article
+  title: >-
+    ConfusionMapper: A Human–AI Hybrid Inter-Rater Reliability Tool for
+    Cognitive Error Taxonomy Classification
+  authors:
+    - family-names: "Maurya"
+      given-names: "Manik"
+      orcid: "https://orcid.org/0009-0005-3554-693X"
+  year: 2026
+  journal: "Journal of Open Source Software"
+  # volume and pages to be updated post-publication
+references:
+  - type: article
+    title: "A coefficient of agreement for nominal scales"
+    authors:
+      - family-names: "Cohen"
+        given-names: "Jacob"
+    year: 1960
+    journal: "Educational and Psychological Measurement"
+    volume: 20
+    issue: 1
+    start: 37
+    end: 46
+    doi: "10.1177/001316446002000104"
+  - type: article
+    title: "The measurement of observer agreement for categorical data"
+    authors:
+      - family-names: "Landis"
+        given-names: "J. Richard"
+      - family-names: "Koch"
+        given-names: "Gary G."
+    year: 1977
+    journal: "Biometrics"
+    volume: 33
+    issue: 1
+    start: 159
+    end: 174
+    doi: "10.2307/2529310"
+  - type: misc
+    title: >-
+      Confusion Fingerprint Index: A Taxonomy of Cognitive Error Types
+      in Multiple-Choice Assessment
+    authors:
+      - family-names: "Maurya"
+        given-names: "Manik"
+    year: 2026
+    doi: "10.35542/osf.io/cr53e_v1"

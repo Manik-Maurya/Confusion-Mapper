@@ -1,64 +1,137 @@
 ---
-title: 'ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research'
+title: 'ConfusionMapper: A Human–AI Hybrid Inter-Rater Reliability Tool for Cognitive Error Taxonomy Classification'
 tags:
   - Python
+  - cognitive science
   - inter-rater reliability
   - Cohen's kappa
-  - educational research
-  - cognitive error classification
-  - adaptive learning
-  - educational data mining
+  - educational assessment
+  - multiple-choice questions
+  - distractor classification
 authors:
   - name: Manik Maurya
     orcid: 0009-0005-3554-693X
     affiliation: 1
 affiliations:
-  - name: Department of Cognitive Science, Indian Institute of Technology Kanpur, Kanpur 208016, Uttar Pradesh, India
+  - name: Department of Cognitive Science, Indian Institute of Technology Kanpur, India
     index: 1
-date: 10 June 2026
+date: 22 June 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
-ConfusionMapper is a Python desktop application for inter-rater reliability (IRR) computation in cognitive error taxonomy research. It operationalises a two-rater classification workflow in which a human researcher and an AI rater independently assign each multiple-choice question (MCQ) distractor to one of four mutually exclusive cognitive error categories: Recall Failure, Partial Knowledge, Confabulation, and Interference. Cohen's kappa (κ) is then computed between the two raters, and results are presented through an interactive visualisation dashboard that includes a kappa gauge, a 4×4 confusion matrix, and per-category agreement statistics. ConfusionMapper was developed as the pre-data-collection quality gate for a preregistered randomised controlled trial investigating whether cognitive error taxonomy can serve as an adaptive learning signal [@maurya2026].
+ConfusionMapper is a Python tool that operationalizes a human–AI hybrid inter-rater
+reliability (IRR) protocol for classifying the cognitive type of errors embedded in
+multiple-choice question (MCQ) distractors. It implements the Confusion Fingerprint
+Index (CFI) taxonomy [@Maurya2026CFI], which partitions incorrect answer choices into
+four theoretically grounded, mutually exclusive cognitive categories: **Recall Failure**
+(RF; absent retrieval trace), **Partial Knowledge** (PK; incomplete but directionally
+correct understanding), **Confabulation** (CF; coherent but incorrect mental model held
+with high confidence), and **Interference** (INT; cross-domain knowledge activated in
+the wrong context). A calibration set of MCQ distractors is classified independently
+by a human researcher and by an AI rater driven by the OpenAI API [@OpenAI2023].
+Cohen's κ [@Cohen1960] is computed on the paired labels; a per-category 4×4 confusion
+matrix and per-type agreement statistics are derived from the same annotation pass.
+A pre-registered reliability gate (κ ≥ 0.70; benchmark after @Landis1977) must be
+satisfied before downstream randomised controlled trial (RCT) data collection may begin,
+and ConfusionMapper issues an explicit go/no-go signal tied to this threshold. Session
+data—human labels, AI labels, item text, and the final κ—are exported to CSV for
+transparent reporting in registered reports [@Nosek2018].
 
 # Statement of Need
 
-Taxonomy-based error classification is a foundational step in the construction of cognitive tutoring systems and adaptive learning platforms that respond to the *type* of error a learner makes, rather than merely to its correctness. For such systems, the validity of any downstream statistical claim depends directly on whether the distractor labels used in the analysis were assigned with sufficient inter-rater agreement. The standard criterion in psychology and educational research is κ ≥ 0.70, corresponding to substantial agreement on the Landis and Koch scale [@landis1977].
+Researchers deploying theory-motivated cognitive error taxonomies in classroom
+experimental designs face a validation bootstrapping problem: the instrument must
+demonstrate inter-rater reliability before it can generate scientifically interpretable
+data, yet establishing that reliability requires systematic rater comparison
+[@Artstein2008]. The conventional solution—two independent expert human raters working
+through the same calibration set—is logistically prohibitive in many educational
+research contexts, particularly low-resource settings where no credentialed second rater
+is available and per-item annotation costs are infeasible within small-grant budgets
+[@Haladyna2002].
 
-In practice, however, researchers conducting small-to-medium-scale studies face an infrastructural gap. General-purpose IRR packages — such as the `irr` library in R or the `cohen_kappa_score` function in scikit-learn [@pedregosa2011] — provide only statistical computation: they accept pre-formatted label arrays and return a scalar. They offer no support for the full workflow that precedes statistical analysis: presenting individual distractors to raters, managing rater sessions, recording reasoning, or flagging items that fall below the reliability threshold. This forces researchers to construct bespoke spreadsheet-based pipelines, increasing the risk of bookkeeping errors and making the classification process difficult to document or reproduce.
+The demonstrated capability of large language models to perform structured text
+annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a human–AI
+hybrid IRR paradigm: a human expert and an AI model independently label the same items,
+and Cohen's κ is computed on the paired outputs. This paradigm is already being used
+informally in educational research, but without dedicated, transparent tooling. No
+existing open-source research software package provides (1) a structured,
+taxonomy-specific AI prompt integrated with a GUI annotation review workflow, (2) a 4×4
+confusion matrix that reveals the precise category boundaries where human–AI
+disagreement concentrates—not just the aggregate coefficient—and (3) a
+pre-registration-compliant go/no-go reliability gate with session-level CSV export for
+registered-report transparency. ConfusionMapper provides all three in a single,
+dependency-minimal Python module.
 
-A further methodological development motivates ConfusionMapper specifically: the growing use of large language models (LLMs) as auxiliary annotators in social-science and educational research. Several studies have demonstrated that GPT-class models can achieve human-comparable agreement rates on structured annotation tasks [@gilardi2023], which suggests a practical workflow for smaller research teams: the researcher classifies each distractor independently, the model classifies in parallel, and κ quantifies the degree of human–AI agreement. This does not substitute for human–human validation — and ConfusionMapper explicitly flags this limitation to the user — but it provides an efficient, low-cost mechanism for identifying borderline items that warrant discussion before data collection begins.
+The tool was developed as the methodological reliability gate for a pre-registered RCT
+investigating whether error-type-specific feedback improves learning outcomes compared
+with correctness-only feedback in government school classrooms (OSF preregistration:
+osf.io/ck6nj). This origin constrains its design toward reproducibility and
+pre-registration compliance rather than general-purpose flexibility.
 
-ConfusionMapper fills this gap by providing an end-to-end workflow: distractor loading, rater session management, AI classification via the OpenAI API, pairwise Cohen's kappa computation with interpretation, threshold flagging, confusion matrix construction, visualisation, and JSON export. No existing open-source tool combines these components for use with a researcher-specified cognitive error taxonomy.
+# State of the Field
 
-# Functionality
+General inter-rater reliability computation is well supported across the scientific
+software ecosystem. The R `irr` package [@Gamer2012] provides Cohen's κ, weighted κ,
+intraclass correlation, and Fleiss's κ for multiple raters. The Python
+`sklearn.metrics.cohen_kappa_score` function computes κ over pre-formatted arrays but
+offers no session management, no taxonomy-specific AI prompting, and no GUI. Qualitative
+data analysis platforms—MAXQDA, NVivo, ATLAS.ti—calculate κ for coded text segments but
+assume two human raters, impose proprietary project formats, and do not export confusion
+matrices structured for four-category nominal taxonomies.
 
-**Classification workflow.** The tool presents each distractor sequentially in a console interface, prompting the researcher to assign one of four CFI labels. In parallel, when an OpenAI API key is available, the same distractor is submitted to GPT-3.5-turbo with a structured system prompt that defines the taxonomy and requests a JSON-formatted response containing the label and a one-sentence reasoning string. The model is called at temperature 0.2 to reduce stochasticity and improve reproducibility across sessions. If the API key is absent or the call fails, the tool falls back to manual-only mode with no disruption to the human-rating workflow.
+Critically, none of these tools treats AI as a first-class rater. ConfusionMapper is not
+a general kappa calculator extended to accept AI output; it is an instrument designed
+specifically around the CFI taxonomy's theoretical structure, where the distinction
+between CF (confident wrong model) and INT (cross-domain activation) is subtle enough
+that the confusion matrix cell [CF, INT] is diagnostically important in its own right.
+The tool makes this cell—and all fifteen off-diagonal cells of the 4×4 matrix—directly
+visible to the researcher, enabling targeted prompt refinement when specific category
+boundaries prove porous under human–AI comparison [@Artstein2008].
 
-**Cohen's kappa computation.** The kappa statistic is computed from first principles following @cohen1960:
+# Software Description
 
-$$\kappa = \frac{P_o - P_e}{1 - P_e}$$
+ConfusionMapper exposes three core functions, each operating on plain Python lists of
+string labels drawn from the CFI vocabulary `{RF, PK, CF, INT}`:
 
-where $P_o$ is the observed proportional agreement between the two raters, and $P_e$ is the agreement expected by chance, computed as the sum over all categories of the product of the marginal proportions assigned by each rater. The implementation handles the edge case where $P_e = 1$ by returning $\kappa = 1.0$. Interpretation follows the Landis and Koch benchmarks [@landis1977], with the research threshold of κ ≥ 0.70 highlighted explicitly in the output.
+**`compute_cohens_kappa(human, ai)`** returns a dict with keys `kappa`, `po`, `pe`,
+`n`, `agreements`, and `interpretation`. The formula follows @Cohen1960. The
+implementation guards against the degenerate case Pe = 1.0 (unanimous single-category
+responses by both raters) by returning κ = 1.0 when Po = 1.0, consistent with the
+standard convention for that edge case.
 
-**Confusion matrix and per-category statistics.** Alongside the scalar kappa, the tool constructs a 4×4 confusion matrix (rows: human labels; columns: AI labels) and computes per-category agreement as the proportion of items that the human labelled as category $c$ for which the AI rater agreed. Per-category statistics are particularly useful for identifying which error types drive disagreement: in the CFI taxonomy, the Confabulation–Partial Knowledge boundary is empirically the most ambiguous, and per-category output allows researchers to target rubric revision precisely.
+**`build_confusion_matrix(human, ai)`** returns a nested dict indexed by
+`[human_label][ai_label]`, providing the full 4×4 cross-tabulation of all label pairs.
+The diagonal sum is guaranteed to equal the `agreements` count from
+`compute_cohens_kappa`, providing a cross-function consistency invariant verified in the
+test suite.
 
-**Visualisation dashboard.** Results are rendered in a tkinter GUI comprising three panels: (1) a semicircular speedometer gauge encoding the κ value with colour-coded zones corresponding to the Landis–Koch benchmarks; (2) the 4×4 confusion matrix with green diagonal cells (agreement) and red off-diagonal cells (disagreement); and (3) a horizontal bar chart of per-category agreement percentages against the 70% threshold line. The tool degrades gracefully on headless systems: if tkinter is unavailable, all statistics are printed to the console and exported to JSON.
+**`get_per_type_stats(human, ai)`** returns per-category statistics (`total`, `agreed`,
+`pct`) across all four CFI types. These per-type figures answer the diagnostic question
+of *where* reliability breaks down—which cognitive error boundary is most porous—rather
+than collapsing agreement to a single aggregate coefficient.
 
-**Built-in question bank and question generation.** The tool ships with a built-in NCERT-aligned question bank covering five topics across Classes 7–8 of the Indian school curriculum, with 15 pre-labelled distractors drawn from the CFI RCT question pool. This enables offline use with no external dependencies beyond the Python standard library. For researchers working with other curricula, the tool supports AI-generated question sets via the OpenAI API and custom CSV import.
+The graphical interface (tkinter) presents each distractor item alongside its human and
+AI label with color-coded agreement highlighting and a running κ display. The AI prompt
+is deterministic and structured to produce a single CFI label without chain-of-thought
+verbosity; temperature is set to zero for reproducibility across sessions. On gate
+passage (κ ≥ 0.70), a confirmation dialog is shown and the complete session is exported
+to CSV.
 
-**Export.** Each session is serialised to a structured JSON file containing the question metadata, distractor text, human and AI labels, AI reasoning strings, agreement flags, and summary statistics. This export format is designed for direct ingestion by downstream analysis pipelines.
-
-# Research Applications
-
-ConfusionMapper was developed and validated in the context of the Confusion Fingerprint Index (CFI) research programme at the Department of Cognitive Science, IIT Kanpur [@maurya2026]. The CFI framework characterises each learner's distribution of error types across a question bank as a diagnostic signal for adaptive learning systems. Establishing reliable distractor labels is a prerequisite for computing CFI profiles, and ConfusionMapper served as the pre-data-collection quality gate for the associated preregistered RCT (n = 90, Classes 6–8, government junior high schools, Kanpur Dehat, Uttar Pradesh, India; OSF preregistration: doi.org/10.17605/OSF.IO/YU6P5), which required κ ≥ 0.70 before data collection could proceed.
-
-The tool is taxonomy-agnostic. Researchers working with other multi-category qualitative coding schemes — such as error taxonomies in mathematics education, misconception frameworks in science education, or rubric-based coding in qualitative research — can substitute their own category set by modifying the `ERROR_TYPES` and `TAXONOMY` constants.
+The test suite (`tests/test_kappa.py`) comprises 35+ assertions across five classes:
+perfect agreement, hand-verified known-value κ calculations with worked examples,
+below-chance agreement, edge cases (n = 0, n = 1), κ symmetry, interpretation threshold
+mapping, confusion matrix cell counting and row/column sum integrity, per-type sum
+consistency, and cross-function agreement consistency. All tests are self-contained and
+require no API credentials or graphical environment.
 
 # Acknowledgements
 
-The author thanks Prof. K. M. Sharika (Department of Cognitive Science, IIT Kanpur) for supervision and research guidance throughout the development of this tool and the associated research programme.
+This software originated as a capstone project for Stanford Code in Place 2026 and was
+developed as the methodological reliability validation tool for a pre-registered RCT
+(OSF preregistration: osf.io/ck6nj) at the Department of Cognitive Science, IIT Kanpur.
+The author thanks the Code in Place instructors and community for feedback during the
+initial development phase.
 
 # References

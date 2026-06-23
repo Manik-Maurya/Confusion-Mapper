@@ -59,7 +59,6 @@ import os
 import json
 import math
 import datetime
-import tkinter as tk
 
 # Graceful fallback if openai not installed
 try:
@@ -68,12 +67,14 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-# Graceful fallback if tkinter display not available
+# Graceful fallback if tkinter is not installed OR no display is available
 try:
+    import tkinter as tk
     _test = tk.Tk()
     _test.destroy()
     TKINTER_AVAILABLE = True
 except Exception:
+    tk = None
     TKINTER_AVAILABLE = False
 
 

@@ -413,3 +413,155 @@ class TestConsistencyAcrossFunctions:
         stats = get_per_type_stats(human, ai)
         total_from_stats = sum(stats[label]["total"] for label in ERROR_TYPES)
         assert total_from_stats == len(human)
+
+
+# ===========================================================================
+# SECTION 5 — Mathematical properties and additional boundary conditions
+# ===========================================================================
+
+class TestAdditionalProperties:
+    """
+    Property-based and boundary tests that verify mathematical invariants
+    rather than specific known outputs. Each test documents the invariant
+    it encodes so failures are self-explanatory.
+    """
+
+    def test_kappa_is_symmetric(self):
+        """
+        Cohen's κ is symmetric: κ(h, ai) == κ(ai, h).
+
+        Proof sketch:
+          Po = agreements/n is unchanged by swapping the two lists.
+          Pe = Σ_k p_h_k × p_ai_k = Σ_k p_ai_k × p_h_k  (multiplication is commutative).
+          Therefore κ = (Po − Pe)/(1 − Pe) is identical in both directions.
+        """
+        human = ["CF", "CF", "RF", "RF", "PK", "INT", "CF", "RF", "INT", "PK"]
+        ai    = ["CF", "RF", "RF", "CF", "PK", "INT", "CF", "RF", "PK",  "PK"]
+
+        kappa_h_ai = compute_cohens_kappa(human, ai)["kappa"]
+        kappa_ai_h = compute_cohens_kappa(ai, human)["kappa"]
+
+        assert abs(kappa_h_ai - kappa_ai_h) < 1e-9, (
+            f"κ not symmetric: κ(h,ai)={kappa_h_ai:.6f}, κ(ai,h)={kappa_ai_h:.6f}"
+        )
+
+    def test_kappa_reproducibility(self):
+        """
+        Same input must always produce identical output.
+        The implementation is deterministic (no randomness, no mutable state).
+        """
+        human = ["CF", "RF", "PK", "INT", "CF", "RF"]
+        ai    = ["CF", "CF", "PK", "INT", "RF", "RF"]
+
+        result_1 = compute_cohens_kappa(human, ai)
+        result_2 = compute_cohens_kappa(human, ai)
+
+        assert result_1 == result_2
+
+    def test_pe_guard_all_same_category_both_raters(self):
+        """
+        When both raters unanimously choose the same single category,
+        Pe = (n/n)(n/n) = 1.0.
+
+        The Pe = 1.0 guard should return κ = 1.0 because Po = 1.0 too.
+
+        Without the guard, the formula yields 0/0 (division by zero).
+        Correct convention: unanimous perfect agreement → κ = 1.0.
+        """
+        human = ["RF"] * 8
+        ai    = ["RF"] * 8
+        result = compute_cohens_kappa(human, ai)
+
+        assert result["kappa"] == 1.0, (
+            f"Pe=1.0 guard failed: got κ={result['kappa']}"
+        )
+        assert result["agreements"] == 8
+
+    def test_large_n_does_not_crash_and_stays_bounded(self):
+        """
+        κ computation on n = 1 000 items should complete without error
+        and return a value in [-1, 1].
+        """
+        import random
+        random.seed(99)
+        n = 1000
+        human = [random.choice(ERROR_TYPES) for _ in range(n)]
+        ai    = [random.choice(ERROR_TYPES) for _ in range(n)]
+
+        result = compute_cohens_kappa(human, ai)
+
+        assert result["n"] == n
+        assert -1.0 <= result["kappa"] <= 1.0
+
+    def test_matrix_row_sums_equal_human_label_counts(self):
+        """
+        For every error type t, sum of matrix[t][*] == count of t in human labels.
+
+        Invariant: each row of the confusion matrix counts how many times
+        the *human* assigned that label, regardless of what the AI assigned.
+        """
+        from collections import Counter
+        human = ["CF", "CF", "RF", "PK", "CF", "INT", "RF", "PK"]
+        ai    = ["CF", "RF", "RF", "PK", "INT", "INT", "CF", "PK"]
+        matrix       = build_confusion_matrix(human, ai)
+        human_counts = Counter(human)
+
+        for label in ERROR_TYPES:
+            row_sum  = sum(matrix[label][col] for col in ERROR_TYPES)
+            expected = human_counts.get(label, 0)
+            assert row_sum == expected, (
+                f"Row '{label}' sums to {row_sum}, expected {expected}"
+            )
+
+    def test_matrix_col_sums_equal_ai_label_counts(self):
+        """
+        For every error type t, sum of matrix[*][t] == count of t in AI labels.
+
+        Invariant: each column of the confusion matrix counts how many times
+        the *AI* assigned that label, regardless of what the human assigned.
+        """
+        from collections import Counter
+        human = ["CF", "CF", "RF", "PK", "CF", "INT", "RF", "PK"]
+        ai    = ["CF", "RF", "RF", "PK", "INT", "INT", "CF", "PK"]
+        matrix    = build_confusion_matrix(human, ai)
+        ai_counts = Counter(ai)
+
+        for label in ERROR_TYPES:
+            col_sum  = sum(matrix[row][label] for row in ERROR_TYPES)
+            expected = ai_counts.get(label, 0)
+            assert col_sum == expected, (
+                f"Column '{label}' sums to {col_sum}, expected {expected}"
+            )
+
+    def test_per_type_agreed_never_exceeds_total(self):
+        """
+        For every error type, agreed ≤ total.
+
+        Violated only if a rater were credited with an agreement on an item
+        they did not actually label — a structural impossibility that this
+        test guards against across randomised inputs.
+        """
+        import random
+        random.seed(77)
+        human = [random.choice(ERROR_TYPES) for _ in range(50)]
+        ai    = [random.choice(ERROR_TYPES) for _ in range(50)]
+        stats = get_per_type_stats(human, ai)
+
+        for label in ERROR_TYPES:
+            assert stats[label]["agreed"] <= stats[label]["total"], (
+                f"{label}: agreed={stats[label]['agreed']} "
+                f"> total={stats[label]['total']}"
+            )
+
+    def test_n_field_matches_input_length_across_sizes(self):
+        """
+        The 'n' field returned by compute_cohens_kappa must equal
+        len(human) == len(ai) for all non-trivial input sizes.
+        """
+        for length in [2, 5, 20, 100]:
+            human = (ERROR_TYPES * (length // 4 + 1))[:length]
+            ai    = (ERROR_TYPES[::-1] * (length // 4 + 1))[:length]
+            result = compute_cohens_kappa(human, ai)
+            assert result["n"] == length, (
+                f"n field={result['n']} but input length={length}"
+            )

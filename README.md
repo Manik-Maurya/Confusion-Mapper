@@ -2,6 +2,7 @@
 
 **AI-Assisted Distractor Classification and Cohen's Kappa Inter-Rater Reliability Tool**
 
+[![Tests](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml/badge.svg)](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 
@@ -132,7 +133,7 @@ Built during a research internship at the Department of Cognitive Science, IIT K
 
 ## License
 
-MIT License © 2026 Manik Maurya. See [LICENSE.txt](LICENSE.txt) for details.
+MIT License © 2026 Manik Maurya. See [LICENSE](LICENSE) for details.
 
 ---
 
