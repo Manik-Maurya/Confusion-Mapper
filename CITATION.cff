@@ -25,7 +25,7 @@ date-released: "2026-06-22"
 license: MIT
 repository-code: "https://github.com/Manik-Maurya/Confusion-Mapper"
 url: "https://github.com/Manik-Maurya/Confusion-Mapper"
-# doi: "10.5281/zenodo.XXXXXXX"   <- ADD THIS after creating a Zenodo release
+doi: "10.5281/zenodo.20807432"
 keywords:
   - inter-rater reliability
   - Cohen's kappa

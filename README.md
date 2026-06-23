@@ -2,6 +2,7 @@
 
 A Python tool for classifying wrong answer choices in multiple-choice questions by the type of cognitive error they represent, and for computing how well a human researcher and an AI rater agree on those labels.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20807432.svg)](https://doi.org/10.5281/zenodo.20807432)
 [![Tests](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml/badge.svg)](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
@@ -94,20 +95,23 @@ The AI rater is a starting point, not a substitute for a second human. For publi
 
 ## How to cite
 
+Archived release on Zenodo: https://doi.org/10.5281/zenodo.20807432
+
 APA:
 
-> Maurya, M. (2026). *ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research*. Journal of Open Source Software. https://github.com/Manik-Maurya/Confusion-Mapper
+> Maurya, M. (2026). *ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research* (Version 1.0.0) [Software]. Zenodo. https://doi.org/10.5281/zenodo.20807432
 
 BibTeX:
 
 ```bibtex
-@article{maurya2026confusionmapper,
+@software{maurya2026confusionmapper,
   author    = {Maurya, Manik},
   title     = {ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification
                and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research},
-  journal   = {Journal of Open Source Software},
   year      = {2026},
-  url       = {https://github.com/Manik-Maurya/Confusion-Mapper}
+  version   = {1.0.0},
+  doi       = {10.5281/zenodo.20807432},
+  url       = {https://doi.org/10.5281/zenodo.20807432}
 }
 ```
 
