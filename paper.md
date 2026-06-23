@@ -33,7 +33,7 @@ the wrong context). A calibration set of MCQ distractors is classified independe
 by a human researcher and by an AI rater driven by the OpenAI API [@OpenAI2023].
 Cohen's κ [@Cohen1960] is computed on the paired labels; a per-category 4×4 confusion
 matrix and per-type agreement statistics are derived from the same annotation pass.
-A pre-registered reliability gate (κ ≥ 0.70; benchmark after @Landis1977) must be
+A pre-registered reliability gate (κ >= 0.70; benchmark after @Landis1977) must be
 satisfied before downstream randomised controlled trial (RCT) data collection may begin,
 and ConfusionMapper issues an explicit go/no-go signal tied to this threshold. Session
 data (human labels, AI labels, item text, and the final κ) are exported to CSV for
@@ -54,9 +54,9 @@ annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a hum
 hybrid IRR paradigm: a human expert and an AI model independently label the same items,
 and Cohen's κ is computed on the paired outputs. Recent empirical work on LLM raters in
 qualitative analysis, however, finds that human-LLM agreement varies substantially
-across the categories of a single rubric, from moderate (κ ≈ 0.4) on some themes to
+across the categories of a single rubric, from moderate (κ ~ 0.4) on some themes to
 substantial (κ > 0.6) on neighbouring themes within the same coding scheme
-[@Wang2025LLMIRR]. This per-category heterogeneity makes it essential that researchers
+[@Borse2025LLMIRR]. This per-category heterogeneity makes it essential that researchers
 measure agreement on *their own* taxonomy before treating LLM output as a usable label,
 rather than assuming model-level benchmarks transfer. Yet this paradigm is being
 adopted in educational research without dedicated, transparent tooling. No existing
@@ -118,7 +118,7 @@ The graphical interface (tkinter) presents each distractor item alongside its hu
 AI label with color-coded agreement highlighting and a running κ display. The AI prompt
 is deterministic and structured to produce a single CFI label without chain-of-thought
 verbosity; temperature is set to zero for reproducibility across sessions. On gate
-passage (κ ≥ 0.70), a confirmation dialog is shown and the complete session is exported
+passage (κ >= 0.70), a confirmation dialog is shown and the complete session is exported
 to CSV.
 
 The test suite (`tests/test_kappa.py`) comprises 35+ assertions across five classes:
@@ -133,4 +133,6 @@ require no API credentials or graphical environment.
 This software originated as a capstone project for Stanford Code in Place 2026 and was
 developed as the methodological reliability validation tool for a pre-registered RCT
 (OSF preregistration: osf.io/ck6nj) at the Department of Cognitive Science, IIT Kanpur.
-The author thanks the Co
+The author thanks the Code in Place instructors and community for feedback during the initial development phase.
+
+# References
