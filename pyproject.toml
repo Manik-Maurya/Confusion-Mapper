@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "confusion-mapper"
+version = "1.0.0"
+description = "Human-AI hybrid inter-rater reliability tool for cognitive error taxonomy classification in MCQ distractors."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Manik Maurya", email = "manikmaurya.in@gmail.com" }
+]
+keywords = [
+    "inter-rater-reliability",
+    "cohens-kappa",
+    "cognitive-science",
+    "educational-assessment",
+    "multiple-choice-questions",
+    "distractor-classification",
+    "human-ai-collaboration",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Education :: Testing",
+]
+dependencies = [
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Manik-Maurya/Confusion-Mapper"
+Repository = "https://github.com/Manik-Maurya/Confusion-Mapper"
+Issues = "https://github.com/Manik-Maurya/Confusion-Mapper/issues"
+
+[project.scripts]
+confusion-mapper = "confusion_mapper:main"
+
+[tool.setuptools]
+py-modules = ["confusion_mapper"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

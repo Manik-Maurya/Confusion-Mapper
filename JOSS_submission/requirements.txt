@@ -1,9 +1,0 @@
-# ConfusionMapper — runtime dependencies
-# tkinter is part of the Python standard library and requires no installation.
-# All other standard library modules (os, json, math, datetime) require no installation.
-
-# AI rater support (optional but required for full functionality)
-openai>=1.0.0
-
-# Development / testing (not required for end users)
-# pytest>=7.0.0

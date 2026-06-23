@@ -9,6 +9,7 @@ on:
 
 jobs:
   test:
+    name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,11 +25,38 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install package + dev dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e ".[dev]"
 
       - name: Run pytest
         run: pytest tests/ -v
+
+      - name: Run headless demo (smoke test)
+        run: python examples/demo.py
+
+  paper:
+    name: JOSS paper build check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify paper.md and paper.bib exist
+        run: |
+          test -f paper.md
+          test -f paper.bib
+          echo "paper.md word count: $(wc -w < paper.md)"
+
+      - name: Build JOSS draft PDF
+        uses: openjournals/openjournals-draft-action@master
+        with:
+          journal: joss
+          paper-path: paper.md
+
+      - name: Upload paper PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-draft
+          path: paper.pdf

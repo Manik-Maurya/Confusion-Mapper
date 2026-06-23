@@ -1,0 +1,31 @@
+item_id,distractor_text,human_label,ai_label
+Q1_A,"The mitochondria produce energy by breaking down glucose using only oxygen",PK,PK
+Q1_B,"The mitochondria are part of the cell wall in plant cells",CF,CF
+Q1_C,"Mitochondria store genetic information for the cell",INT,INT
+Q1_D,"Random unrelated answer about plant photosynthesis",RF,RF
+Q2_A,"Newton's first law says force equals mass times acceleration",INT,INT
+Q2_B,"Newton's first law applies only to objects on Earth",CF,CF
+Q2_C,"An object at rest stays at rest unless acted on by a force, except in vacuum",PK,PK
+Q2_D,"I do not know",RF,RF
+Q3_A,"Photosynthesis happens in the mitochondria of plant cells",CF,INT
+Q3_B,"Plants use sunlight, water, and oxygen to make glucose",PK,PK
+Q3_C,"Photosynthesis is the process of digesting food in animals",RF,RF
+Q3_D,"Chlorophyll absorbs light to power photosynthesis in leaves only",PK,PK
+Q4_A,"Density equals mass times volume",CF,CF
+Q4_B,"Density is measured in kilograms",PK,PK
+Q4_C,"Density is the force pulling objects toward Earth",INT,CF
+Q4_D,"Density only applies to liquids",RF,RF
+Q5_A,"Acids turn blue litmus paper red",PK,PK
+Q5_B,"Acids and bases are both safe to taste",CF,CF
+Q5_C,"Acids are found only in lemons",RF,RF
+Q5_D,"Acids increase the pH of a solution",INT,INT
+Q6_A,"Gravity is stronger on the Moon than on Earth",CF,CF
+Q6_B,"Gravity pulls objects toward the center of mass",PK,PK
+Q6_C,"Gravity only acts on objects that are falling",RF,PK
+Q6_D,"Gravity is what makes the Earth orbit the Sun, similar to magnetic force",INT,INT
+Q7_A,"The heart pumps blood only to the lungs",PK,PK
+Q7_B,"The heart produces blood cells in its chambers",CF,CF
+Q7_C,"The heart is located in the abdomen",RF,RF
+Q7_D,"The heart filters waste from blood like the kidneys",INT,INT
+Q8_A,"Water boils at 100 degrees Celsius at sea level only",PK,PK
+Q8_B,"Water expands when frozen because hydrogen bonds shrink",CF,CF

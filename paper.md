@@ -42,27 +42,31 @@ transparent reporting in registered reports [@Nosek2018].
 # Statement of Need
 
 Researchers deploying theory-motivated cognitive error taxonomies in classroom
-experimental designs face a validation bootstrapping problem: the instrument must
-demonstrate inter-rater reliability before it can generate scientifically interpretable
-data, yet establishing that reliability requires systematic rater comparison
-[@Artstein2008]. The conventional solution—two independent expert human raters working
-through the same calibration set—is logistically prohibitive in many educational
-research contexts, particularly low-resource settings where no credentialed second rater
-is available and per-item annotation costs are infeasible within small-grant budgets
-[@Haladyna2002].
+designs face a validation bootstrapping problem: the instrument must demonstrate IRR
+before generating interpretable data, yet establishing reliability requires systematic
+rater comparison [@Artstein2008]. The conventional two-expert-human solution is
+logistically prohibitive in many educational contexts, particularly low-resource
+settings where no credentialed second rater is available and per-item annotation costs
+exceed small-grant budgets [@Haladyna2002].
 
 The demonstrated capability of large language models to perform structured text
 annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a human–AI
 hybrid IRR paradigm: a human expert and an AI model independently label the same items,
-and Cohen's κ is computed on the paired outputs. This paradigm is already being used
-informally in educational research, but without dedicated, transparent tooling. No
-existing open-source research software package provides (1) a structured,
-taxonomy-specific AI prompt integrated with a GUI annotation review workflow, (2) a 4×4
-confusion matrix that reveals the precise category boundaries where human–AI
-disagreement concentrates—not just the aggregate coefficient—and (3) a
-pre-registration-compliant go/no-go reliability gate with session-level CSV export for
-registered-report transparency. ConfusionMapper provides all three in a single,
-dependency-minimal Python module.
+and Cohen's κ is computed on the paired outputs. Recent empirical work on LLM raters in
+qualitative analysis, however, finds that human–LLM agreement varies substantially
+across the categories of a single rubric—from moderate (κ ≈ 0.4) on some themes to
+substantial (κ > 0.6) on neighbouring themes within the same coding scheme
+[@Wang2025LLMIRR]. This per-category heterogeneity makes it essential that researchers
+measure agreement on *their own* taxonomy before treating LLM output as a usable label,
+rather than assuming model-level benchmarks transfer. Yet this paradigm is being
+adopted in educational research without dedicated, transparent tooling. No existing
+open-source research software package provides (1) a structured, taxonomy-specific AI
+prompt integrated with a GUI annotation review workflow, (2) a 4×4 confusion matrix
+that reveals the precise category boundaries where human–AI disagreement
+concentrates—not just the aggregate coefficient—and (3) a pre-registration-compliant
+go/no-go reliability gate with session-level CSV export for registered-report
+transparency. ConfusionMapper provides all three in a single, dependency-minimal Python
+module.
 
 The tool was developed as the methodological reliability gate for a pre-registered RCT
 investigating whether error-type-specific feedback improves learning outcomes compared
@@ -72,23 +76,21 @@ pre-registration compliance rather than general-purpose flexibility.
 
 # State of the Field
 
-General inter-rater reliability computation is well supported across the scientific
-software ecosystem. The R `irr` package [@Gamer2012] provides Cohen's κ, weighted κ,
-intraclass correlation, and Fleiss's κ for multiple raters. The Python
-`sklearn.metrics.cohen_kappa_score` function computes κ over pre-formatted arrays but
-offers no session management, no taxonomy-specific AI prompting, and no GUI. Qualitative
-data analysis platforms—MAXQDA, NVivo, ATLAS.ti—calculate κ for coded text segments but
-assume two human raters, impose proprietary project formats, and do not export confusion
-matrices structured for four-category nominal taxonomies.
+General IRR computation is well supported. The R `irr` package [@Gamer2012] provides
+Cohen's κ, weighted κ, ICC, and Fleiss's κ. Python's `sklearn.metrics.cohen_kappa_score`
+computes κ over pre-formatted arrays but offers no session management, no
+taxonomy-specific AI prompting, and no GUI. Qualitative data analysis
+platforms—MAXQDA, NVivo, ATLAS.ti—calculate κ for coded segments but assume two human
+raters, use proprietary project formats, and do not export confusion matrices
+structured for four-category nominal taxonomies.
 
-Critically, none of these tools treats AI as a first-class rater. ConfusionMapper is not
-a general kappa calculator extended to accept AI output; it is an instrument designed
-specifically around the CFI taxonomy's theoretical structure, where the distinction
-between CF (confident wrong model) and INT (cross-domain activation) is subtle enough
-that the confusion matrix cell [CF, INT] is diagnostically important in its own right.
-The tool makes this cell—and all fifteen off-diagonal cells of the 4×4 matrix—directly
-visible to the researcher, enabling targeted prompt refinement when specific category
-boundaries prove porous under human–AI comparison [@Artstein2008].
+Critically, none of these tools treats AI as a first-class rater. ConfusionMapper is
+designed specifically around the CFI taxonomy, where the distinction between CF
+(confident wrong model) and INT (cross-domain activation) is subtle enough that the
+confusion matrix cell [CF, INT] is diagnostically important in its own right. The tool
+makes this cell—and all fifteen off-diagonal cells of the 4×4 matrix—directly visible,
+enabling targeted prompt refinement when category boundaries prove porous under
+human–AI comparison [@Artstein2008].
 
 # Software Description
 

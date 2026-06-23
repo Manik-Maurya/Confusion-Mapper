@@ -49,15 +49,23 @@ ConfusionMapper classifies distractors into four mutually exclusive error types:
 
 ## Installation
 
+**From source (recommended for research use):**
 ```bash
 git clone https://github.com/Manik-Maurya/Confusion-Mapper.git
 cd Confusion-Mapper
-pip install openai
+pip install -e .
 ```
 
-`tkinter` is part of the Python standard library. No additional installation is required for it.
+This installs the package and its sole dependency (`openai>=1.0.0`) and exposes the `confusion-mapper` console entry point.
 
-**Python version:** 3.8 or higher.
+**For development (includes pytest):**
+```bash
+pip install -e ".[dev]"
+```
+
+`tkinter` is part of the Python standard library on most distributions. On minimal Debian/Ubuntu images install it with `sudo apt-get install python3-tk`; ConfusionMapper falls back to console-only mode if `tkinter` is unavailable.
+
+**Python version:** 3.9 or higher.
 
 ---
 
@@ -83,14 +91,24 @@ The tool will present each distractor sequentially. You enter `1` (RF), `2` (PK)
 
 ---
 
+## Headless Example
+
+A self-contained tutorial that reproduces a complete κ analysis on 30 pre-labelled distractors — no API key, no display, runs in under a second:
+
+```bash
+python examples/demo.py
+```
+
+Expected output: Cohen's κ ≈ 0.87, full 4×4 confusion matrix, per-category agreement statistics, and a PASS verdict against the κ ≥ 0.70 pre-registration gate. Replace `sample_data/example_labels.csv` with your own paired human/AI labels to adapt the script to your own taxonomy.
+
 ## Running Tests
 
 ```bash
-pip install pytest
+pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-The test suite covers Cohen's kappa computation (including worked numerical examples), confusion matrix construction, per-type statistics, and consistency across all three functions. No API key or display is required.
+The test suite (33 tests, runs in under a second) covers Cohen's kappa computation (including hand-verified worked numerical examples), confusion matrix construction, per-type statistics, mathematical invariants (symmetry, bounded output, row/column sum integrity), and consistency across all three functions. No API key or display is required.
 
 ---
 
@@ -124,6 +142,10 @@ If you use ConfusionMapper in your research, please cite it as follows.
 ```
 
 ---
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
 
 ## Acknowledgements
 
