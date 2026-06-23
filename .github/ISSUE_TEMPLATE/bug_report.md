@@ -30,4 +30,4 @@ What you actually saw (paste the full output, including any traceback).
 - `openai` library version (if AI rater is involved):
 
 ## Additional context
-Anything else that would help reproduce or diagnose the bug — relevant configuration, the size of your label set, whether the bug appears with the GUI only or also in headless mode, etc.
+Anything else that would help reproduce or diagnose the bug, relevant configuration, the size of your label set, whether the bug appears with the GUI only or also in headless mode, etc.

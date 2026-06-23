@@ -1,5 +1,5 @@
 ---
-title: 'ConfusionMapper: A Human–AI Hybrid Inter-Rater Reliability Tool for Cognitive Error Taxonomy Classification'
+title: 'ConfusionMapper: A Human-AI Hybrid Inter-Rater Reliability Tool for Cognitive Error Taxonomy Classification'
 tags:
   - Python
   - cognitive science
@@ -21,7 +21,7 @@ bibliography: paper.bib
 
 # Summary
 
-ConfusionMapper is a Python tool that operationalizes a human–AI hybrid inter-rater
+ConfusionMapper is a Python tool that operationalizes a human-AI hybrid inter-rater
 reliability (IRR) protocol for classifying the cognitive type of errors embedded in
 multiple-choice question (MCQ) distractors. It implements the Confusion Fingerprint
 Index (CFI) taxonomy [@Maurya2026CFI], which partitions incorrect answer choices into
@@ -36,7 +36,7 @@ matrix and per-type agreement statistics are derived from the same annotation pa
 A pre-registered reliability gate (κ ≥ 0.70; benchmark after @Landis1977) must be
 satisfied before downstream randomised controlled trial (RCT) data collection may begin,
 and ConfusionMapper issues an explicit go/no-go signal tied to this threshold. Session
-data—human labels, AI labels, item text, and the final κ—are exported to CSV for
+data (human labels, AI labels, item text, and the final κ) are exported to CSV for
 transparent reporting in registered reports [@Nosek2018].
 
 # Statement of Need
@@ -50,11 +50,11 @@ settings where no credentialed second rater is available and per-item annotation
 exceed small-grant budgets [@Haladyna2002].
 
 The demonstrated capability of large language models to perform structured text
-annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a human–AI
+annotation tasks at high accuracy [@OpenAI2023] creates the possibility of a human-AI
 hybrid IRR paradigm: a human expert and an AI model independently label the same items,
 and Cohen's κ is computed on the paired outputs. Recent empirical work on LLM raters in
-qualitative analysis, however, finds that human–LLM agreement varies substantially
-across the categories of a single rubric—from moderate (κ ≈ 0.4) on some themes to
+qualitative analysis, however, finds that human-LLM agreement varies substantially
+across the categories of a single rubric, from moderate (κ ≈ 0.4) on some themes to
 substantial (κ > 0.6) on neighbouring themes within the same coding scheme
 [@Wang2025LLMIRR]. This per-category heterogeneity makes it essential that researchers
 measure agreement on *their own* taxonomy before treating LLM output as a usable label,
@@ -62,8 +62,8 @@ rather than assuming model-level benchmarks transfer. Yet this paradigm is being
 adopted in educational research without dedicated, transparent tooling. No existing
 open-source research software package provides (1) a structured, taxonomy-specific AI
 prompt integrated with a GUI annotation review workflow, (2) a 4×4 confusion matrix
-that reveals the precise category boundaries where human–AI disagreement
-concentrates—not just the aggregate coefficient—and (3) a pre-registration-compliant
+that reveals the precise category boundaries where human-AI disagreement
+concentrates, not just the aggregate coefficient, and (3) a pre-registration-compliant
 go/no-go reliability gate with session-level CSV export for registered-report
 transparency. ConfusionMapper provides all three in a single, dependency-minimal Python
 module.
@@ -80,17 +80,17 @@ General IRR computation is well supported. The R `irr` package [@Gamer2012] prov
 Cohen's κ, weighted κ, ICC, and Fleiss's κ. Python's `sklearn.metrics.cohen_kappa_score`
 computes κ over pre-formatted arrays but offers no session management, no
 taxonomy-specific AI prompting, and no GUI. Qualitative data analysis
-platforms—MAXQDA, NVivo, ATLAS.ti—calculate κ for coded segments but assume two human
-raters, use proprietary project formats, and do not export confusion matrices
+platforms (MAXQDA, NVivo, ATLAS.ti) calculate κ for coded segments but assume two
+human raters, use proprietary project formats, and do not export confusion matrices
 structured for four-category nominal taxonomies.
 
 Critically, none of these tools treats AI as a first-class rater. ConfusionMapper is
 designed specifically around the CFI taxonomy, where the distinction between CF
 (confident wrong model) and INT (cross-domain activation) is subtle enough that the
 confusion matrix cell [CF, INT] is diagnostically important in its own right. The tool
-makes this cell—and all fifteen off-diagonal cells of the 4×4 matrix—directly visible,
+makes this cell, and all fifteen off-diagonal cells of the 4×4 matrix, directly visible,
 enabling targeted prompt refinement when category boundaries prove porous under
-human–AI comparison [@Artstein2008].
+human-AI comparison [@Artstein2008].
 
 # Software Description
 
@@ -111,8 +111,8 @@ test suite.
 
 **`get_per_type_stats(human, ai)`** returns per-category statistics (`total`, `agreed`,
 `pct`) across all four CFI types. These per-type figures answer the diagnostic question
-of *where* reliability breaks down—which cognitive error boundary is most porous—rather
-than collapsing agreement to a single aggregate coefficient.
+of *where* reliability breaks down (which cognitive error boundary is most porous),
+rather than collapsing agreement to a single aggregate coefficient.
 
 The graphical interface (tkinter) presents each distractor item alongside its human and
 AI label with color-coded agreement highlighting and a running κ display. The AI prompt
@@ -133,7 +133,4 @@ require no API credentials or graphical environment.
 This software originated as a capstone project for Stanford Code in Place 2026 and was
 developed as the methodological reliability validation tool for a pre-registered RCT
 (OSF preregistration: osf.io/ck6nj) at the Department of Cognitive Science, IIT Kanpur.
-The author thanks the Code in Place instructors and community for feedback during the
-initial development phase.
-
-# References
+The author thanks the Co

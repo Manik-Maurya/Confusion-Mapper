@@ -5,35 +5,35 @@ ConfusionMapper v1.0
 AI-Assisted Distractor Classification & Inter-Rater Reliability Tool
 for Educational Research
 
-Built for Stanford Code in Place 2026 — Final Project
-Manik Maurya · Department of Cognitive Science, IIT Kanpur (Research Intern)
+Built for Stanford Code in Place 2026, Final Project
+Manik Maurya | Department of Cognitive Science, IIT Kanpur (Research Intern)
 
 WHAT THIS DOES
 --------------
 In educational research, MCQ distractors (wrong answer options) reveal HOW
-a student is thinking — not just THAT they got it wrong. This tool classifies
+a student is thinking, not just THAT they got it wrong. This tool classifies
 each distractor into one of four cognitive error types:
 
-  RF  — Recall Failure     (no memory trace; random or implausible answer)
-  PK  — Partial Knowledge  (almost right; correct direction, incomplete model)
-  CF  — Confabulation      (confident wrong belief; coherent misconception)
-  INT — Interference       (correct answer for a DIFFERENT topic)
+  RF , Recall Failure     (no memory trace; random or implausible answer)
+  PK , Partial Knowledge  (almost right; correct direction, incomplete model)
+  CF , Confabulation      (confident wrong belief; coherent misconception)
+  INT, Interference       (correct answer for a DIFFERENT topic)
 
 A human researcher and an AI independently classify each distractor.
-Cohen's Kappa (κ) measures their agreement. Research target: κ ≥ 0.70.
+Cohen's Kappa (kappa) measures their agreement. Research target: kappa >= 0.70.
 
 USAGE
 -----
   python confusion_mapper.py
 
-  Optional — enable AI rater mode:
+  Optional, enable AI rater mode:
     export OPENAI_API_KEY="your-key-here"   (Mac/Linux)
     set OPENAI_API_KEY=your-key-here        (Windows)
 
 RESEARCH CONTEXT
 ----------------
 This tool is the pre-data-collection quality gate for "The Confusion
-Fingerprint Study" — a pre-registered three-arm RCT (n=90) in government junior high schools, Kanpur Dehat, Uttar Pradesh.
+Fingerprint Study", a pre-registered three-arm RCT (n=90) in government junior high schools, Kanpur Dehat, Uttar Pradesh.
 testing whether classifying the cognitive TYPE of a student error produces
 better 2-week delayed retention than correctness-only adaptive learning.
 
@@ -42,15 +42,15 @@ The Confusion Fingerprint Index (CFI):
   CFI-INT = INT errors / (INT + RF errors)  [secondary predictor]
   CFI-RF  = RF errors / total errors        [weak/null predictor]
 
-Cohen's Kappa formula:  κ = (Po - Pe) / (1 - Pe)
+Cohen's Kappa formula:  kappa = (Po - Pe) / (1 - Pe)
   Po = observed proportional agreement
   Pe = agreement expected by chance
 
 REQUIREMENTS
 ------------
   Python 3.8+
-  tkinter (built into Python — no install needed)
-  openai  (optional: pip install openai — for AI rater mode)
+  tkinter (built into Python, no install needed)
+  openai  (optional: pip install openai, for AI rater mode)
 
 ==============================================================================
 """
@@ -79,14 +79,14 @@ except Exception:
 
 
 # ==============================================================================
-# SECTION 1 — CONSTANTS & TAXONOMY DEFINITIONS
+# SECTION 1, CONSTANTS & TAXONOMY DEFINITIONS
 # ==============================================================================
 
 APP_VERSION  = "1.0"
 DATA_FILE    = "confusion_mapper_sessions.json"
 ERROR_TYPES  = ["RF", "PK", "CF", "INT"]
 
-# Full taxonomy — used for on-screen reference and ChatGPT prompting
+# Full taxonomy, used for on-screen reference and ChatGPT prompting
 TAXONOMY = {
     "RF": {
         "name":      "Recall Failure",
@@ -95,14 +95,14 @@ TAXONOMY = {
             "No consolidated memory trace. The answer is random, implausible, "
             "or reflects explicit uncertainty. The student simply has no encoding."
         ),
-        "example":   "Answering 'mitochondria' to a photosynthesis question — no logical link.",
+        "example":   "Answering 'mitochondria' to a photosynthesis question, no logical link.",
         "color":     "#4a90d9",
     },
     "PK": {
         "name":      "Partial Knowledge",
         "number":    "2",
         "definition": (
-            "Correct direction but incomplete model. Student is 'almost right' — "
+            "Correct direction but incomplete model. Student is 'almost right', "
             "the concept is partially encoded. Scaffolding resolves this quickly."
         ),
         "example":   "Knowing photosynthesis needs sunlight, but not that it produces oxygen.",
@@ -112,7 +112,7 @@ TAXONOMY = {
         "name":      "Confabulation",
         "number":    "3",
         "definition": (
-            "Strong incorrect belief — a documented misconception. The student selects "
+            "Strong incorrect belief, a documented misconception. The student selects "
             "with moderate-to-high confidence. The wrong answer is coherent and plausible."
         ),
         "example":   "Believing plants get food from soil because 'roots absorb nutrients'.",
@@ -131,8 +131,8 @@ TAXONOMY = {
 }
 
 # ==============================================================================
-# SECTION 2 — BUILT-IN QUESTION BANK (NCERT-style, 5 questions, 15 distractors)
-# Works completely offline — no CSV, no internet required.
+# SECTION 2, BUILT-IN QUESTION BANK (NCERT-style, 5 questions, 15 distractors)
+# Works completely offline, no CSV, no internet required.
 # ==============================================================================
 
 BUILTIN_QUESTIONS = [
@@ -146,7 +146,7 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "Mitochondria",
                 "error_type": "CF",
-                "note":       "Student confuses the 'powerhouse' organelle — coherent but wrong",
+                "note":       "Student confuses the 'powerhouse' organelle, coherent but wrong",
             },
             {
                 "option":     "Cell wall",
@@ -156,7 +156,7 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "Vacuole",
                 "error_type": "RF",
-                "note":       "Random implausible guess — no logical connection",
+                "note":       "Random implausible guess, no logical connection",
             },
         ],
     },
@@ -170,12 +170,12 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "Oxygen (O2)",
                 "error_type": "CF",
-                "note":       "Classic misconception — students confuse what plants absorb vs release",
+                "note":       "Classic misconception, students confuse what plants absorb vs release",
             },
             {
                 "option":     "Nitrogen (N2)",
                 "error_type": "RF",
-                "note":       "Random guess — no logical connection to photosynthesis",
+                "note":       "Random guess, no logical connection to photosynthesis",
             },
             {
                 "option":     "Carbon monoxide (CO)",
@@ -194,17 +194,17 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "Small intestine",
                 "error_type": "INT",
-                "note":       "Interference — small intestine digests fats, studied in the same session",
+                "note":       "Interference, small intestine digests fats, studied in the same session",
             },
             {
                 "option":     "Liver",
                 "error_type": "CF",
-                "note":       "Confabulation — liver is prominent so students assign it all digestion",
+                "note":       "Confabulation, liver is prominent so students assign it all digestion",
             },
             {
                 "option":     "Kidney",
                 "error_type": "RF",
-                "note":       "Recall Failure — just a body organ, no logical connection",
+                "note":       "Recall Failure, just a body organ, no logical connection",
             },
         ],
     },
@@ -218,17 +218,17 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "It speeds up and bends away from the normal",
                 "error_type": "CF",
-                "note":       "Common misconception — students reverse both the speed and direction",
+                "note":       "Common misconception, students reverse both the speed and direction",
             },
             {
                 "option":     "It travels in the same direction but slower",
                 "error_type": "PK",
-                "note":       "Partial — knows it slows down but misses the bending/refraction part",
+                "note":       "Partial, knows it slows down but misses the bending/refraction part",
             },
             {
                 "option":     "It reflects back into air",
                 "error_type": "INT",
-                "note":       "Interference — reflection was studied in the same optics unit",
+                "note":       "Interference, reflection was studied in the same optics unit",
             },
         ],
     },
@@ -242,17 +242,17 @@ BUILTIN_QUESTIONS = [
             {
                 "option":     "120 km/h",
                 "error_type": "CF",
-                "note":       "Confabulation — student multiplies instead of divides (inverted formula)",
+                "note":       "Confabulation, student multiplies instead of divides (inverted formula)",
             },
             {
                 "option":     "60 km/h",
                 "error_type": "PK",
-                "note":       "Partial — knows speed involves distance but ignores the time divisor",
+                "note":       "Partial, knows speed involves distance but ignores the time divisor",
             },
             {
                 "option":     "62 km/h",
                 "error_type": "RF",
-                "note":       "Recall Failure — random number, no formula applied at all",
+                "note":       "Recall Failure, random number, no formula applied at all",
             },
         ],
     },
@@ -260,24 +260,24 @@ BUILTIN_QUESTIONS = [
 
 
 # ==============================================================================
-# SECTION 3 — COHEN'S KAPPA & STATISTICS
+# SECTION 3, COHEN'S KAPPA & STATISTICS
 # ==============================================================================
 
 def compute_cohens_kappa(human_labels, ai_labels):
     """
     Compute Cohen's Kappa between two raters.
 
-    Formula:   κ = (Po - Pe) / (1 - Pe)
+    Formula:   kappa = (Po - Pe) / (1 - Pe)
 
     Po = observed proportional agreement (how often both raters agreed)
     Pe = expected agreement by chance (product of marginal proportions)
 
     Interpretation guide:
-      κ < 0.20       Slight
-      0.20 – 0.40    Fair
-      0.40 – 0.60    Moderate
-      0.60 – 0.80    Substantial  ← research target is κ ≥ 0.70
-      0.80 – 1.00    Almost Perfect
+      kappa < 0.20       Slight
+      0.20 - 0.40    Fair
+      0.40 - 0.60    Moderate
+      0.60 - 0.80    Substantial  <- research target is kappa >= 0.70
+      0.80 - 1.00    Almost Perfect
 
     Args:
         human_labels (list): e.g. ["CF", "RF", "INT", "PK", ...]
@@ -295,11 +295,11 @@ def compute_cohens_kappa(human_labels, ai_labels):
             "n": 0, "agreements": 0,
         }
 
-    # Po — observed agreement
+    # Po, observed agreement
     agreements = sum(1 for h, a in zip(human_labels, ai_labels) if h == a)
     po = agreements / n
 
-    # Pe — expected agreement by chance
+    # Pe, expected agreement by chance
     # For each error type: (proportion human chose it) * (proportion AI chose it)
     pe = 0.0
     for label in ERROR_TYPES:
@@ -307,7 +307,7 @@ def compute_cohens_kappa(human_labels, ai_labels):
         p_ai    = ai_labels.count(label)    / n
         pe     += p_human * p_ai
 
-    # Kappa — guarded against division by zero
+    # Kappa, guarded against division by zero
     if pe >= 1.0:
         kappa = 1.0
     else:
@@ -315,17 +315,17 @@ def compute_cohens_kappa(human_labels, ai_labels):
 
     # Interpretation
     if kappa < 0.20:
-        interp = "Slight — rubric needs substantial revision before research use."
+        interp = "Slight, rubric needs substantial revision before research use."
     elif kappa < 0.40:
-        interp = "Fair — significant revision needed. Review CF vs RF boundary."
+        interp = "Fair, significant revision needed. Review CF vs RF boundary."
     elif kappa < 0.60:
-        interp = "Moderate — improvement needed. Target is κ ≥ 0.70."
+        interp = "Moderate, improvement needed. Target is kappa >= 0.70."
     elif kappa < 0.70:
-        interp = "Substantial — close to target. Refine ambiguous cases."
+        interp = "Substantial, close to target. Refine ambiguous cases."
     elif kappa < 0.80:
-        interp = "Substantial ✓ — research threshold reached! Proceed with validation."
+        interp = "Substantial, research threshold reached! Proceed with validation."
     else:
-        interp = "Almost Perfect ✓ — excellent agreement."
+        interp = "Almost Perfect, excellent agreement."
 
     return {
         "kappa":          round(kappa, 4),
@@ -339,7 +339,7 @@ def compute_cohens_kappa(human_labels, ai_labels):
 
 def build_confusion_matrix(human_labels, ai_labels):
     """
-    Build a 4×4 confusion matrix.
+    Build a 4x4 confusion matrix.
     Rows = human labels, Columns = AI labels.
     Returns a nested dict: matrix[human_label][ai_label] = count.
     """
@@ -353,7 +353,7 @@ def build_confusion_matrix(human_labels, ai_labels):
 def get_per_type_stats(human_labels, ai_labels):
     """
     Compute agreement percentage per error type.
-    Returns dict: type_code → {total, agreed, pct}
+    Returns dict: type_code -> {total, agreed, pct}
     """
     stats = {}
     for label in ERROR_TYPES:
@@ -371,7 +371,7 @@ def get_per_type_stats(human_labels, ai_labels):
 
 
 # ==============================================================================
-# SECTION 4 — CHATGPT / AI RATER
+# SECTION 4, CHATGPT / AI RATER
 # ==============================================================================
 
 def classify_with_ai(question_text, correct_answer, distractor_text, topic, api_key):
@@ -403,9 +403,9 @@ You classify MCQ distractor options into one of four cognitive error types.
 
 Definitions:
 - RF (Recall Failure): Answer is random, implausible, or reflects no memory of the topic.
-- PK (Partial Knowledge): Almost right — correct direction, but model is incomplete.
+- PK (Partial Knowledge): Almost right, correct direction, but model is incomplete.
 - CF (Confabulation): Strong, coherent misconception. Student would select this confidently.
-- INT (Interference): Correct answer for a DIFFERENT related topic — cross-topic confusion.
+- INT (Interference): Correct answer for a DIFFERENT related topic, cross-topic confusion.
 
 Respond ONLY with valid JSON, no extra text:
 {
@@ -516,7 +516,7 @@ Return ONLY a valid JSON array:
 
 
 # ==============================================================================
-# SECTION 5 — DATA PERSISTENCE (file I/O)
+# SECTION 5, DATA PERSISTENCE (file I/O)
 # ==============================================================================
 
 def load_sessions():
@@ -539,10 +539,10 @@ def save_session(session):
 
 
 # ==============================================================================
-# SECTION 6 — TKINTER VISUALISATION (3 panels)
+# SECTION 6, TKINTER VISUALISATION (3 panels)
 # ==============================================================================
 
-# Colour palette — dark academic aesthetic
+# Colour palette, dark academic aesthetic
 C = {
     "bg":      "#0a0a14",
     "panel":   "#10101e",
@@ -567,16 +567,16 @@ C = {
 def show_results_window(kappa, matrix, type_stats, session):
     """
     Open the results window with three side-by-side panels:
-      Panel 1 — Kappa Gauge (semicircular speedometer)
-      Panel 2 — Confusion Matrix (4×4 grid, human vs AI)
-      Panel 3 — Per-type Agreement (horizontal bar chart)
+      Panel 1, Kappa Gauge (semicircular speedometer)
+      Panel 2, Confusion Matrix (4x4 grid, human vs AI)
+      Panel 3, Per-type Agreement (horizontal bar chart)
     """
     if not TKINTER_AVAILABLE:
-        print("  (tkinter display unavailable — skipping visualisation)")
+        print("  (tkinter display unavailable, skipping visualisation)")
         return
 
     root = tk.Tk()
-    root.title("ConfusionMapper — Session Results")
+    root.title("ConfusionMapper, Session Results")
     root.configure(bg=C["bg"])
     root.geometry("1000x700")
     root.resizable(False, False)
@@ -585,15 +585,15 @@ def show_results_window(kappa, matrix, type_stats, session):
     header = tk.Frame(root, bg=C["bg"])
     header.pack(fill="x", pady=10)
 
-    tk.Label(header, text="ConfusionMapper · Session Results",
+    tk.Label(header, text="ConfusionMapper | Session Results",
              bg=C["bg"], fg=C["gold"],
              font=("Courier", 15, "bold")).pack()
 
     tk.Label(header,
-             text=(f"Rater: {session.get('rater_id','—')}  ·  "
-                   f"Questions: {session.get('n_questions',0)}  ·  "
-                   f"Distractors rated: {kappa['n']}  ·  "
-                   f"Date: {session.get('date','—')}"),
+             text=(f"Rater: {session.get('rater_id','-')}  |  "
+                   f"Questions: {session.get('n_questions',0)}  |  "
+                   f"Distractors rated: {kappa['n']}  |  "
+                   f"Date: {session.get('date','-')}"),
              bg=C["bg"], fg=C["dim"],
              font=("Courier", 10)).pack()
 
@@ -621,7 +621,7 @@ def show_results_window(kappa, matrix, type_stats, session):
         root,
         text=(
             "Ethics note: AI classifications are a starting point, not a substitute for human-human validation.\n"
-            "Always verify κ ≥ 0.70 between two trained human raters before using labels in published research."
+            "Always verify kappa >= 0.70 between two trained human raters before using labels in published research."
         ),
         bg=C["bg"], fg=C["dim"],
         font=("Courier", 9), justify="center",
@@ -637,7 +637,7 @@ def show_results_window(kappa, matrix, type_stats, session):
 
 
 def _draw_kappa_gauge(parent, kappa):
-    """Semicircular speedometer. Needle angle encodes κ value."""
+    """Semicircular speedometer. Needle angle encodes kappa value."""
     tk.Label(parent, text="COHEN'S KAPPA",
              bg=C["panel"], fg=C["gold"],
              font=("Courier", 11, "bold")).pack(pady=(14, 2))
@@ -654,10 +654,10 @@ def _draw_kappa_gauge(parent, kappa):
     r_in   = 72        # Inner radius (creates ring look via overlay)
     ring_w = 22        # Arc stroke width
 
-    # Five coloured zone arcs — κ zones: 0.0, 0.20, 0.40, 0.70, 0.80, 1.0
+    # Five coloured zone arcs, kappa zones: 0.0, 0.20, 0.40, 0.70, 0.80, 1.0
     # In tkinter: angle 0° = 3 o'clock, increases counter-clockwise.
-    # We want κ=0 at 180° (9 o'clock) and κ=1 at 0° (3 o'clock).
-    # A value κ maps to start_angle = 180 − κ×180.
+    # We want kappa=0 at 180° (9 o'clock) and kappa=1 at 0° (3 o'clock).
+    # A value kappa maps to start_angle = 180 − kappax180.
     zones = [
         (0.00, 0.20, C["z0"]),
         (0.20, 0.40, C["z1"]),
@@ -669,7 +669,7 @@ def _draw_kappa_gauge(parent, kappa):
     for k0, k1, colour in zones:
         # start = leftmost angle of this zone
         start  =  180 - k0 * 180
-        extent = -(k1 - k0) * 180   # negative → clockwise
+        extent = -(k1 - k0) * 180   # negative -> clockwise
         cvs.create_arc(cx - r_out, cy - r_out, cx + r_out, cy + r_out,
                        start=start, extent=extent,
                        style="arc", outline=colour, width=ring_w)
@@ -679,7 +679,7 @@ def _draw_kappa_gauge(parent, kappa):
                    start=180, extent=-180,
                    style="arc", outline=C["panel"], width=ring_w - 4)
 
-    # Target line at κ = 0.70
+    # Target line at kappa = 0.70
     t_angle_deg = 180 - 0.70 * 180   # = 54°
     t_rad        = math.radians(t_angle_deg)
     t_x_out = cx + (r_out + 4) * math.cos(t_rad)
@@ -703,13 +703,13 @@ def _draw_kappa_gauge(parent, kappa):
     cvs.create_oval(cx - 6, cy - 6, cx + 6, cy + 6,
                     fill=C["gold"], outline="")
 
-    # κ value centred inside gauge
+    # kappa value centred inside gauge
     k_colour = (C["z4"] if k_val >= 0.80 else
                 C["z3"] if k_val >= 0.70 else
                 C["z2"] if k_val >= 0.40 else
                 C["z1"] if k_val >= 0.20 else C["z0"])
 
-    cvs.create_text(cx, cy - 30, text=f"κ = {k_val:.3f}",
+    cvs.create_text(cx, cy - 30, text=f"kappa = {k_val:.3f}",
                     fill=k_colour, font=("Courier", 18, "bold"))
 
     # End labels
@@ -733,7 +733,7 @@ def _draw_kappa_gauge(parent, kappa):
 
 
 def _draw_confusion_matrix(parent, matrix):
-    """4×4 grid. Diagonal cells = agreement (green); off-diagonal = disagreement (red)."""
+    """4x4 grid. Diagonal cells = agreement (green); off-diagonal = disagreement (red)."""
     tk.Label(parent, text="CONFUSION MATRIX",
              bg=C["panel"], fg=C["gold"],
              font=("Courier", 11, "bold")).pack(pady=(14, 2))
@@ -751,14 +751,14 @@ def _draw_confusion_matrix(parent, matrix):
 
     # Column headers (AI)
     cvs.create_text(ox + 2 * cs, oy - 22,
-                    text="← AI Classification →",
+                    text="<- AI Classification ->",
                     fill=C["dim"], font=("Courier", 8))
     for j, col in enumerate(ERROR_TYPES):
         cvs.create_text(ox + j * cs + cs // 2, oy - 8,
                         text=col, fill=C[col],
                         font=("Courier", 10, "bold"))
 
-    # Row header (Human) — vertical text simulation
+    # Row header (Human), vertical text simulation
     for char_i, ch in enumerate("Human↓"):
         cvs.create_text(18, oy + 40 + char_i * 11,
                         text=ch, fill=C["dim"],
@@ -852,7 +852,7 @@ def _draw_bar_chart(parent, type_stats):
                         fill=C[label], font=("Courier", 10, "bold"),
                         anchor="e")
 
-        pct_str = f"{pct}%" if stat["total"] > 0 else "—"
+        pct_str = f"{pct}%" if stat["total"] > 0 else "-"
         cvs.create_text(bx + bw_max + 8, y + bh // 2, text=pct_str,
                         fill=C[label] if stat["total"] > 0 else C["dim"],
                         font=("Courier", 10), anchor="w")
@@ -864,13 +864,13 @@ def _draw_bar_chart(parent, type_stats):
 
     # Footnote
     cvs.create_text(145, start_y + 4 * (bh + gap) + 12,
-                    text="Research target: ≥ 70% per type",
+                    text="Research target: >= 70% per type",
                     fill=C["dim"], font=("Courier", 8),
                     justify="center")
 
 
 # ==============================================================================
-# SECTION 7 — CONSOLE INTERFACE (interactive session flow)
+# SECTION 7, CONSOLE INTERFACE (interactive session flow)
 # ==============================================================================
 
 def print_header():
@@ -878,7 +878,7 @@ def print_header():
     print("=" * 66)
     print("  ConfusionMapper  v1.0")
     print("  Distractor Classification & Inter-Rater Reliability Tool")
-    print("  Manik Maurya · IIT Kanpur Cognitive Science · Code in Place 2026")
+    print("  Manik Maurya | IIT Kanpur Cognitive Science | Code in Place 2026")
     print("=" * 66)
     print()
 
@@ -887,11 +887,11 @@ def print_taxonomy_card():
     """Print the taxonomy reference card to console."""
     print()
     print("─" * 66)
-    print("  TAXONOMY REFERENCE — Four Cognitive Error Types")
+    print("  TAXONOMY REFERENCE, Four Cognitive Error Types")
     print("─" * 66)
     for code in ERROR_TYPES:
         t = TAXONOMY[code]
-        print(f"  [{t['number']}] {code} — {t['name']}")
+        print(f"  [{t['number']}] {code}, {t['name']}")
         print(f"      {t['definition']}")
         print(f"      Example: {t['example']}")
         print()
@@ -969,19 +969,19 @@ def run_session(questions, api_key, rater_id):
 
             # ── Show result ─────────────────────────────────────────────────
             if ai_res["available"] and a_label != "N/A":
-                symbol = "✓ AGREE   " if h_label == a_label else "✗ DISAGREE"
-                print(f" AI → {a_label}")
+                symbol = "AGREE   " if h_label == a_label else "X DISAGREE"
+                print(f" AI -> {a_label}")
                 print(f"  {symbol}  You: {h_label}  AI: {a_label}")
                 if ai_res.get("reasoning"):
                     print(f"  AI reasoning: {ai_res['reasoning']}")
             else:
                 print()
-                print(f"  Your label: {h_label}  (AI unavailable — manual mode)")
+                print(f"  Your label: {h_label}  (AI unavailable, manual mode)")
 
             # Ground-truth check (built-in questions have reference labels)
             ref = d.get("error_type", "")
             if ref:
-                mark = "✓" if h_label == ref else "✗"
+                mark = "" if h_label == ref else "X"
                 print(f"  Reference label: {ref}  (your answer {mark})")
 
             ratings.append({
@@ -1006,7 +1006,7 @@ def run_session(questions, api_key, rater_id):
         hl = [p[0] for p in valid_pairs]
         al = [p[1] for p in valid_pairs]
     else:
-        # Manual mode — compare against reference labels from built-in bank
+        # Manual mode, compare against reference labels from built-in bank
         hl = [r["human_label"]   for r in ratings if r["reference_label"]]
         al = [r["reference_label"] for r in ratings if r["reference_label"]]
 
@@ -1039,7 +1039,7 @@ def print_summary(kappa, type_stats, session):
     print(f"  Rater: {session['rater_id']}   Date: {session['date']}")
     print(f"  Distractors classified: {kappa['n']}")
     print()
-    print(f"  COHEN'S KAPPA:  κ = {kappa['kappa']:.4f}")
+    print(f"  COHEN'S KAPPA:  kappa = {kappa['kappa']:.4f}")
     print(f"  {kappa['interpretation']}")
     print(f"  Observed agreement:  {kappa['po']:.1%}")
     print(f"  Expected by chance:  {kappa['pe']:.1%}")
@@ -1049,18 +1049,18 @@ def print_summary(kappa, type_stats, session):
     for label in ERROR_TYPES:
         s   = type_stats[label]
         bar = "█" * (s["pct"] // 5) + "░" * (20 - s["pct"] // 5)
-        tag = " ← ✓" if s["pct"] >= 70 else ""
+        tag = " <-" if s["pct"] >= 70 else ""
         print(f"  {label}  {bar}  {s['pct']:3d}%  "
               f"({s['agreed']}/{s['total']}){tag}")
     print()
 
     k = kappa["kappa"]
     if k >= 0.70:
-        print("  ✓ RESEARCH READY: Proceed with human-human validation.")
+        print("  RESEARCH READY: Proceed with human-human validation.")
     elif k >= 0.60:
         print("  ⚠ CLOSE: Review CF/RF boundary cases and re-pilot.")
     else:
-        print("  ✗ REVISE RUBRIC before using this taxonomy in research.")
+        print("  X REVISE RUBRIC before using this taxonomy in research.")
         print("    Common issues: CF vs RF (is the answer plausible?)")
         print("                  PK vs CF (is the wrong direction obvious?)")
     print()
@@ -1068,9 +1068,9 @@ def print_summary(kappa, type_stats, session):
     print("  ETHICS NOTE")
     print("  ChatGPT may appear artificially reliable because its training")
     print("  data includes cognitive science literature. This tool gives a")
-    print("  preliminary signal — it does not replace two trained human")
+    print("  preliminary signal, it does not replace two trained human")
     print("  raters classifying independently. Always run human-human")
-    print("  inter-rater validation (κ ≥ 0.70) before data collection.")
+    print("  inter-rater validation (kappa >= 0.70) before data collection.")
     print("─" * 66)
 
 
@@ -1083,16 +1083,16 @@ def view_past_sessions():
     print(f"\n  {len(all_s)} past session(s) in {DATA_FILE}:\n")
     for i, s in enumerate(all_s, 1):
         k = s.get("kappa", {})
-        print(f"  [{i}]  {s.get('date','—')}  |  "
+        print(f"  [{i}]  {s.get('date','-')}  |  "
               f"Rater: {s.get('rater_id','?')}  |  "
-              f"κ = {k.get('kappa', 0):.3f}  |  "
+              f"kappa = {k.get('kappa', 0):.3f}  |  "
               f"{s.get('n_distractors', 0)} distractors")
         print(f"       {k.get('interpretation','')}")
     print()
 
 
 # ==============================================================================
-# SECTION 8 — MAIN
+# SECTION 8, MAIN
 # ==============================================================================
 
 def main():
@@ -1101,9 +1101,9 @@ def main():
     # Check for OpenAI key
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if api_key:
-        print("  ✓ OPENAI_API_KEY detected — AI rater mode enabled.")
+        print("  OPENAI_API_KEY detected, AI rater mode enabled.")
     else:
-        print("  ℹ No OPENAI_API_KEY — running in Manual Mode.")
+        print("  ℹ No OPENAI_API_KEY, running in Manual Mode.")
         print("    Set the environment variable to enable AI classification.")
     print()
 
@@ -1116,9 +1116,9 @@ def main():
         print("─" * 66)
         print("  MAIN MENU")
         print("─" * 66)
-        print("  [1] Classify — built-in NCERT question bank (15 distractors)")
+        print("  [1] Classify, built-in NCERT question bank (15 distractors)")
         if api_key:
-            print("  [2] Classify — AI-generated questions on any topic")
+            print("  [2] Classify, AI-generated questions on any topic")
         print("  [3] View past sessions")
         print("  [4] Taxonomy reference card")
         print("  [Q] Quit")
@@ -1142,7 +1142,7 @@ def main():
             )
             print_summary(kappa, type_stats, session)
             save_session(session)
-            print(f"\n  Session saved → {DATA_FILE}")
+            print(f"\n  Session saved -> {DATA_FILE}")
             input("  Press Enter to open the visualisation window...")
             show_results_window(kappa, matrix, type_stats, session)
 
@@ -1152,7 +1152,7 @@ def main():
             if not topic:
                 topic = "Photosynthesis"
 
-            n_str = input("  Number of questions to generate (1–5): ").strip()
+            n_str = input("  Number of questions to generate (1-5): ").strip()
             try:
                 n_q = max(1, min(5, int(n_str)))
             except ValueError:
@@ -1162,11 +1162,11 @@ def main():
             questions = generate_ai_questions(topic, n_q, api_key)
 
             if not questions:
-                print("  Generation failed — using built-in bank instead.")
+                print("  Generation failed, using built-in bank instead.")
                 questions = BUILTIN_QUESTIONS
             else:
                 total_d = sum(len(q["distractors"]) for q in questions)
-                print(f"  ✓ {len(questions)} question(s) generated "
+                print(f"  {len(questions)} question(s) generated "
                       f"({total_d} distractors).")
 
             input("  Press Enter to begin classification...")
@@ -1176,7 +1176,7 @@ def main():
             )
             print_summary(kappa, type_stats, session)
             save_session(session)
-            print(f"\n  Session saved → {DATA_FILE}")
+            print(f"\n  Session saved -> {DATA_FILE}")
             input("  Press Enter to open the visualisation window...")
             show_results_window(kappa, matrix, type_stats, session)
 

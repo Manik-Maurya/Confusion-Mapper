@@ -21,4 +21,4 @@ Would this change affect existing users? If yes, sketch a migration path.
 ## Willingness to contribute
 - [ ] I would be willing to submit a pull request implementing this feature.
 - [ ] I would be willing to help test a pull request from someone else.
-- [ ] I am requesting only — I cannot contribute code at this time.
+- [ ] I am requesting only, I cannot contribute code at this time.

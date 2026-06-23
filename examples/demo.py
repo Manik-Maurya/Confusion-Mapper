@@ -1,32 +1,28 @@
 """
-demo.py — Headless tutorial for ConfusionMapper core functions
-==============================================================
+demo.py, headless tutorial for ConfusionMapper core functions.
 
-This script reproduces a complete inter-rater reliability analysis from
-30 pre-labelled distractors in `sample_data/example_labels.csv`, calling
-the same three functions exposed by the GUI. It requires NO API key,
-NO display, and NO additional dependencies beyond the Python standard
-library — making it suitable for CI, headless servers, and reviewers
-who want to verify the package's core functionality in under a second.
+Runs a full inter-rater reliability analysis on 30 pre-labelled distractors
+from sample_data/example_labels.csv. Calls the same three functions the GUI
+calls. Needs no API key, no display, and no extra dependencies beyond the
+Python standard library, so it works on CI and headless servers.
 
 Usage:
     python examples/demo.py
 
-Expected output:
-    - Cohen's kappa value with Landis-Koch interpretation
-    - 4x4 confusion matrix (RF / PK / CF / INT)
-    - Per-category agreement statistics
-    - Pre-registration gate decision (PASS if kappa >= 0.70)
+What it prints:
+    - Cohen's kappa with the Landis-Koch interpretation
+    - the 4x4 confusion matrix (RF / PK / CF / INT)
+    - per-category agreement statistics
+    - PASS or HOLD against the 0.70 pre-registration gate
 
-Educational researchers can adapt this script by replacing the CSV with
-their own paired human/AI labels.
+To use your own data, replace sample_data/example_labels.csv with a CSV
+that has the columns human_label and ai_label.
 """
 
 import csv
 import os
 import sys
 
-# Make the package importable when running from the repo root or examples/
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
@@ -63,11 +59,10 @@ def main():
     human, ai = load_paired_labels(csv_path)
 
     print("=" * 66)
-    print("ConfusionMapper — Headless Demo")
+    print("ConfusionMapper, headless demo")
     print("=" * 66)
     print(f"Loaded {len(human)} paired human/AI labels from {os.path.basename(csv_path)}\n")
 
-    # 1. Cohen's kappa
     k = compute_cohens_kappa(human, ai)
     print("1. Cohen's Kappa")
     print("-" * 66)
@@ -79,14 +74,12 @@ def main():
     print(f"   agreements     = {k['agreements']}")
     print()
 
-    # 2. Confusion matrix
     print("2. 4x4 Confusion Matrix")
     print("-" * 66)
     matrix = build_confusion_matrix(human, ai)
     print_confusion_matrix(matrix)
     print()
 
-    # 3. Per-type agreement
     print("3. Per-Category Agreement")
     print("-" * 66)
     stats = get_per_type_stats(human, ai)
@@ -96,18 +89,16 @@ def main():
         print(f"   {label:<6}{s['total']:>8}{s['agreed']:>10}{s['pct']:>7}%")
     print()
 
-    # 4. Pre-registration gate decision
     print("4. Pre-Registration Reliability Gate (kappa >= 0.70)")
     print("-" * 66)
     if k["kappa"] >= 0.70:
-        print(f"   PASS — kappa = {k['kappa']:.4f} meets the pre-registered threshold.")
-        print("          Downstream data collection MAY proceed.")
+        print(f"   PASS, kappa = {k['kappa']:.4f} meets the pre-registered threshold.")
+        print("         Downstream data collection may proceed.")
     else:
-        print(f"   HOLD — kappa = {k['kappa']:.4f} is below the 0.70 threshold.")
-        print("          Refine the AI prompt or human rubric and re-run before proceeding.")
+        print(f"   HOLD, kappa = {k['kappa']:.4f} is below the 0.70 threshold.")
+        print("         Refine the AI prompt or human rubric and re-run before proceeding.")
     print("=" * 66)
 
-    # Exit code mirrors the gate decision so CI can assert on it.
     return 0 if k["kappa"] >= 0.70 else 1
 
 

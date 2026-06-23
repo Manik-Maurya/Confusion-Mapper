@@ -5,12 +5,12 @@ message: >-
 type: software
 title: "ConfusionMapper"
 abstract: >-
-  ConfusionMapper is a Python tool for human–AI hybrid inter-rater
+  ConfusionMapper is a Python tool for human-AI hybrid inter-rater
   reliability (IRR) assessment of cognitive error taxonomy classification
   in multiple-choice question distractors. It implements the Confusion
   Fingerprint Index (CFI) taxonomy, computes Cohen's kappa, builds a
-  full 4×4 confusion matrix across all category pairs, and enforces a
-  pre-registration-compliant reliability gate (κ ≥ 0.70) before
+  full 4x4 confusion matrix across all category pairs, and enforces a
+  pre-registration-compliant reliability gate (kappa >= 0.70) before
   downstream data collection may proceed.
 authors:
   - family-names: "Maurya"
@@ -25,7 +25,7 @@ date-released: "2026-06-22"
 license: MIT
 repository-code: "https://github.com/Manik-Maurya/Confusion-Mapper"
 url: "https://github.com/Manik-Maurya/Confusion-Mapper"
-# doi: "10.5281/zenodo.XXXXXXX"   ← ADD THIS after creating a Zenodo release
+# doi: "10.5281/zenodo.XXXXXXX"   <- ADD THIS after creating a Zenodo release
 keywords:
   - inter-rater reliability
   - Cohen's kappa
@@ -40,7 +40,7 @@ keywords:
 preferred-citation:
   type: article
   title: >-
-    ConfusionMapper: A Human–AI Hybrid Inter-Rater Reliability Tool for
+    ConfusionMapper: A Human-AI Hybrid Inter-Rater Reliability Tool for
     Cognitive Error Taxonomy Classification
   authors:
     - family-names: "Maurya"
