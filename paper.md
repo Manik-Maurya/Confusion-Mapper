@@ -98,3 +98,31 @@ ConfusionMapper supports the human-AI hybrid IRR protocol with the statistical d
 This software originated as a capstone project for Stanford Code in Place 2026. Early development took place during a research internship at the Department of Cognitive Science, Indian Institute of Technology Kanpur.
 
 # References
+
+Cohen J. (1960). A coefficient of agreement for nominal scales. *Educational and Psychological Measurement*, 20(1), 37-46. https://doi.org/10.1177/001316446002000104
+
+Landis J.R., Koch G.G. (1977). The measurement of observer agreement for categorical data. *Biometrics*, 33(1), 159-174. https://doi.org/10.2307/2529310
+
+Haladyna T.M., Downing S.M., Rodriguez M.C. (2002). A review of multiple-choice item-writing guidelines for classroom assessment. *Applied Measurement in Education*, 15(3), 309-334. https://doi.org/10.1207/S15324818AME1503_5
+
+OpenAI (2023). GPT-4 Technical Report. OpenAI. https://doi.org/10.48550/arXiv.2303.08774
+
+Borse N.S., Subramaniam R.C., Rebello N.S. (2025). Investigation of the Inter-Rater Reliability between Large Language Models and Human Raters in Qualitative Analysis. arXiv:2508.14764. https://doi.org/10.48550/arXiv.2508.14764
+
+Maurya M. (2026). Confusion Fingerprint Index: A Taxonomy of Cognitive Error Types in Multiple-Choice Assessment. EdArXiv. https://doi.org/10.35542/osf.io/cr53e_v1
+
+Gamer M., Lemon J., Singh I.F.P. (2019). irr: Various coefficients of interrater reliability and agreement. R package version 0.84.1. https://CRAN.R-project.org/package=irr
+
+Artstein R., Poesio M. (2008). Inter-coder agreement for computational linguistics. *Computational Linguistics*, 34(4), 555-596. https://doi.org/10.1162/coli.07-034-R2
+
+Efron B. (1987). Better Bootstrap Confidence Intervals. *Journal of the American Statistical Association*, 82(397), 171-185. https://doi.org/10.1080/01621459.1987.10478410
+
+Byrt T., Bishop J., Carlin J.B. (1993). Bias, Prevalence and Kappa. *Journal of Clinical Epidemiology*, 46(5), 423-429. https://doi.org/10.1016/0895-4356(93)90018-V
+
+Krippendorff K. (2018). Content Analysis: An Introduction to Its Methodology. (4 ed.), Thousand Oaks, CA, SAGE Publications.
+
+Fleiss J.L. (1971). Measuring Nominal Scale Agreement Among Many Raters. *Psychological Bulletin*, 76(5), 378-382. https://doi.org/10.1037/h0031619
+
+Donner A., Eliasziw M. (1992). A Goodness-of-Fit Approach to Inference Procedures for the Kappa Statistic: Confidence Interval Construction, Significance-Testing and Sample Size Estimation. *Statistics in Medicine*, 11(11), 1511-1519. https://doi.org/10.1002/sim.4780111109
+
+Nosek B.A., Ebersole C.R., DeHaven A.C., Mellor D.T. (2018). The preregistration revolution. *Proceedings of the National Academy of Sciences*, 115(11), 2600-2606. https://doi.org/10.1073/pnas.1708274114
