@@ -1,4 +1,4 @@
-# Submission guide — early October 2026 target
+# Submission guide, early October 2026 target
 
 This is the step-by-step plan to get ConfusionMapper published before your admissions deadlines.
 
@@ -7,7 +7,7 @@ Two outputs to aim for, in parallel:
 1. **EdArXiv preprint** (instant, free, no endorsement, no fee)
 2. **PeerJ Computer Science peer-reviewed paper** (~10 weeks, free if fee waiver approved)
 
-## Step 1 (today) — Push the latest paper and code to GitHub
+## Step 1 (today), Push the latest paper and code to GitHub
 
 ```bash
 cd D:\Confusion-Mapper
@@ -18,7 +18,7 @@ git push origin main
 
 After the push, your Actions tab will rebuild the paper PDF (the old JOSS workflow still works for paper-joss.md if you want a JOSS-style preview).
 
-## Step 2 (today, 30 min) — Generate the PDF for submission
+## Step 2 (today, 30 min), Generate the PDF for submission
 
 Install pandoc and a TeX distribution on Windows:
 
@@ -43,7 +43,7 @@ If pandoc fails on a missing package, MiKTeX will offer to install it automatica
 
 Open `paper.pdf` and skim: title page, abstract, comparison table, references should all render cleanly.
 
-## Step 3 (today, 30 min) — Submit to EdArXiv
+## Step 3 (today, 30 min), Submit to EdArXiv
 
 EdArXiv accepts preprints without endorsement, runs on the same OSF infrastructure you already use for your CFI preprint, and gives you a permanent DOI within ~24 hours.
 
@@ -64,13 +64,13 @@ EdArXiv accepts preprints without endorsement, runs on the same OSF infrastructu
 
 You receive a permanent EdArXiv DOI within 24-48 hours. You can now write "Maurya, M. (2026). ConfusionMapper... EdArXiv. https://doi.org/XX.XXXXX/osf.io/XXXXX" in your applications.
 
-## Step 4 (today) — Send the fee waiver email to PeerJ
+## Step 4 (today), Send the fee waiver email to PeerJ
 
 Send the email in `submission/fee_waiver_email.md` to `fees@peerj.com` from `manikmaurya.in@gmail.com`. Wait 2-5 business days for a reply. PeerJ historically grants these for independent researchers from lower-income countries.
 
 While you wait for the waiver decision, do steps 5 and 6.
 
-## Step 5 (this week) — Create a PeerJ account and start the submission
+## Step 5 (this week), Create a PeerJ account and start the submission
 
 1. Go to <https://peerj.com/computer-science/submit/>
 2. Click "Sign up" and create an account with `manikmaurya.in@gmail.com`. Verify your email.
@@ -81,7 +81,7 @@ While you wait for the waiver decision, do steps 5 and 6.
    - **Section:** Software Engineering or Educational Technology (either fits)
 6. The submission form will walk you through 9 steps. Save and continue between sessions.
 
-## Step 6 (this week) — Complete the PeerJ submission form
+## Step 6 (this week), Complete the PeerJ submission form
 
 You will be asked for:
 
@@ -102,11 +102,11 @@ You will be asked for:
 
 When asked about preprint, mention the EdArXiv preprint you just posted.
 
-## Step 7 — Submit, then track
+## Step 7, Submit, then track
 
 Click submit. PeerJ assigns an editor within 1-2 weeks. The editor invites 2-3 reviewers. Reviews come back in 4-8 weeks. You either get accepted, asked for minor revisions, or asked for major revisions. Total median time from submission to acceptance for Software Tools is around 10 weeks.
 
-## Step 8 (during review) — Build the impact evidence reviewers will look for
+## Step 8 (during review), Build the impact evidence reviewers will look for
 
 Reviewers and the editor will check the GitHub repo for signs of life. Between submission and decision, do these:
 
@@ -118,11 +118,11 @@ Reviewers and the editor will check the GitHub repo for signs of life. Between s
 
 The reviewer auto-bot at JOSS flagged 0 stars, 0 issues, 0 PRs as a red flag. PeerJ reviewers are human, but they look at the same signals. Even modest activity helps.
 
-## Step 9 (early September) — Respond to reviewer comments
+## Step 9 (early September), Respond to reviewer comments
 
 Most submissions get "minor revisions" or "major revisions" rather than outright acceptance on the first round. Respond to every comment in a separate response letter, even if you disagree (then politely explain why). Resubmit within 4 weeks of receiving the comments to keep the timeline tight.
 
-## Step 10 (early October) — Acceptance
+## Step 10 (early October), Acceptance
 
 PeerJ publishes accepted papers within 1-2 weeks of acceptance. You will have:
 
@@ -134,12 +134,12 @@ PeerJ publishes accepted papers within 1-2 weeks of acceptance. You will have:
 
 That bundle is significantly stronger than a single JOSS paper would have been.
 
-## After October — Resubmit to JOSS in December
+## After October, Resubmit to JOSS in December
 
 By December 1, 2026 you meet the 6-month rule. Your paper-joss.md backup is ready. The PeerJ publication and EdArXiv preprint will satisfy the "demonstrable impact" criterion that blocked you in June. Resubmit at <https://joss.theoj.org/papers/new>.
 
 ## What's in this submission folder
 
-- `cover_letter.md` — paste into PeerJ's cover-letter field
-- `fee_waiver_email.md` — send to fees@peerj.com BEFORE submitting
-- `SUBMISSION_GUIDE.md` — this file
+- `cover_letter.md`, paste into PeerJ's cover-letter field
+- `fee_waiver_email.md`, send to fees@peerj.com BEFORE submitting
+- `SUBMISSION_GUIDE.md`, this file

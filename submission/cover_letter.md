@@ -1,4 +1,4 @@
-# Cover letter — PeerJ Computer Science
+# Cover letter, PeerJ Computer Science
 
 Dear PeerJ Computer Science Editors,
 

@@ -1,9 +1,9 @@
-# Fee waiver request — to send BEFORE submitting
+# Fee waiver request, to send BEFORE submitting
 
 Send from: manikmaurya.in@gmail.com
 To: fees@peerj.com
 Cc: editorial@peerj.com (optional, helps escalation)
-Subject: Fee waiver request — independent undergraduate researcher, India — Software Tools submission to PeerJ Computer Science
+Subject: Fee waiver request, independent undergraduate researcher, India, Software Tools submission to PeerJ Computer Science
 
 ---
 
