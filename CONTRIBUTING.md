@@ -1,15 +1,8 @@
 # Contributing to ConfusionMapper
 
-Thank you for your interest in contributing. ConfusionMapper is a research-grade tool used as a methodological reliability gate for pre-registered educational RCTs, so changes must preserve numerical correctness and reproducibility.
+Bug reports, fixes, and ideas are all welcome. The notes below cover the basics.
 
-## Ways to Contribute
-
-- **Report a bug**, open an issue using the Bug Report template. Include a minimal reproducible example, the expected output, and the actual output.
-- **Request a feature**, open an issue using the Feature Request template. Explain the research use case the feature would unlock.
-- **Submit a pull request**, see the workflow below.
-- **Improve documentation**, typo fixes, clearer examples, and translation of the docstrings are all welcome.
-
-## Development Setup
+## How to get set up
 
 ```bash
 git clone https://github.com/Manik-Maurya/Confusion-Mapper.git
@@ -19,33 +12,41 @@ pytest tests/ -v
 python examples/demo.py
 ```
 
-The full test suite (33 tests) runs in under a second and requires no API key or display.
+The test suite (55 tests) runs in under a second and needs no API key or display.
 
-## Pull Request Workflow
+## Reporting a bug
 
-1. Fork the repository and create a feature branch from `main` (e.g. `fix/kappa-edge-case` or `feat/weighted-kappa`).
-2. Make your changes in small, focused commits with clear messages.
-3. Add or update tests covering the change. New numerical code requires at least one hand-verified worked example in the test docstring.
-4. Run the full suite locally: `pytest tests/ -v`, every test must pass.
-5. Run the headless demo: `python examples/demo.py`, must exit 0.
-6. Update `README.md`, `paper.md`, or `CITATION.cff` if the change affects user-facing behaviour or scholarly attribution.
-7. Open a pull request describing what changed and why. Link the issue it resolves.
+Open an issue using the Bug Report template. The most useful bug reports include a short snippet that reproduces the problem, the output you expected, and the output you actually got.
 
-## Coding Standards
+## Suggesting a feature
 
-- **Python 3.9+**, no third-party dependencies in the core module beyond `openai` and the standard library.
-- **No silent behaviour changes** in `compute_cohens_kappa`, `build_confusion_matrix`, or `get_per_type_stats` without an explicit version bump and migration note.
-- **Docstrings** on every public function: one-line summary, parameters, returns, and at least one worked example for numerical functions.
-- **Deterministic output**, no randomness in user-facing functions; tests use seeded RNG.
+Open an issue using the Feature Request template. Telling me the research use case you have in mind helps a lot more than just describing the feature.
 
-## Reporting Security Issues
+## Sending a pull request
 
-Email security concerns privately to manikmaurya.in@gmail.com rather than opening a public issue.
+1. Fork the repo and start a branch off `main`.
+2. Make small, focused commits with clear messages.
+3. Add tests for any new code. For numerical changes, include a worked example in the test docstring.
+4. Run `pytest tests/ -v` and `python examples/demo.py` locally. Both should pass.
+5. If your change affects user-facing behaviour, update `README.md`, `paper.md`, or `CITATION.cff` to match.
+6. Open the pull request and describe what changed and why. Link the issue it resolves.
+
+## Style notes
+
+- Python 3.9 or higher.
+- No new third-party runtime dependencies in the core module beyond `openai` and the standard library.
+- Don't silently change the output of `compute_cohens_kappa`, `build_confusion_matrix`, or `get_per_type_stats`. A version bump and a note in the changelog are required for any behaviour change.
+- Public functions should have docstrings. Numerical functions should include a worked example.
+- Tests should be deterministic; seed any randomness.
+
+## Security
+
+If you find a security issue, please email it privately rather than opening a public issue: manikmaurya.in@gmail.com.
 
 ## Code of Conduct
 
-Participation in this project is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). By contributing, you agree to abide by its terms.
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## Attribution and Licensing
+## License
 
-All contributions are licensed under the project's MIT License. Significant code contributions will be acknowledged in release notes; contributions that meet the [JOSS authorship criteria](https://joss.readthedocs.io/en/latest/submitting.html#authorship) (substantive design, code, or scholarly contribution) may be added to the author list of future paper versions.
+By contributing you agree that your contribution is released under the project's MIT License.

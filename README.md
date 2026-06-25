@@ -79,7 +79,7 @@ For each distractor, type `1` for RF, `2` for PK, `3` for CF, or `4` for INT. Wh
 A fully reproducible worked example lives in [`case_study/`](case_study/). It runs the entire
 pipeline (nominal kappa, weighted kappa under linear and quadratic schemes, BCa
 bootstrap 95% CI, confusion matrix, per-category stats) on the bundled 30-item
-paired-label set with a fixed seed, then writes a publication-ready bundle to
+paired-label set with a fixed seed, then writes the results to
 `case_study/results/` (JSON summary, CSV matrix, CSV per-type stats, full bootstrap
 distribution, and a Markdown report). Regenerate with one command:
 
