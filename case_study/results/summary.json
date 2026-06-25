@@ -1,0 +1,19 @@
+{
+  "n_items": 30,
+  "seed": 20260623,
+  "n_resamples": 10000,
+  "nominal_kappa": 0.8653,
+  "linear_weighted_kappa": 0.9136,
+  "quadratic_weighted_kappa": 0.9538,
+  "po": 0.9,
+  "pe": 0.2578,
+  "agreements": 27,
+  "interpretation_nominal": "Almost Perfect, excellent agreement.",
+  "ci_95_bca": {
+    "lower": 0.6856,
+    "upper": 1.0,
+    "method": "bca",
+    "confidence": 0.95
+  },
+  "pre_registration_gate_kappa_ge_0_70": true
+}

@@ -1,0 +1,19 @@
+include LICENSE
+include README.md
+include CITATION.cff
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include CHANGELOG.md
+include paper.md
+include paper.bib
+include pyproject.toml
+
+recursive-include sample_data *.csv *.json
+recursive-include examples *.py
+recursive-include tests *.py
+recursive-include docs *.md
+
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .pytest_cache
+global-exclude *.egg-info

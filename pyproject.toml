@@ -12,27 +12,37 @@ license = { file = "LICENSE" }
 authors = [
     { name = "Manik Maurya", email = "manikmaurya.in@gmail.com" }
 ]
+maintainers = [
+    { name = "Manik Maurya", email = "manikmaurya.in@gmail.com" }
+]
 keywords = [
     "inter-rater-reliability",
     "cohens-kappa",
+    "weighted-kappa",
+    "bootstrap-confidence-interval",
     "cognitive-science",
     "educational-assessment",
     "multiple-choice-questions",
     "distractor-classification",
     "human-ai-collaboration",
+    "preregistration",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Education :: Testing",
 ]
 dependencies = [
@@ -42,18 +52,25 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "build>=1.0",
+    "twine>=4.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/Manik-Maurya/Confusion-Mapper"
-Repository = "https://github.com/Manik-Maurya/Confusion-Mapper"
-Issues = "https://github.com/Manik-Maurya/Confusion-Mapper/issues"
+Homepage      = "https://github.com/Manik-Maurya/Confusion-Mapper"
+Repository    = "https://github.com/Manik-Maurya/Confusion-Mapper"
+Source        = "https://github.com/Manik-Maurya/Confusion-Mapper"
+Documentation = "https://github.com/Manik-Maurya/Confusion-Mapper#readme"
+Issues        = "https://github.com/Manik-Maurya/Confusion-Mapper/issues"
+Changelog     = "https://github.com/Manik-Maurya/Confusion-Mapper/blob/main/CHANGELOG.md"
+Archive       = "https://doi.org/10.5281/zenodo.20807432"
 
 [project.scripts]
 confusion-mapper = "confusion_mapper:main"
 
 [tool.setuptools]
 py-modules = ["confusion_mapper"]
+include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

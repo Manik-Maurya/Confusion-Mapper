@@ -110,7 +110,11 @@ temperature is set to zero for reproducibility across sessions. On gate
 passage (κ >= 0.70), a confirmation dialog is shown and the complete session is exported
 to CSV.
 
-Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` keyword that switches between nominal (Cohen, 1960), linear (Cicchetti-Allison), and quadratic (Fleiss-Cohen) weighting schemes so the tool can be used on ordinal taxonomies. `bootstrap_kappa_ci` returns a 95% confidence interval for kappa using either the percentile bootstrap or the bias-corrected and accelerated (BCa) bootstrap [@Efron1987], with the random seed exposed for full reproducibility. `load_taxonomy_from_json` lets a researcher swap the default CFI categories for any two-or-more category nominal scheme via a small JSON config, broadening the tool's applicability beyond the CFI study while preserving the same workflow.
+Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` argument (`nominal`, `linear` Cicchetti-Allison, or `quadratic` Fleiss-Cohen) for ordinal taxonomies. `bootstrap_kappa_ci` returns a percentile or BCa [@Efron1987] confidence interval with a seedable RNG. `load_taxonomy_from_json` swaps the default CFI categories for any user-supplied scheme, broadening the tool beyond the CFI study.
+
+A worked example in `case_study/` regenerates a full IRR analysis (nominal and
+weighted κ, BCa 95% CI under a fixed seed, confusion matrix, per-type stats, Markdown
+report) on the bundled 30-item set, bit-identical on any machine.
 
 The test suite (`tests/test_kappa.py`) comprises 55 assertions covering the κ formula,
 edge cases, weighted-κ schemes, bootstrap CI determinism, custom-taxonomy loading, and

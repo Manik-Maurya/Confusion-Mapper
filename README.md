@@ -28,6 +28,14 @@ The taxonomy is called the Confusion Fingerprint Index (CFI). It splits wrong an
 
 ## Install
 
+Once a versioned release is on PyPI:
+
+```bash
+pip install confusion-mapper
+```
+
+From source (until the first PyPI release, this is the recommended path):
+
 ```bash
 git clone https://github.com/Manik-Maurya/Confusion-Mapper.git
 cd Confusion-Mapper
@@ -65,6 +73,22 @@ python confusion_mapper.py
 ```
 
 For each distractor, type `1` for RF, `2` for PK, `3` for CF, or `4` for INT. When you finish, the dashboard opens and the session writes itself to JSON.
+
+## Case study
+
+A fully reproducible worked example lives in [`case_study/`](case_study/). It runs the entire
+pipeline (nominal kappa, weighted kappa under linear and quadratic schemes, BCa
+bootstrap 95% CI, confusion matrix, per-category stats) on the bundled 30-item
+paired-label set with a fixed seed, then writes a publication-ready bundle to
+`case_study/results/` (JSON summary, CSV matrix, CSV per-type stats, full bootstrap
+distribution, and a Markdown report). Regenerate with one command:
+
+```bash
+python case_study/run_case_study.py
+```
+
+Headline result on the bundled data: nominal kappa = 0.8653, BCa 95% CI = (0.6856, 1.0000),
+pre-registration gate PASSES at the 0.70 threshold.
 
 ## Headless example
 
