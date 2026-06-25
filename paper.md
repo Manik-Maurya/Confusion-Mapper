@@ -3,7 +3,7 @@ title: "ConfusionMapper: A Human-AI Hybrid Inter-Rater Reliability Tool for Cogn
 author:
   - name: Manik Maurya
     orcid: 0009-0005-3554-693X
-    affiliation: Department of Cognitive Science, Indian Institute of Technology Kanpur, India
+    affiliation: Independent Researcher, Kanpur, India
 date: 25 June 2026
 keywords:
   - inter-rater reliability
@@ -83,7 +83,7 @@ The 88-test pytest suite cross-validates the implementation against hand-verifie
 
 # Discussion
 
-ConfusionMapper provides the methodological reliability gate for a pre-registered three-arm randomised controlled trial in 90 students across government junior high schools in Kanpur Dehat, Uttar Pradesh, India (OSF preregistration: osf.io/ck6nj). Data collection in that study cannot start until kappa on the CFI calibration set clears the 0.70 threshold the tool enforces. The CFI taxonomy itself is described in a companion preprint [@Maurya2026CFI].
+ConfusionMapper provides the methodological reliability gate for a pre-registered three-arm randomised controlled trial in 90 students across government junior high schools in Kanpur Dehat, Uttar Pradesh, India (OSF preregistration: osf.io/ck6nj). The package was developed in part during a research internship at the Department of Cognitive Science, Indian Institute of Technology Kanpur. Data collection in the RCT cannot start until kappa on the CFI calibration set clears the 0.70 threshold the tool enforces. The CFI taxonomy itself is described in a companion preprint [@Maurya2026CFI].
 
 The contribution beyond existing IRR tooling is threefold. First, the package treats the AI as a first-class rater whose disagreements with the human are diagnostic information about the prompt, not noise to be averaged away. The automated `suggest_prompt_refinements` function operationalises this by transforming the confusion matrix into concrete prompt-rewrite suggestions. We are not aware of another open-source IRR tool that does this. Second, the package combines the IRR coefficients researchers actually need (nominal and weighted Cohen's kappa, Krippendorff's alpha, Fleiss's kappa, PABAK) with diagnostic tooling for the kappa paradox and a planning-stage sample-size estimator in a single, dependency-minimal module. Third, the package enforces pre-registration discipline: a researcher cannot pass the reliability gate by accident, because the threshold is checked programmatically and the session is exported with the seed and AI model identifier required to reproduce it, in line with current best practice for the pre-registration paradigm [@Nosek2018].
 
@@ -95,6 +95,6 @@ ConfusionMapper supports the human-AI hybrid IRR protocol with the statistical d
 
 # Acknowledgements
 
-This software originated as a capstone project for Stanford Code in Place 2026 and is used as the methodological reliability gate for a pre-registered RCT at the Department of Cognitive Science, IIT Kanpur.
+This software originated as a capstone project for Stanford Code in Place 2026. Early development took place during a research internship at the Department of Cognitive Science, Indian Institute of Technology Kanpur.
 
 # References

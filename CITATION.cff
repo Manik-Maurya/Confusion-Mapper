@@ -17,9 +17,7 @@ authors:
     given-names: "Manik"
     orcid: "https://orcid.org/0009-0005-3554-693X"
     email: "manikmaurya.in@gmail.com"
-    affiliation: >-
-      Department of Cognitive Science, Indian Institute of Technology
-      Kanpur, India
+    affiliation: Independent Researcher, Kanpur, India
 version: "1.0.0"
 date-released: "2026-06-22"
 license: MIT
