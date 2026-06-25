@@ -14,6 +14,9 @@ First public release.
 - `get_per_type_stats(human, ai)` returns per-category total, agreed, and percentage agreement.
 - `bootstrap_kappa_ci(human, ai, method="bca", seed=...)` returns a percentile or BCa bootstrap 95% confidence interval. The `seed` argument makes the interval bit-identically reproducible.
 - `load_taxonomy_from_json(path)` swaps the default Confusion Fingerprint Index categories for any nominal scheme of two or more labels described in a small JSON file.
+- `compute_kappa_diagnostics(human, ai)` returns PABAK alongside the bias and prevalence indices (Byrt et al. 1993). Useful for diagnosing the kappa paradox on skewed marginals.
+- `krippendorff_alpha(human, ai, level=...)` computes Krippendorff's alpha at nominal, ordinal, or interval level.
+- `recommend_sample_size(expected_kappa, ci_half_width, n_categories)` estimates the calibration-set size required to bound the kappa CI within a target half-width (Donner and Eliasziw, 1992).
 
 ### Interfaces
 
@@ -27,7 +30,7 @@ First public release.
 
 ### Quality
 
-- 55-test pytest suite.
+- 72-test pytest suite.
 - GitHub Actions matrix on Python 3.9 through 3.12.
 - JOSS draft paper PDF built on every push.
 

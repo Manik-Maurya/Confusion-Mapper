@@ -107,11 +107,11 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-55 tests, runs in under a second. Covers the kappa formula (with hand-verified worked examples), weighted kappa (nominal / linear / quadratic), bootstrap confidence intervals (percentile + BCa, seedable), custom-taxonomy loading, the confusion matrix, and the mathematical invariants that tie everything together. Doesn't need an API key or a display.
+72 tests, run in under a second. Covers the kappa formula (with hand-verified worked examples), weighted kappa (nominal / linear / quadratic), bootstrap confidence intervals (percentile and BCa, seedable), PABAK and the bias / prevalence diagnostics, Krippendorff's alpha at three measurement levels, the sample-size estimator, custom-taxonomy loading, the confusion matrix, and the mathematical invariants that tie everything together. Doesn't need an API key or a display.
 
 ## Advanced features
 
-All three are stdlib-only and tested.
+All of these use only the Python standard library and have their own tests.
 
 **Weighted kappa for ordinal taxonomies.** Pass `weights="linear"` or
 `weights="quadratic"` to penalise far-apart disagreements more than adjacent ones:
@@ -130,6 +130,30 @@ bit-identically reproducible:
 from confusion_mapper import bootstrap_kappa_ci
 ci = bootstrap_kappa_ci(human, ai, n_resamples=10000, method="bca", seed=42)
 print(f"kappa = {ci['point_estimate']} (95% CI {ci['ci_lower']} to {ci['ci_upper']})")
+```
+
+**PABAK and the kappa paradox.** When marginals are highly skewed, Cohen's kappa can be paradoxically low even though raters agree on most items. `compute_kappa_diagnostics` returns PABAK (`2*Po - 1`) along with the bias and prevalence indices (Byrt et al. 1993) so you can tell whether a low kappa reflects genuine disagreement or just a skewed taxonomy:
+
+```python
+from confusion_mapper import compute_kappa_diagnostics
+d = compute_kappa_diagnostics(human, ai)
+print(d['kappa'], d['pabak'], d['bias_index'], d['prevalence_index'])
+```
+
+**Krippendorff's alpha.** An alternative IRR coefficient that generalises to more than two raters and supports nominal, ordinal, or interval-level measurements:
+
+```python
+from confusion_mapper import krippendorff_alpha
+r = krippendorff_alpha(human, ai, level='ordinal')
+print(r['alpha'], r['interpretation'])
+```
+
+**Sample-size planning.** Before you collect calibration labels, estimate how many you need to bound the kappa CI within a target half-width:
+
+```python
+from confusion_mapper import recommend_sample_size
+n = recommend_sample_size(expected_kappa=0.80, ci_half_width=0.10, n_categories=4)
+print(f"Need at least {n['recommended_n']} items.")
 ```
 
 **Custom taxonomy via JSON.** Swap the default CFI categories for any 2-or-more

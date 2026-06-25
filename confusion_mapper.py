@@ -80,6 +80,7 @@ except Exception:
 # SECTION 1, CONSTANTS & TAXONOMY DEFINITIONS
 # ==============================================================================
 
+__version__  = "1.0.0"
 APP_VERSION  = "1.0"
 DATA_FILE    = "confusion_mapper_sessions.json"
 ERROR_TYPES  = ["RF", "PK", "CF", "INT"]
@@ -643,6 +644,240 @@ def get_per_type_stats(human_labels, ai_labels, categories=None):
                 "pct":    round((agreed / len(indices)) * 100),
             }
     return stats
+
+
+def compute_kappa_diagnostics(human_labels, ai_labels, categories=None):
+    """
+    Compute kappa together with the prevalence and bias indices that explain
+    its behaviour, and PABAK (prevalence-adjusted bias-adjusted kappa).
+
+    Cohen's kappa has a known paradox (Feinstein and Cicchetti, 1990): on
+    highly skewed marginals, two raters can agree on most items yet still get
+    a low kappa. The standard diagnostic toolkit for this situation is:
+
+      - Bias Index (BI):       difference between rater marginals
+                               on each category, summarised. BI > 0 means the
+                               two raters use the categories at different rates.
+      - Prevalence Index (PI): how lopsided the agreement is across categories.
+                               High PI inflates the chance-agreement term.
+      - PABAK:                 2 * Po - 1. The kappa value that would be observed
+                               if both raters' marginals were perfectly balanced
+                               (Byrt et al., 1993). Useful as a sanity check when
+                               kappa looks suspiciously low.
+
+    These are reported alongside the nominal kappa so a reader can tell whether
+    a low kappa reflects genuine disagreement or just a prevalence artefact.
+
+    Args:
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels.
+        categories   (list[str] | None): explicit category order, defaults to ERROR_TYPES.
+
+    Returns:
+        dict with kappa, pabak, prevalence_index, bias_index, n, plus the
+        nominal kappa diagnostics from compute_cohens_kappa.
+    """
+    if categories is None:
+        categories = ERROR_TYPES
+    n = len(human_labels)
+    base = compute_cohens_kappa(human_labels, ai_labels, categories=categories)
+
+    if n == 0:
+        return {**base, "pabak": 0.0, "prevalence_index": 0.0, "bias_index": 0.0}
+
+    po = base["po"]
+    pabak = 2.0 * po - 1.0
+
+    # Prevalence Index: max over categories of |2 * p_pos - 1| where p_pos is
+    # the fraction of items both raters placed in that category. Higher = more
+    # lopsided marginals.
+    prevalence = 0.0
+    for c in categories:
+        both = sum(1 for h, a in zip(human_labels, ai_labels) if h == c and a == c)
+        p_pos = both / n
+        prevalence = max(prevalence, abs(2 * p_pos - 1))
+
+    # Bias Index: average absolute difference between rater marginals.
+    bias = 0.0
+    for c in categories:
+        p_human = human_labels.count(c) / n
+        p_ai    = ai_labels.count(c) / n
+        bias += abs(p_human - p_ai)
+    bias = bias / 2.0  # normalised so values lie in [0, 1]
+
+    return {
+        **base,
+        "pabak":            round(pabak, 4),
+        "prevalence_index": round(prevalence, 4),
+        "bias_index":       round(bias, 4),
+    }
+
+
+def krippendorff_alpha(human_labels, ai_labels, level="nominal", categories=None):
+    """
+    Compute Krippendorff's alpha for two raters (Krippendorff, 2004).
+
+    Alpha is an alternative inter-rater reliability coefficient. Unlike Cohen's
+    kappa it generalises naturally to any number of raters, handles missing
+    values, and admits multiple measurement levels:
+
+      - "nominal":  categorical labels (default; equivalent to Scott's pi for two
+                    raters with no missing data, and close to Cohen's kappa).
+      - "ordinal":  categories have a meaningful order. Disagreements between
+                    adjacent ranks are penalised less than between distant ranks.
+      - "interval": numeric distances are used as the disagreement metric.
+
+    Args:
+        human_labels (list[str]): rater 1 labels.
+        ai_labels    (list[str]): rater 2 labels of the same length.
+        level        (str): "nominal" | "ordinal" | "interval".
+        categories   (list[str] | None): explicit category order. Required for
+                     "ordinal" and "interval" because position defines rank.
+
+    Returns:
+        dict with keys alpha, n, level, interpretation.
+    """
+    if categories is None:
+        categories = ERROR_TYPES
+    if level not in ("nominal", "ordinal", "interval"):
+        raise ValueError(f"level must be 'nominal', 'ordinal', or 'interval'; got {level!r}")
+
+    n = len(human_labels)
+    if n != len(ai_labels):
+        raise ValueError("label lists must be the same length")
+    if n == 0:
+        return {"alpha": 0.0, "n": 0, "level": level, "interpretation": "No data."}
+
+    idx = {c: i for i, c in enumerate(categories)}
+    if any(h not in idx or a not in idx for h, a in zip(human_labels, ai_labels)):
+        raise ValueError("labels contain values outside the provided categories")
+
+    k = len(categories)
+
+    def delta(i, j):
+        if level == "nominal":
+            return 0 if i == j else 1
+        if level == "ordinal":
+            d = abs(i - j) / (k - 1) if k > 1 else 0
+            return d * d
+        # interval
+        d = abs(i - j) / (k - 1) if k > 1 else 0
+        return d * d
+
+    # Coincidence matrix for two raters: each unit contributes 2 entries
+    # (each ordered pair counted), so we double-count consistently with
+    # Krippendorff's formulation for fully crossed designs.
+    obs_pairs = 0.0
+    obs_disagreement = 0.0
+    for h, a in zip(human_labels, ai_labels):
+        i, j = idx[h], idx[a]
+        # 2 units in this pair, so 2 pairs of values
+        obs_pairs += 2
+        obs_disagreement += delta(i, j) + delta(j, i)
+
+    # Expected disagreement: over the full pool of 2n labels, every pair.
+    pool = list(idx[h] for h in human_labels) + list(idx[a] for a in ai_labels)
+    N = len(pool)
+    counts = [0] * k
+    for v in pool:
+        counts[v] += 1
+
+    exp_disagreement = 0.0
+    for i in range(k):
+        for j in range(k):
+            exp_disagreement += counts[i] * counts[j] * delta(i, j)
+    # Divide by N(N-1) to normalise.
+    if N > 1:
+        exp_disagreement = exp_disagreement / (N - 1)
+
+    obs_mean = obs_disagreement / obs_pairs if obs_pairs > 0 else 0.0
+    exp_mean = exp_disagreement / N if N > 0 else 0.0
+
+    if exp_mean == 0:
+        alpha_val = 1.0 if obs_mean == 0 else 0.0
+    else:
+        alpha_val = 1.0 - obs_mean / exp_mean
+
+    if alpha_val >= 0.80:
+        interp = "Reliable for definitive conclusions."
+    elif alpha_val >= 0.667:
+        interp = "Reliable for tentative conclusions only."
+    else:
+        interp = "Insufficient reliability for research conclusions."
+
+    return {
+        "alpha":          round(alpha_val, 4),
+        "n":              n,
+        "level":          level,
+        "interpretation": interp,
+    }
+
+
+def recommend_sample_size(expected_kappa, ci_half_width=0.10,
+                          n_categories=4, confidence=0.95):
+    """
+    Estimate how many paired-label items a calibration set needs to bound
+    Cohen's kappa within a target confidence-interval half-width.
+
+    Uses the standard large-sample variance approximation for Cohen's kappa
+    under the assumption of balanced marginals (Donner and Eliasziw, 1992;
+    Cantor, 1996). The number returned is a planning aid: small calibration
+    sets are always advisable to follow up with bootstrap CI on the realised
+    data (see bootstrap_kappa_ci).
+
+    Args:
+        expected_kappa (float): the kappa value you expect to observe
+                                (use the target threshold if conservative).
+        ci_half_width  (float): desired half-width of the 95% CI. Default 0.10.
+        n_categories   (int):   number of categories in the taxonomy. Default 4.
+        confidence     (float): confidence level. Default 0.95.
+
+    Returns:
+        dict with recommended_n, expected_kappa, ci_half_width, confidence,
+        and the assumed n_categories. recommended_n is always rounded up.
+    """
+    import math
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be between 0 and 1 exclusive")
+    if ci_half_width <= 0 or ci_half_width >= 1:
+        raise ValueError("ci_half_width must be between 0 and 1 exclusive")
+    if n_categories < 2:
+        raise ValueError("n_categories must be at least 2")
+    if not -1.0 <= expected_kappa <= 1.0:
+        raise ValueError("expected_kappa must lie in [-1, 1]")
+
+    # Two-sided z critical value via Beasley-Springer-Moro (same routine the
+    # bootstrap CI uses). Inlined here to keep the dependency footprint nil.
+    p = (1 + confidence) / 2.0
+    # Use the same qnorm helper logic as bootstrap_kappa_ci for symmetry.
+    # Approximate via math.erf-inverse Newton iteration (3 steps is plenty for
+    # the standard 95% case).
+    z = 0.0
+    for _ in range(40):
+        cdf = 0.5 * (1 + math.erf(z / math.sqrt(2)))
+        pdf = math.exp(-z * z / 2) / math.sqrt(2 * math.pi)
+        if pdf == 0:
+            break
+        z = z - (cdf - p) / pdf
+    z_alpha = z
+
+    # Variance approximation under balanced marginals.
+    pe = 1.0 / n_categories
+    po = expected_kappa * (1 - pe) + pe
+    po = min(max(po, 0.0), 1.0)
+    var_per_item = po * (1 - po) / ((1 - pe) ** 2)
+    if var_per_item <= 0:
+        n_needed = 1
+    else:
+        n_needed = math.ceil((z_alpha ** 2) * var_per_item / (ci_half_width ** 2))
+
+    return {
+        "recommended_n":  int(n_needed),
+        "expected_kappa": expected_kappa,
+        "ci_half_width":  ci_half_width,
+        "confidence":     confidence,
+        "n_categories":   n_categories,
+    }
 
 
 # ==============================================================================

@@ -81,6 +81,22 @@ full 4×4 matrix directly visible, enabling targeted prompt revision when specif
 category boundaries (notably CF versus INT in CFI) prove porous under human-AI
 comparison [@Artstein2008].
 
+Table 1 summarises how ConfusionMapper compares to the most widely used IRR
+tooling on the dimensions that matter for AI-assisted educational annotation:
+
+| Feature                                | sklearn | R `irr`  | MAXQDA / NVivo | ConfusionMapper |
+|----------------------------------------|:-------:|:--------:|:--------------:|:---------------:|
+| Cohen's kappa                          | yes     | yes      | yes            | yes             |
+| Weighted kappa (linear / quadratic)    | partial | yes      | partial        | yes             |
+| Krippendorff's alpha                   | no      | yes      | partial        | yes             |
+| PABAK + bias / prevalence diagnostics  | no      | partial  | no             | yes             |
+| Bootstrap CI (BCa, seeded)             | no      | partial  | no             | yes             |
+| Sample-size estimator                  | no      | no       | no             | yes             |
+| AI rater as first-class participant    | no      | no       | no             | yes             |
+| Confusion-matrix export per category   | partial | partial  | partial        | yes             |
+| Pre-registration go/no-go gate         | no      | no       | no             | yes             |
+| Custom taxonomy via config             | partial | partial  | yes            | yes             |
+
 # Software Description
 
 ConfusionMapper exposes three core functions, each operating on plain Python lists of
@@ -110,13 +126,13 @@ temperature is set to zero for reproducibility across sessions. On gate
 passage (κ >= 0.70), a confirmation dialog is shown and the complete session is exported
 to CSV.
 
-Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` argument (`nominal`, `linear` Cicchetti-Allison, or `quadratic` Fleiss-Cohen) for ordinal taxonomies. `bootstrap_kappa_ci` returns a percentile or BCa [@Efron1987] confidence interval with a seedable RNG. `load_taxonomy_from_json` swaps the default CFI categories for any user-supplied scheme, broadening the tool beyond the CFI study.
+Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` argument (`nominal`, `linear` Cicchetti-Allison, or `quadratic` Fleiss-Cohen) for ordinal taxonomies. `bootstrap_kappa_ci` returns a percentile or BCa [@Efron1987] confidence interval with a seedable RNG. `load_taxonomy_from_json` swaps the default CFI categories for any user-supplied scheme, broadening the tool beyond the CFI study. Three further functions support reliability diagnostics: `compute_kappa_diagnostics` returns PABAK alongside the bias and prevalence indices of @Byrt1993, which together diagnose the kappa paradox; `krippendorff_alpha` returns the nominal, ordinal, or interval Krippendorff alpha [@Krippendorff2018]; and `recommend_sample_size` estimates the number of calibration items required to bound the kappa CI within a target half-width [@DonnerEliasziw1992].
 
 A worked example in `case_study/` regenerates a full IRR analysis (nominal and
 weighted κ, BCa 95% CI under a fixed seed, confusion matrix, per-type stats, Markdown
 report) on the bundled 30-item set, bit-identical on any machine.
 
-The test suite (`tests/test_kappa.py`) comprises 55 assertions covering the κ formula,
+The test suite (`tests/test_kappa.py`) comprises 72 assertions covering the κ formula,
 edge cases, weighted-κ schemes, bootstrap CI determinism, custom-taxonomy loading, and
 row/column-sum invariants. All tests are self-contained and require no API credentials
 or graphical environment.

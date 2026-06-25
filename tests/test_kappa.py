@@ -798,3 +798,169 @@ class TestLoadTaxonomy:
         codes, tax = load_taxonomy_from_json(path)
         assert len(codes) >= 2
         assert all("definition" in tax[c] for c in codes)
+
+
+# ===========================================================================
+# SECTION 9 - compute_kappa_diagnostics (PABAK + bias + prevalence)
+# ===========================================================================
+
+class TestKappaDiagnostics:
+    """PABAK, bias index, prevalence index alongside nominal kappa."""
+
+    def test_returns_all_expected_keys(self):
+        from confusion_mapper import compute_kappa_diagnostics
+        d = compute_kappa_diagnostics(["RF","PK"], ["RF","CF"])
+        for key in ("kappa", "pabak", "bias_index", "prevalence_index", "po"):
+            assert key in d
+
+    def test_pabak_equals_2po_minus_1(self):
+        """PABAK is mathematically 2 * Po - 1."""
+        from confusion_mapper import compute_kappa_diagnostics
+        h = ["CF","CF","RF","RF","PK","PK","INT","INT"]
+        a = ["CF","CF","RF","CF","PK","PK","INT","INT"]
+        d = compute_kappa_diagnostics(h, a)
+        assert abs(d["pabak"] - (2 * d["po"] - 1)) < 1e-4
+
+    def test_zero_bias_when_marginals_match(self):
+        """When both raters use categories at identical rates, bias is 0."""
+        from confusion_mapper import compute_kappa_diagnostics
+        h = ["RF","PK","CF","INT","RF","PK","CF","INT"]
+        a = ["RF","PK","CF","INT","PK","RF","INT","CF"]
+        d = compute_kappa_diagnostics(h, a)
+        assert d["bias_index"] == 0.0
+
+    def test_high_prevalence_on_skewed_marginals(self):
+        """When most agreements concentrate in one cell, prevalence is high."""
+        from confusion_mapper import compute_kappa_diagnostics
+        h = ["RF"] * 18 + ["PK", "CF"]
+        a = ["RF"] * 18 + ["PK", "CF"]
+        d = compute_kappa_diagnostics(h, a)
+        assert d["prevalence_index"] > 0.5
+
+    def test_pabak_exceeds_kappa_on_kappa_paradox_input(self):
+        """The classic kappa paradox: high Po but low kappa due to skew."""
+        from confusion_mapper import compute_kappa_diagnostics
+        # 80% agreement but extreme skew - kappa underestimates agreement
+        h = ["RF"] * 16 + ["PK"] * 2 + ["CF","INT"]
+        a = ["RF"] * 16 + ["RF"] * 2 + ["CF","INT"]
+        d = compute_kappa_diagnostics(h, a)
+        assert d["pabak"] > d["kappa"]  # PABAK is higher when paradox bites
+
+
+# ===========================================================================
+# SECTION 10 - Krippendorff's alpha
+# ===========================================================================
+
+class TestKrippendorffAlpha:
+    """Alternative IRR coefficient, supports nominal / ordinal / interval."""
+
+    def test_perfect_agreement(self):
+        from confusion_mapper import krippendorff_alpha
+        a = krippendorff_alpha(["RF","PK","CF","INT"]*4, ["RF","PK","CF","INT"]*4)
+        assert a["alpha"] == 1.0
+
+    def test_alpha_in_valid_range(self):
+        from confusion_mapper import krippendorff_alpha
+        h = ["CF","CF","RF","PK","INT","CF","RF","PK"]
+        a = ["CF","RF","RF","PK","INT","PK","CF","PK"]
+        for level in ("nominal", "ordinal", "interval"):
+            r = krippendorff_alpha(h, a, level=level)
+            assert -1.0 <= r["alpha"] <= 1.0
+
+    def test_ordinal_geq_nominal_on_adjacent_disagreements(self):
+        """Ordinal alpha is higher than nominal when disagreements are adjacent."""
+        from confusion_mapper import krippendorff_alpha
+        h = ["RF","RF","PK","PK","CF","CF","INT","INT"]
+        a = ["PK","RF","RF","PK","INT","CF","CF","INT"]
+        nom = krippendorff_alpha(h, a, level="nominal")["alpha"]
+        ord_ = krippendorff_alpha(h, a, level="ordinal")["alpha"]
+        assert ord_ >= nom
+
+    def test_invalid_level_raises(self):
+        from confusion_mapper import krippendorff_alpha
+        with pytest.raises(ValueError):
+            krippendorff_alpha(["RF"], ["RF"], level="bogus")
+
+    def test_unknown_label_raises(self):
+        from confusion_mapper import krippendorff_alpha
+        with pytest.raises(ValueError):
+            krippendorff_alpha(["X"], ["RF"])
+
+    def test_empty_input_safe(self):
+        from confusion_mapper import krippendorff_alpha
+        r = krippendorff_alpha([], [])
+        assert r["alpha"] == 0.0
+        assert r["n"] == 0
+
+
+# ===========================================================================
+# SECTION 11 - Sample-size estimator (power analysis)
+# ===========================================================================
+
+class TestRecommendSampleSize:
+    """Plan how many items a calibration set needs for a given CI width."""
+
+    def test_tighter_ci_requires_more_items(self):
+        from confusion_mapper import recommend_sample_size
+        loose = recommend_sample_size(0.75, ci_half_width=0.10)
+        tight = recommend_sample_size(0.75, ci_half_width=0.05)
+        assert tight["recommended_n"] > loose["recommended_n"]
+
+    def test_returns_integer_at_least_one(self):
+        from confusion_mapper import recommend_sample_size
+        r = recommend_sample_size(0.80, ci_half_width=0.10)
+        assert isinstance(r["recommended_n"], int)
+        assert r["recommended_n"] >= 1
+
+    def test_metadata_round_trip(self):
+        from confusion_mapper import recommend_sample_size
+        r = recommend_sample_size(0.70, ci_half_width=0.08, n_categories=5, confidence=0.95)
+        assert r["expected_kappa"] == 0.70
+        assert r["ci_half_width"] == 0.08
+        assert r["n_categories"] == 5
+        assert r["confidence"] == 0.95
+
+    def test_invalid_inputs_raise(self):
+        from confusion_mapper import recommend_sample_size
+        with pytest.raises(ValueError):
+            recommend_sample_size(0.5, ci_half_width=0.0)
+        with pytest.raises(ValueError):
+            recommend_sample_size(0.5, ci_half_width=1.0)
+        with pytest.raises(ValueError):
+            recommend_sample_size(0.5, n_categories=1)
+        with pytest.raises(ValueError):
+            recommend_sample_size(2.0)
+        with pytest.raises(ValueError):
+            recommend_sample_size(0.5, confidence=0.0)
+
+
+# ===========================================================================
+# SECTION 12 - Module surface
+# ===========================================================================
+
+class TestModuleSurface:
+    """Public API surface checks."""
+
+    def test_version_string_exposed(self):
+        import confusion_mapper as cm
+        assert hasattr(cm, "__version__")
+        assert isinstance(cm.__version__, str)
+        # SemVer X.Y.Z shape
+        parts = cm.__version__.split(".")
+        assert len(parts) == 3 and all(p.isdigit() for p in parts)
+
+    def test_public_functions_importable(self):
+        from confusion_mapper import (
+            compute_cohens_kappa,
+            build_confusion_matrix,
+            get_per_type_stats,
+            bootstrap_kappa_ci,
+            load_taxonomy_from_json,
+            compute_kappa_diagnostics,
+            krippendorff_alpha,
+            recommend_sample_size,
+            ERROR_TYPES,
+            TAXONOMY,
+        )
+        assert callable(compute_cohens_kappa)
+        assert callable(krippendorff_alpha)
