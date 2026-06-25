@@ -42,7 +42,6 @@ jobs:
     # Builds the JOSS-format backup paper so the December JOSS resubmission
     # always has a fresh PDF preview. The main paper.md is the academic-format
     # paper for arXiv / PeerJ CS and is built locally with pandoc.
-    if: hashFiles('paper-joss.md') != ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
