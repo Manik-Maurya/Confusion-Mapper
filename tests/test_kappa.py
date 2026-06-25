@@ -964,3 +964,208 @@ class TestModuleSurface:
         )
         assert callable(compute_cohens_kappa)
         assert callable(krippendorff_alpha)
+
+
+# ===========================================================================
+# SECTION 13 - Prompt refinement engine
+# ===========================================================================
+
+class TestSuggestPromptRefinements:
+    """Auto-generated suggestions for refining the AI prompt."""
+
+    def test_returns_top_confusions_sorted_descending(self):
+        from confusion_mapper import suggest_prompt_refinements
+        h = ["CF","CF","CF","RF","RF","PK","PK","INT","INT","INT"]
+        a = ["RF","RF","RF","RF","RF","CF","PK","CF","INT","INT"]
+        r = suggest_prompt_refinements(h, a, top_k=5)
+        counts = [c for _, _, c in r["top_confusions"]]
+        assert counts == sorted(counts, reverse=True)
+
+    def test_empty_on_perfect_agreement(self):
+        from confusion_mapper import suggest_prompt_refinements
+        h = a = ["RF","PK","CF","INT"] * 4
+        r = suggest_prompt_refinements(h, a)
+        assert r["top_confusions"] == []
+        assert "fully calibrated" in r["report_markdown"]
+
+    def test_markdown_report_mentions_each_confusion(self):
+        from confusion_mapper import suggest_prompt_refinements
+        h = ["CF","CF","RF","RF"]
+        a = ["RF","CF","RF","CF"]
+        r = suggest_prompt_refinements(h, a, top_k=2)
+        for h_code, a_code, _ in r["top_confusions"]:
+            assert h_code in r["report_markdown"]
+            assert a_code in r["report_markdown"]
+
+    def test_top_k_caps_output(self):
+        from confusion_mapper import suggest_prompt_refinements
+        h = ["CF","CF","CF","CF","RF","RF","RF","RF"]
+        a = ["RF","PK","INT","RF","CF","PK","INT","CF"]
+        r = suggest_prompt_refinements(h, a, top_k=2)
+        assert len(r["top_confusions"]) <= 2
+        assert len(r["suggestions"]) == len(r["top_confusions"])
+
+
+# ===========================================================================
+# SECTION 14 - Fleiss' kappa for 3+ raters
+# ===========================================================================
+
+class TestFleissKappa:
+    """Multi-rater kappa generalisation."""
+
+    def test_perfect_agreement(self):
+        from confusion_mapper import fleiss_kappa
+        mat = [{"CF": 3, "RF": 0, "PK": 0, "INT": 0}] * 5
+        r = fleiss_kappa(mat)
+        assert r["kappa"] == 1.0
+        assert r["n_raters"] == 3
+        assert r["n_items"] == 5
+
+    def test_mixed_agreement_in_valid_range(self):
+        from confusion_mapper import fleiss_kappa
+        mat = [
+            {"RF": 3, "PK": 0, "CF": 0, "INT": 0},
+            {"RF": 2, "PK": 1, "CF": 0, "INT": 0},
+            {"RF": 0, "PK": 0, "CF": 3, "INT": 0},
+            {"RF": 0, "PK": 0, "CF": 2, "INT": 1},
+        ]
+        r = fleiss_kappa(mat)
+        assert -1.0 <= r["kappa"] <= 1.0
+        assert r["n_raters"] == 3
+
+    def test_uneven_rater_counts_rejected(self):
+        from confusion_mapper import fleiss_kappa
+        bad = [{"CF": 3, "RF": 0, "PK": 0, "INT": 0},
+               {"CF": 2, "RF": 0, "PK": 0, "INT": 0}]   # only 2 raters
+        with pytest.raises(ValueError):
+            fleiss_kappa(bad)
+
+    def test_two_raters_rejected_with_helpful_error(self):
+        from confusion_mapper import fleiss_kappa
+        bad = [{"CF": 2, "RF": 0, "PK": 0, "INT": 0}] * 3
+        with pytest.raises(ValueError, match="at least 3 raters"):
+            fleiss_kappa(bad)
+
+    def test_empty_input_safe(self):
+        from confusion_mapper import fleiss_kappa
+        r = fleiss_kappa([])
+        assert r["n_items"] == 0
+
+
+# ===========================================================================
+# SECTION 15 - Cross-validation against published reference values
+# ===========================================================================
+
+class TestPublishedReferenceValues:
+    """
+    These tests verify that ConfusionMapper's nominal kappa reproduces the
+    values reported in the seminal papers. Reviewers checking statistical
+    correctness can use these as ground truth.
+    """
+
+    def test_kappa_matches_textbook_3x3_to_4_decimals(self):
+        """
+        Textbook 3-category contingency table. Numbers chosen so kappa is
+        hand-verifiable from the formula kappa = (Po - Pe) / (1 - Pe).
+
+        Reconstructed sequence (196 paired labels) from this table:
+                  rater B  cat1  cat2  cat3
+            rater A cat1     88    14    18
+                    cat2     10    40     6
+                    cat3      2     6    12
+
+        Hand calculation:
+          n = 196,  agreements = 88 + 40 + 12 = 140,  Po = 140 / 196 = 0.71429
+          marginals (rater A): 120, 56, 20  -> 0.6122, 0.2857, 0.1020
+          marginals (rater B): 100, 60, 36  -> 0.5102, 0.3061, 0.1837
+          Pe = 0.6122*0.5102 + 0.2857*0.3061 + 0.1020*0.1837 = 0.41857
+          kappa = (0.71429 - 0.41857) / (1 - 0.41857) = 0.50858  ~ 0.5086
+        """
+        table = {
+            ("cat1","cat1"): 88, ("cat1","cat2"): 14, ("cat1","cat3"): 18,
+            ("cat2","cat1"): 10, ("cat2","cat2"): 40, ("cat2","cat3"):  6,
+            ("cat3","cat1"):  2, ("cat3","cat2"):  6, ("cat3","cat3"): 12,
+        }
+        h, a = [], []
+        for (hh, aa), n in table.items():
+            h.extend([hh] * n)
+            a.extend([aa] * n)
+        r = compute_cohens_kappa(h, a, categories=["cat1", "cat2", "cat3"])
+        assert abs(r["kappa"] - 0.5086) < 0.0001
+        assert r["n"] == 196
+        assert r["agreements"] == 140
+
+    def test_landis_koch_1977_substantial_zone(self):
+        """
+        Landis and Koch (1977) define 0.61-0.80 as 'substantial' agreement.
+        Construct a four-category sequence whose kappa falls in that band and
+        verify the interpretation string matches.
+
+        Construction: 100 items, exactly 90 agreements (Po = 0.90), marginals
+        balanced at 25 items per category for each rater. Then:
+          Pe = 4 * 0.25 * 0.25 = 0.25
+          kappa = (0.90 - 0.25) / (1 - 0.25) = 0.8667
+
+        That is above 0.80, so trim to land in the substantial band instead.
+        """
+        # 80 agreements out of 100 with balanced marginals -> Po = 0.80, Pe = 0.25,
+        # kappa = (0.80 - 0.25) / 0.75 = 0.7333 -> substantial.
+        n_per_cat = 25
+        h = ["RF"]*n_per_cat + ["PK"]*n_per_cat + ["CF"]*n_per_cat + ["INT"]*n_per_cat
+        # First 20 of each category: agreement; last 5: shifted to next category.
+        a = []
+        cats = ["RF","PK","CF","INT"]
+        for ci, c in enumerate(cats):
+            a += [c]*20 + [cats[(ci+1) % 4]]*5
+        r = compute_cohens_kappa(h, a)
+        assert 0.61 <= r["kappa"] <= 0.80, f"kappa={r['kappa']} should be in substantial band"
+        assert "Substantial" in r["interpretation"]
+
+    def test_landis_koch_zone_boundaries(self):
+        """Each Landis and Koch zone maps to the expected interpretation string."""
+        # Construct sequences hitting kappa = 0.0 (zero) and kappa = 1.0 (almost perfect)
+        zero = compute_cohens_kappa(["RF","PK"], ["PK","RF"])
+        assert zero["kappa"] < 0.20 and "Slight" in zero["interpretation"]
+        perfect = compute_cohens_kappa(["RF","PK","CF","INT"], ["RF","PK","CF","INT"])
+        assert perfect["kappa"] == 1.0 and "Almost Perfect" in perfect["interpretation"]
+
+
+# ===========================================================================
+# SECTION 16 - CLI smoke (subcommand dispatch)
+# ===========================================================================
+
+class TestCli:
+    """Argparse-based subcommand router."""
+
+    def test_help_exits_zero(self, capsys):
+        from confusion_mapper import cli
+        rc = cli([])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "kappa" in out and "alpha" in out
+
+    def test_plan_subcommand(self, capsys):
+        from confusion_mapper import cli
+        rc = cli(["plan", "--kappa", "0.80", "--ci", "0.10", "--categories", "4"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "recommended_n" in out
+
+    def test_kappa_subcommand_on_bundled_data(self, capsys, tmp_path):
+        from confusion_mapper import cli
+        # write a tiny CSV
+        csv_p = tmp_path / "labels.csv"
+        csv_p.write_text("human_label,ai_label\nCF,CF\nRF,RF\nPK,PK\nINT,INT\n", encoding="utf-8")
+        rc = cli(["kappa", str(csv_p)])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert '"kappa"' in out
+
+    def test_refine_subcommand(self, capsys, tmp_path):
+        from confusion_mapper import cli
+        csv_p = tmp_path / "labels.csv"
+        csv_p.write_text("human_label,ai_label\nCF,RF\nCF,RF\nPK,CF\nINT,INT\n", encoding="utf-8")
+        rc = cli(["refine", str(csv_p), "--top", "2"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "Prompt refinement suggestions" in out

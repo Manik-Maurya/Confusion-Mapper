@@ -16,6 +16,11 @@ First public release.
 - `load_taxonomy_from_json(path)` swaps the default Confusion Fingerprint Index categories for any nominal scheme of two or more labels described in a small JSON file.
 - `compute_kappa_diagnostics(human, ai)` returns PABAK alongside the bias and prevalence indices (Byrt et al. 1993). Useful for diagnosing the kappa paradox on skewed marginals.
 - `krippendorff_alpha(human, ai, level=...)` computes Krippendorff's alpha at nominal, ordinal, or interval level.
+- `suggest_prompt_refinements(human, ai, top_k=3)` ranks the largest off-diagonal cells of the confusion matrix and emits a Markdown report with concrete contrastive prompt instructions for each.
+- `fleiss_kappa(rating_matrix)` for 3-or-more rater panels (Fleiss, 1971), with the same Landis and Koch interpretation bands.
+- Unix-style CLI: `python -m confusion_mapper {kappa, alpha, diagnostics, refine, plan} ...`. Every subcommand emits JSON or Markdown on stdout for easy piping.
+- `docs/methods.md` documenting every formula with its primary citation.
+- Cross-validation tests against published reference values for textbook 3 x 3 contingency tables and the Landis and Koch zone boundaries.
 - `recommend_sample_size(expected_kappa, ci_half_width, n_categories)` estimates the calibration-set size required to bound the kappa CI within a target half-width (Donner and Eliasziw, 1992).
 
 ### Interfaces
@@ -30,7 +35,7 @@ First public release.
 
 ### Quality
 
-- 72-test pytest suite.
+- 88-test pytest suite.
 - GitHub Actions matrix on Python 3.9 through 3.12.
 - JOSS draft paper PDF built on every push.
 

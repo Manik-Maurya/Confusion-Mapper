@@ -96,6 +96,9 @@ tooling on the dimensions that matter for AI-assisted educational annotation:
 | Confusion-matrix export per category   | partial | partial  | partial        | yes             |
 | Pre-registration go/no-go gate         | no      | no       | no             | yes             |
 | Custom taxonomy via config             | partial | partial  | yes            | yes             |
+| Fleiss kappa (3+ raters)               | no      | yes      | partial        | yes             |
+| Auto prompt-refinement from matrix     | no      | no       | no             | yes             |
+| Unix CLI with subcommands              | no      | no       | no             | yes             |
 
 # Software Description
 
@@ -119,20 +122,15 @@ test suite.
 of *where* reliability breaks down (which cognitive error boundary is most porous),
 rather than collapsing agreement to a single aggregate coefficient.
 
-The graphical interface (tkinter) presents each distractor item alongside its human and
-AI label with color-coded agreement highlighting and a running κ display. The AI prompt
-is deterministic and structured to produce a single CFI label;
-temperature is set to zero for reproducibility across sessions. On gate
-passage (κ >= 0.70), a confirmation dialog is shown and the complete session is exported
-to CSV.
+A tkinter dashboard renders the kappa gauge, confusion matrix, and per-type bar chart when a display is available; otherwise the same results are printed to the console. On gate passage (κ >= 0.70) the complete session is exported to CSV.
 
-Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` argument (`nominal`, `linear` Cicchetti-Allison, or `quadratic` Fleiss-Cohen) for ordinal taxonomies. `bootstrap_kappa_ci` returns a percentile or BCa [@Efron1987] confidence interval with a seedable RNG. `load_taxonomy_from_json` swaps the default CFI categories for any user-supplied scheme, broadening the tool beyond the CFI study. Three further functions support reliability diagnostics: `compute_kappa_diagnostics` returns PABAK alongside the bias and prevalence indices of @Byrt1993, which together diagnose the kappa paradox; `krippendorff_alpha` returns the nominal, ordinal, or interval Krippendorff alpha [@Krippendorff2018]; and `recommend_sample_size` estimates the number of calibration items required to bound the kappa CI within a target half-width [@DonnerEliasziw1992].
+Three further functions extend the core. `compute_cohens_kappa` accepts a `weights` argument (`nominal`, `linear` Cicchetti-Allison, or `quadratic` Fleiss-Cohen) for ordinal taxonomies. `bootstrap_kappa_ci` returns a percentile or BCa [@Efron1987] confidence interval with a seedable RNG. `load_taxonomy_from_json` swaps the default CFI categories for any user-supplied scheme, broadening the tool beyond the CFI study. Three further functions support reliability diagnostics: `compute_kappa_diagnostics` returns PABAK alongside the bias and prevalence indices of @Byrt1993, which together diagnose the kappa paradox; `krippendorff_alpha` returns the nominal, ordinal, or interval Krippendorff alpha [@Krippendorff2018]; and `recommend_sample_size` estimates the number of calibration items required to bound the kappa CI within a target half-width [@DonnerEliasziw1992]. A `suggest_prompt_refinements` function uses the off-diagonal cells of the confusion matrix and the category definitions in the active taxonomy to emit a Markdown report of concrete contrastive prompt instructions, closing the loop between IRR measurement and rubric iteration. A `fleiss_kappa` function extends the toolkit to 3-or-more rater panels [@Fleiss1971]. A Unix-style CLI (`python -m confusion_mapper {kappa, alpha, diagnostics, refine, plan}`) emits JSON or Markdown on stdout for pipeline use.
 
 A worked example in `case_study/` regenerates a full IRR analysis (nominal and
 weighted κ, BCa 95% CI under a fixed seed, confusion matrix, per-type stats, Markdown
 report) on the bundled 30-item set, bit-identical on any machine.
 
-The test suite (`tests/test_kappa.py`) comprises 72 assertions covering the κ formula,
+The test suite (`tests/test_kappa.py`) comprises 88 assertions covering the κ formula,
 edge cases, weighted-κ schemes, bootstrap CI determinism, custom-taxonomy loading, and
 row/column-sum invariants. All tests are self-contained and require no API credentials
 or graphical environment.

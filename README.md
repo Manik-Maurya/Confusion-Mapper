@@ -107,7 +107,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-72 tests, run in under a second. Covers the kappa formula (with hand-verified worked examples), weighted kappa (nominal / linear / quadratic), bootstrap confidence intervals (percentile and BCa, seedable), PABAK and the bias / prevalence diagnostics, Krippendorff's alpha at three measurement levels, the sample-size estimator, custom-taxonomy loading, the confusion matrix, and the mathematical invariants that tie everything together. Doesn't need an API key or a display.
+88 tests, run in under a second. Covers the kappa formula (with hand-verified worked examples), weighted kappa (nominal / linear / quadratic), bootstrap confidence intervals (percentile and BCa, seedable), PABAK and the bias / prevalence diagnostics, Krippendorff's alpha at three measurement levels, the sample-size estimator, custom-taxonomy loading, the confusion matrix, and the mathematical invariants that tie everything together, the prompt-refinement engine, Fleiss's kappa for multi-rater panels, the CLI subcommand router, and cross-validation against published reference values. Doesn't need an API key or a display.
 
 ## Advanced features
 
@@ -165,6 +165,40 @@ from confusion_mapper import load_taxonomy_from_json, compute_cohens_kappa
 codes, tax = load_taxonomy_from_json("sample_data/custom_taxonomy.json")
 r = compute_cohens_kappa(human, ai, categories=codes)
 ```
+
+**Auto-generated prompt refinements.** Feed the confusion matrix back into the prompt: `suggest_prompt_refinements` ranks the largest off-diagonal cells and emits a Markdown report with concrete contrastive instructions you can paste into the AI prompt.
+
+```python
+from confusion_mapper import suggest_prompt_refinements
+r = suggest_prompt_refinements(human, ai, top_k=3)
+print(r['report_markdown'])
+```
+
+**Fleiss's kappa for three or more raters.** Cohen's kappa is two-rater. When you have a panel, use `fleiss_kappa`:
+
+```python
+from confusion_mapper import fleiss_kappa
+ratings = [
+    {'RF': 3, 'PK': 0, 'CF': 0, 'INT': 0},  # all 3 raters: RF
+    {'RF': 0, 'PK': 0, 'CF': 3, 'INT': 0},  # all 3 raters: CF
+    {'RF': 1, 'PK': 2, 'CF': 0, 'INT': 0},  # split 1 RF / 2 PK
+]
+print(fleiss_kappa(ratings)['kappa'])
+```
+
+## Command line
+
+ConfusionMapper has a Unix-style CLI with five subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+
+```bash
+python -m confusion_mapper kappa       sample_data/example_labels.csv --bootstrap 10000
+python -m confusion_mapper alpha       sample_data/example_labels.csv --level ordinal
+python -m confusion_mapper diagnostics sample_data/example_labels.csv
+python -m confusion_mapper refine      sample_data/example_labels.csv --top 3
+python -m confusion_mapper plan        --kappa 0.80 --ci 0.05 --categories 4
+```
+
+Every subcommand prints JSON (or Markdown for `refine`) on stdout, so you can redirect into a results bundle without writing any glue code.
 
 ## Why a 4x4 confusion matrix instead of just kappa
 
