@@ -100,7 +100,7 @@ tooling on the dimensions that matter for AI-assisted educational annotation:
 | Auto prompt-refinement from matrix     | no      | no       | no             | yes             |
 | Unix CLI with subcommands              | no      | no       | no             | yes             |
 
-# Software Description
+# Software design
 
 ConfusionMapper exposes three core functions, each operating on plain Python lists of
 string labels drawn from the CFI vocabulary `{RF, PK, CF, INT}`:
@@ -138,6 +138,10 @@ or graphical environment.
 # Reproducibility
 
 All randomness in ConfusionMapper is seedable. The AI rater calls the OpenAI Chat Completions API with `model="gpt-4o"` and `temperature=0.0`; the full system prompt is embedded verbatim in `classify_with_ai`. The bootstrap CI routine accepts a `seed` parameter, so reported intervals can be regenerated bit-identically. Session CSV exports record human labels, AI labels, item text, the bootstrap seed, and the exact AI model snapshot, which together constitute a minimum reproducibility record [@Nosek2018].
+
+# Research impact
+
+ConfusionMapper is the methodological reliability gate for a pre-registered three-arm randomised controlled trial in 90 students across government junior high schools in Kanpur Dehat, Uttar Pradesh, India (OSF preregistration: osf.io/ck6nj). Data collection in that study cannot start until kappa on a calibration set of MCQ distractors clears the 0.70 threshold the tool enforces. The Confusion Fingerprint Index taxonomy the tool operationalises is described in a companion preprint [@Maurya2026CFI]. Beyond the originating RCT, the tool is intended for any educational researcher who wants to classify cognitive error types in MCQ distractors with an auditable human-AI calibration record. The Unix-style CLI and the `load_taxonomy_from_json` entry point make the same workflow reusable for taxonomies other than CFI, including any nominal coding scheme with two or more categories.
 
 # Acknowledgements
 
