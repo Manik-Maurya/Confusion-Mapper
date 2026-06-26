@@ -20,7 +20,7 @@ abstract: >
 
 # Introduction
 
-In educational research, qualitative labels assigned by human coders enter statistical analysis only after the coding scheme has cleared an inter-rater reliability (IRR) threshold. Cohen's kappa (Cohen 1960) is the standard coefficient: it adjusts the observed proportion of agreement for chance agreement under independent marginals. Landis and Koch (Landis and Koch 1977) proposed the qualitative bands now in routine use, and a value of kappa at or above 0.70 is the de facto research threshold in education and clinical psychology.
+In educational research, qualitative labels assigned by human coders enter statistical analysis only after the coding scheme has cleared an inter-rater reliability (IRR) threshold. Cohen's kappa (Cohen 1960) is the standard coefficient: it adjusts the observed proportion of agreement for chance agreement under independent marginals. Landis and Koch (1977) proposed the qualitative bands now in routine use, and a value of kappa at or above 0.70 is the de facto research threshold in education and clinical psychology.
 
 The conventional two-expert-human IRR protocol is logistically prohibitive in many educational research contexts, particularly low-resource settings where no credentialed second rater is available and per-item annotation costs exceed small-grant budgets (Haladyna et al. 2002). Recent advances in large language models suggest a hybrid protocol in which the AI substitutes for the second human rater (OpenAI 2023). Recent empirical work on LLM raters in qualitative analysis, however, shows that human-LLM agreement varies substantially across the categories of a single rubric, from moderate (kappa ~ 0.4) to substantial (kappa > 0.6) on neighbouring themes within the same coding scheme (Borse et al. 2025). This heterogeneity makes it essential that researchers measure agreement on their own taxonomy before treating LLM output as a usable label.
 
@@ -58,7 +58,7 @@ ConfusionMapper implements the following coefficients and diagnostics. Full math
 
 `bootstrap_kappa_ci(human, ai, method, seed)` computes a 95% confidence interval for kappa using either the percentile bootstrap or the bias-corrected and accelerated (BCa) bootstrap (Efron 1987). The `seed` parameter fixes the resampling order so that reported intervals regenerate bit-identically.
 
-`compute_kappa_diagnostics(human, ai)` returns the prevalence-adjusted bias-adjusted kappa (PABAK) alongside the bias and prevalence indices of Byrt and colleagues (Byrt et al. 1993). These diagnose the well-known kappa paradox: high observed agreement combined with low kappa under skewed marginals.
+`compute_kappa_diagnostics(human, ai)` returns the prevalence-adjusted bias-adjusted kappa (PABAK) alongside the bias and prevalence indices of Byrt and colleagues (1993). These diagnose the well-known kappa paradox: high observed agreement combined with low kappa under skewed marginals.
 
 `krippendorff_alpha(human, ai, level)` computes Krippendorff's alpha (Krippendorff 2018) at nominal, ordinal, or interval level. Alpha generalises kappa-style agreement to any number of raters and admits multiple measurement levels.
 
