@@ -11,3 +11,6 @@ confusion_mapper_sessions.json
 
 .DS_Store
 Thumbs.db
+*.egg-info/
+__pycache__/
+.pytest_cache/
