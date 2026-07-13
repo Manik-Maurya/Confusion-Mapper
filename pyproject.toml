@@ -28,7 +28,7 @@ keywords = [
     "preregistration",
 ]
 classifiers = [
-    ""Development Status :: 4 - Beta",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "License :: OSI Approved :: MIT License",
