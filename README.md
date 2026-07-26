@@ -236,7 +236,7 @@ Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.
 
 ## Acknowledgements
 
-Initial development was completed as part of Stanford Code in Place 2026. The tool is used in the Confusion Fingerprint Index research programme at the Department of Cognitive Science, IIT Kanpur.
+Initial development was completed as part of Stanford Code in Place 2026. The tool is used in the Confusion Fingerprint Index research programme.
 
 ## License
 
