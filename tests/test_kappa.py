@@ -1,8 +1,8 @@
 """
-test_kappa.py — pytest test suite for ConfusionMapper core functions
+test_kappa.py, pytest test suite for ConfusionMapper core functions
 
 Tests cover:
-  - compute_cohens_kappa()   : κ formula, edge cases, interpretation thresholds
+  - compute_cohens_kappa()   : kappa formula, edge cases, interpretation thresholds
   - build_confusion_matrix() : correct cell counting, diagonal agreement
   - get_per_type_stats()     : per-category agreement computation
 
@@ -19,7 +19,7 @@ import math
 import pytest
 
 # ---------------------------------------------------------------------------
-# Import path setup — works whether tests/ is run from repo root or directly
+# Import path setup, works whether tests/ is run from repo root or directly
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -32,18 +32,18 @@ from confusion_mapper import (
 )
 
 # ===========================================================================
-# SECTION 1 — compute_cohens_kappa()
+# SECTION 1, compute_cohens_kappa()
 # ===========================================================================
 
 class TestCohenKappaPerfectAgreement:
-    """κ = 1.0 when both raters agree on every item."""
+    """kappa = 1.0 when both raters agree on every item."""
 
     def test_perfect_agreement_all_same_label(self):
         """
         Worked example:
           human = ai = ["CF", "CF", "CF"]
           Po = 3/3 = 1.0
-          Pe = (3/3 * 3/3) = 1.0  → guarded case → κ = 1.0
+          Pe = (3/3 * 3/3) = 1.0  -> guarded case -> kappa = 1.0
         """
         human = ["CF", "CF", "CF"]
         ai    = ["CF", "CF", "CF"]
@@ -55,8 +55,8 @@ class TestCohenKappaPerfectAgreement:
         Worked example:
           human = ai = ["RF", "PK", "CF", "INT"]
           Po = 4/4 = 1.0
-          Pe = (1/4)(1/4) × 4 categories = 4/16 = 0.25
-          κ = (1.0 − 0.25) / (1.0 − 0.25) = 0.75 / 0.75 = 1.0
+          Pe = (1/4)(1/4) x 4 categories = 4/16 = 0.25
+          kappa = (1.0 - 0.25) / (1.0 - 0.25) = 0.75 / 0.75 = 1.0
         """
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["RF", "PK", "CF", "INT"]
@@ -72,7 +72,7 @@ class TestCohenKappaPerfectAgreement:
 
 class TestCohenKappaKnownValues:
     """
-    κ computed against manual calculation for a specific input.
+    kappa computed against manual calculation for a specific input.
     These serve as regression tests: if the formula changes, these will fail.
     """
 
@@ -85,9 +85,9 @@ class TestCohenKappaKnownValues:
           ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
 
           Agreements (position-by-position):
-            CF==CF ✓, CF==CF ✓, CF==CF ✓, CF≠RF ✗,
-            RF==RF ✓, RF==RF ✓, PK==PK ✓, PK≠CF ✗,
-            INT==INT ✓, INT==INT ✓
+            CF==CF, CF==CF, CF==CF, CF!=RF X,
+            RF==RF, RF==RF, PK==PK, PK!=CF X,
+            INT==INT, INT==INT
           Agreements = 8,  Po = 8/10 = 0.8
 
           Marginal counts:
@@ -98,10 +98,10 @@ class TestCohenKappaKnownValues:
              = 0.16 + 0.06 + 0.02 + 0.04
              = 0.28
 
-          κ = (0.8 − 0.28) / (1.0 − 0.28)
+          kappa = (0.8 - 0.28) / (1.0 - 0.28)
             = 0.52 / 0.72
             = 0.7222...
-            ≈ 0.7222 (rounded to 4 d.p.)
+            ~ 0.7222 (rounded to 4 d.p.)
         """
         human = ["CF","CF","CF","CF","RF","RF","PK","PK","INT","INT"]
         ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
@@ -110,7 +110,7 @@ class TestCohenKappaKnownValues:
 
         expected_kappa = round(0.52 / 0.72, 4)   # 0.7222
         assert abs(result["kappa"] - expected_kappa) < 0.0001, (
-            f"Expected κ ≈ {expected_kappa}, got {result['kappa']}"
+            f"Expected kappa ~ {expected_kappa}, got {result['kappa']}"
         )
         assert result["po"] == 0.8
         assert abs(result["pe"] - 0.28) < 0.0001
@@ -126,8 +126,8 @@ class TestCohenKappaKnownValues:
           ai    = ["CF","RF","RF","CF","PK","INT","INT","RF"]
 
           Agreements:
-            CF==CF ✓, CF≠RF ✗, RF==RF ✓, RF≠CF ✗,
-            PK==PK ✓, PK≠INT ✗, INT==INT ✓, INT≠RF ✗
+            CF==CF, CF!=RF X, RF==RF, RF!=CF X,
+            PK==PK, PK!=INT X, INT==INT, INT!=RF X
           Agreements = 4, Po = 4/8 = 0.5
 
           Marginal counts:
@@ -138,7 +138,7 @@ class TestCohenKappaKnownValues:
              = 4/64 + 6/64 + 2/64 + 4/64
              = 16/64 = 0.25
 
-          κ = (0.5 − 0.25) / (1.0 − 0.25)
+          kappa = (0.5 - 0.25) / (1.0 - 0.25)
             = 0.25 / 0.75
             = 0.3333...
         """
@@ -154,15 +154,15 @@ class TestCohenKappaKnownValues:
 
     def test_known_kappa_below_chance(self):
         """
-        When agreement is systematically below chance, κ is negative.
+        When agreement is systematically below chance, kappa is negative.
 
           n = 4 (one item per category)
           human = ["RF", "PK", "CF", "INT"]
-          ai    = ["PK", "CF", "INT", "RF"]   ← shifted by one, zero agreement
+          ai    = ["PK", "CF", "INT", "RF"]   <- shifted by one, zero agreement
 
           Po = 0/4 = 0.0
-          Pe = (1/4)(1/4) × 4 = 0.25
-          κ = (0.0 − 0.25) / (1.0 − 0.25) = −0.25 / 0.75 = −0.3333...
+          Pe = (1/4)(1/4) x 4 = 0.25
+          kappa = (0.0 - 0.25) / (1.0 - 0.25) = -0.25 / 0.75 = -0.3333...
         """
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["PK", "CF", "INT", "RF"]
@@ -179,13 +179,13 @@ class TestCohenKappaEdgeCases:
     """Edge cases and boundary conditions."""
 
     def test_empty_input(self):
-        """Empty lists → kappa=0.0, n=0, no crash."""
+        """Empty lists -> kappa=0.0, n=0, no crash."""
         result = compute_cohens_kappa([], [])
         assert result["kappa"] == 0.0
         assert result["n"] == 0
 
     def test_single_item_agreement(self):
-        """Single item, both agree → κ = 1.0 (pe = 1, guarded case)."""
+        """Single item, both agree -> kappa = 1.0 (pe = 1, guarded case)."""
         result = compute_cohens_kappa(["CF"], ["CF"])
         assert result["kappa"] == 1.0
         assert result["n"] == 1
@@ -198,7 +198,7 @@ class TestCohenKappaEdgeCases:
         Po = 0.0
         Pe: human CF=1/1=1.0, RF=0; ai CF=0, RF=1/1=1.0
         Pe = (1.0)(0.0) + (0.0)(1.0) + ... = 0.0
-        κ = (0.0 − 0.0) / (1.0 − 0.0) = 0.0
+        kappa = (0.0 - 0.0) / (1.0 - 0.0) = 0.0
         """
         result = compute_cohens_kappa(["CF"], ["RF"])
         assert result["kappa"] == 0.0
@@ -211,7 +211,7 @@ class TestCohenKappaEdgeCases:
             assert key in result, f"Missing key: {key}"
 
     def test_kappa_bounded(self):
-        """κ should never exceed 1.0 for any valid input."""
+        """kappa should never exceed 1.0 for any valid input."""
         import random
         random.seed(42)
         for _ in range(50):
@@ -220,7 +220,7 @@ class TestCohenKappaEdgeCases:
             ai    = [random.choice(ERROR_TYPES) for _ in range(n)]
             result = compute_cohens_kappa(human, ai)
             assert result["kappa"] <= 1.0, (
-                f"κ exceeded 1.0: {result['kappa']} for human={human}, ai={ai}"
+                f"kappa exceeded 1.0: {result['kappa']} for human={human}, ai={ai}"
             )
 
 
@@ -230,7 +230,7 @@ class TestCohenKappaInterpretation:
     def _get_interp(self, kappa_val):
         """Helper: build minimal label arrays that produce a target kappa."""
         # We construct labels that give the desired approximate kappa
-        # For interpretation tests, exact kappa doesn't matter — we need
+        # For interpretation tests, exact kappa doesn't matter, we need
         # to test that the interpretation string matches the zone.
         # Use the known-kappa test case and scale the agreement level.
         n = 100
@@ -240,50 +240,50 @@ class TestCohenKappaInterpretation:
         return None
 
     def test_above_threshold_contains_check(self):
-        """κ ≥ 0.70 interpretation should contain the checkmark."""
+        """kappa >= 0.70 interpretation should contain the checkmark."""
         human = ["CF","CF","CF","CF","RF","RF","PK","PK","INT","INT"]
         ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
         result = compute_cohens_kappa(human, ai)
-        # κ ≈ 0.7222 — should be "Substantial ✓"
+        # kappa ~ 0.7222, should be "Substantial"
         assert "threshold" in result["interpretation"]
 
     def test_below_threshold_no_checkmark(self):
-        """κ < 0.70 interpretation should not contain the checkmark."""
+        """kappa < 0.70 interpretation should not mention the research threshold."""
         human = ["CF","CF","RF","RF","PK","PK","INT","INT"]
         ai    = ["CF","RF","RF","CF","PK","INT","INT","RF"]
         result = compute_cohens_kappa(human, ai)
-        # κ ≈ 0.3333 — should be "Fair"
-        assert "✓" not in result["interpretation"]
+        # kappa ~ 0.3333, should be Fair
+        assert "threshold" not in result["interpretation"]
 
 
 # ===========================================================================
-# SECTION 2 — build_confusion_matrix()
+# SECTION 2, build_confusion_matrix()
 # ===========================================================================
 
 class TestBuildConfusionMatrix:
-    """Tests for the 4×4 confusion matrix constructor."""
+    """Tests for the 4x4 confusion matrix constructor."""
 
     def test_diagonal_on_perfect_agreement(self):
-        """All agreements → only diagonal cells are non-zero."""
+        """All agreements -> only diagonal cells are non-zero."""
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["RF", "PK", "CF", "INT"]
         matrix = build_confusion_matrix(human, ai)
 
         for label in ERROR_TYPES:
-            assert matrix[label][label] == 1, f"Diagonal cell {label}×{label} should be 1"
+            assert matrix[label][label] == 1, f"Diagonal cell {label}x{label} should be 1"
             for other in ERROR_TYPES:
                 if other != label:
                     assert matrix[label][other] == 0
 
     def test_off_diagonal_on_total_disagreement(self):
-        """Complete disagreement → only off-diagonal cells are non-zero."""
+        """Complete disagreement -> only off-diagonal cells are non-zero."""
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["PK", "CF", "INT", "RF"]
         matrix = build_confusion_matrix(human, ai)
 
         for label in ERROR_TYPES:
             assert matrix[label][label] == 0, (
-                f"Diagonal cell {label}×{label} should be 0 for total disagreement"
+                f"Diagonal cell {label}x{label} should be 0 for total disagreement"
             )
 
     def test_specific_cell_counts(self):
@@ -297,7 +297,7 @@ class TestBuildConfusionMatrix:
             human\ai  RF  PK  CF  INT
             RF         1   0   0    0
             PK         0   0   0    0
-            CF         1   0   1    0   ← CF→CF (agree) and CF→RF (disagree)
+            CF         1   0   1    0   <- CF->CF (agree) and CF->RF (disagree)
             INT        0   0   0    0
         """
         human  = ["CF", "CF", "RF"]
@@ -327,14 +327,14 @@ class TestBuildConfusionMatrix:
 
 
 # ===========================================================================
-# SECTION 3 — get_per_type_stats()
+# SECTION 3, get_per_type_stats()
 # ===========================================================================
 
 class TestGetPerTypeStats:
     """Tests for per-category agreement statistics."""
 
     def test_perfect_agreement_all_types(self):
-        """All agreed → each type should show 100% agreement."""
+        """All agreed -> each type should show 100% agreement."""
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["RF", "PK", "CF", "INT"]
         stats = get_per_type_stats(human, ai)
@@ -344,7 +344,7 @@ class TestGetPerTypeStats:
             assert stats[label]["agreed"] == stats[label]["total"]
 
     def test_zero_agreement_all_types(self):
-        """No agreement → 0% for all types present."""
+        """No agreement -> 0% for all types present."""
         human = ["RF", "PK", "CF", "INT"]
         ai    = ["PK", "CF", "INT", "RF"]
         stats = get_per_type_stats(human, ai)
@@ -386,7 +386,7 @@ class TestGetPerTypeStats:
 
 
 # ===========================================================================
-# SECTION 4 — Integration: kappa + matrix + stats are consistent
+# SECTION 4, Integration: kappa + matrix + stats are consistent
 # ===========================================================================
 
 class TestConsistencyAcrossFunctions:
@@ -417,7 +417,7 @@ class TestConsistencyAcrossFunctions:
 
 
 # ===========================================================================
-# SECTION 5 — Mathematical properties and additional boundary conditions
+# SECTION 5, Mathematical properties and additional boundary conditions
 # ===========================================================================
 
 class TestAdditionalProperties:
@@ -429,12 +429,12 @@ class TestAdditionalProperties:
 
     def test_kappa_is_symmetric(self):
         """
-        Cohen's κ is symmetric: κ(h, ai) == κ(ai, h).
+        Cohen's kappa is symmetric: kappa(h, ai) == kappa(ai, h).
 
         Proof sketch:
           Po = agreements/n is unchanged by swapping the two lists.
-          Pe = Σ_k p_h_k × p_ai_k = Σ_k p_ai_k × p_h_k  (multiplication is commutative).
-          Therefore κ = (Po − Pe)/(1 − Pe) is identical in both directions.
+          Pe = Σ_k p_h_k x p_ai_k = Σ_k p_ai_k x p_h_k  (multiplication is commutative).
+          Therefore kappa = (Po - Pe)/(1 - Pe) is identical in both directions.
         """
         human = ["CF", "CF", "RF", "RF", "PK", "INT", "CF", "RF", "INT", "PK"]
         ai    = ["CF", "RF", "RF", "CF", "PK", "INT", "CF", "RF", "PK",  "PK"]
@@ -443,7 +443,7 @@ class TestAdditionalProperties:
         kappa_ai_h = compute_cohens_kappa(ai, human)["kappa"]
 
         assert abs(kappa_h_ai - kappa_ai_h) < 1e-9, (
-            f"κ not symmetric: κ(h,ai)={kappa_h_ai:.6f}, κ(ai,h)={kappa_ai_h:.6f}"
+            f"kappa not symmetric: kappa(h,ai)={kappa_h_ai:.6f}, kappa(ai,h)={kappa_ai_h:.6f}"
         )
 
     def test_kappa_reproducibility(self):
@@ -464,23 +464,23 @@ class TestAdditionalProperties:
         When both raters unanimously choose the same single category,
         Pe = (n/n)(n/n) = 1.0.
 
-        The Pe = 1.0 guard should return κ = 1.0 because Po = 1.0 too.
+        The Pe = 1.0 guard should return kappa = 1.0 because Po = 1.0 too.
 
         Without the guard, the formula yields 0/0 (division by zero).
-        Correct convention: unanimous perfect agreement → κ = 1.0.
+        Correct convention: unanimous perfect agreement -> kappa = 1.0.
         """
         human = ["RF"] * 8
         ai    = ["RF"] * 8
         result = compute_cohens_kappa(human, ai)
 
         assert result["kappa"] == 1.0, (
-            f"Pe=1.0 guard failed: got κ={result['kappa']}"
+            f"Pe=1.0 guard failed: got kappa={result['kappa']}"
         )
         assert result["agreements"] == 8
 
     def test_large_n_does_not_crash_and_stays_bounded(self):
         """
-        κ computation on n = 1 000 items should complete without error
+        kappa computation on n = 1 000 items should complete without error
         and return a value in [-1, 1].
         """
         import random
@@ -536,10 +536,10 @@ class TestAdditionalProperties:
 
     def test_per_type_agreed_never_exceeds_total(self):
         """
-        For every error type, agreed ≤ total.
+        For every error type, agreed <= total.
 
         Violated only if a rater were credited with an agreement on an item
-        they did not actually label — a structural impossibility that this
+        they did not actually label, a structural impossibility that this
         test guards against across randomised inputs.
         """
         import random
@@ -569,7 +569,7 @@ class TestAdditionalProperties:
 
 
 # ---------------------------------------------------------------------------
-# gwet_ac1() — added in v2.6.0
+# gwet_ac1(), added in v2.6.0
 # ---------------------------------------------------------------------------
 class TestGwetAC1:
     """
