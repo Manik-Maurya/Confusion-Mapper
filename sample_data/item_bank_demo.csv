@@ -1,0 +1,17 @@
+item_id,distractor_text,human_label,ai_label
+M1_A,"Added the two ingredient amounts instead of scaling the recipe proportionally (4 servings to 6 by adding 2 rather than multiplying by 1.5)",PLM,PLM
+M1_B,"Selected a value with no clear arithmetic relationship to the given ratio at all",NF,NF
+M1_C,"Correctly identified the multiplicative relationship but made a rounding error in the final step",FD,FD
+M1_D,"Answer is phrased as a range that technically includes the correct value, making it arguably also correct",AMB,AMB
+S1_A,"Read the value at the wrong point on the x-axis of the pollution-over-time graph, one gridline to the left of where the question asks",PLM,FD
+S1_B,"Selected the highest point on the graph regardless of what the question was actually asking about",FD,FD
+S1_C,"An answer far outside the plotted range of the graph entirely",NF,NF
+S1_D,"Confused correlation shown in the graph with a causal claim the graph does not support",PLM,PLM
+R1_A,"Drew a conclusion using a detail from paragraph 2 when the question specifically asks about the claim made in paragraph 4",PLM,PLM
+R1_B,"A restatement of the question stem itself with no real inference made",NF,NF
+R1_C,"A plausible-sounding inference that isn't directly supported by the passage, but doesn't reflect one specific misreading",FD,PLM
+R1_D,"Grammatically implies a different verb tense than the rest of the answer choices, an easy elimination cue unrelated to comprehension",AMB,AMB
+M2_A,"Converted units correctly but used the wrong formula for the second step of the multi-step problem",FD,FD
+M2_B,"Left the answer in the original units without completing the requested conversion",PLM,PLM
+M2_C,"A value with the correct order of magnitude but an arithmetic slip in the final multiplication",FD,FD
+M2_D,"An answer choice selected by fewer than one in twenty students in piloting, with no discernible pattern to who selected it",NF,NF

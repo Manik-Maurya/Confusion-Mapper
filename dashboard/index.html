@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConfusionMapper — try it in your browser</title>
+<meta name="description" content="Cohen's kappa, Gwet's AC1, and a confusion matrix, computed live in your browser. No install, no upload, no server.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pyodide@0.26.1/full/pyodide.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-elevated: #161b22;
+    --bg-input: #010409;
+    --border: #30363d;
+    --border-soft: #21262d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-faint: #545d68;
+    --rf: #4a90d9;
+    --pk: #f5a623;
+    --cf: #e74c3c;
+    --int: #9b59b6;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.55;
+  }
+  code, .mono, textarea, .stat-value, .cmd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  a { color: var(--rf); }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 84px 24px 72px;
+  }
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .hero-grid div { border: 1px solid var(--border-soft); }
+  .hero-grid div:nth-child(1), .hero-grid div:nth-child(6),
+  .hero-grid div:nth-child(11), .hero-grid div:nth-child(16) {
+    background: linear-gradient(135deg, rgba(74,144,217,0.06), rgba(231,76,60,0.05));
+  }
+  .hero-inner { position: relative; max-width: 760px; margin: 0 auto; text-align: center; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 22px;
+  }
+  .eyebrow .dot { color: var(--pk); }
+  h1 {
+    font-size: clamp(34px, 5.4vw, 54px);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+  }
+  h1 .accent { color: var(--rf); }
+  .hero p.sub {
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 560px;
+    margin: 0 auto 36px;
+  }
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--rf); color: #0d1117; border-color: var(--rf); font-weight: 600; }
+  .btn-primary:hover { background: #5b9de6; }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { border-color: var(--text-dim); }
+
+  /* ---------- sections ---------- */
+  section { max-width: 900px; margin: 0 auto; padding: 64px 24px; }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  h2 { font-size: 26px; font-weight: 600; margin: 0 0 8px; }
+  .section-intro { color: var(--text-dim); max-width: 620px; margin: 0 0 32px; font-size: 15.5px; }
+
+  /* ---------- demo tool ---------- */
+  .panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dots span:nth-child(1) { background: #ff5f56; }
+  .dots span:nth-child(2) { background: #ffbd2e; }
+  .dots span:nth-child(3) { background: #27c93f; }
+  textarea#csv-input {
+    display: block; width: 100%; min-height: 220px;
+    background: var(--bg-input); color: var(--text);
+    border: none; outline: none; resize: vertical;
+    padding: 16px; font-size: 13.5px; line-height: 1.6;
+  }
+  .panel-actions {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 14px 16px; border-top: 1px solid var(--border);
+  }
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--text-faint); }
+  .status.err { color: var(--cf); }
+  .status.ok { color: #3fb950; }
+
+  #results { margin-top: 26px; display: none; }
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; margin-bottom: 22px;
+  }
+  .stat-card {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px;
+  }
+  .stat-label { font-size: 12px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 600; }
+  .stat-note { font-size: 12.5px; color: var(--text-dim); margin-top: 4px; }
+  #matrix-svg-wrap { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 18px; overflow-x: auto; }
+  #matrix-svg-wrap svg { max-width: 100%; height: auto; }
+
+  /* ---------- taxonomy legend ---------- */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 18px 0 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--text-dim); }
+  .legend span.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  /* ---------- what else ---------- */
+  .cmd-list { display: grid; gap: 10px; }
+  .cmd-row {
+    display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px solid var(--border-soft);
+  }
+  .cmd-row .label { color: var(--text-dim); font-size: 14px; }
+  .cmd-row .cmd { color: var(--pk); font-size: 13.5px; }
+  .cmd-row .cmd::before { content: "$ "; color: var(--text-faint); }
+
+  footer {
+    border-top: 1px solid var(--border-soft);
+    padding: 40px 24px 60px;
+    text-align: center;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+  footer a { color: var(--text-dim); }
+
+  @media (max-width: 600px) {
+    .cmd-row { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-grid">
+    <div></div><div></div><div></div><div></div>
+    <div></div><div></div><div></div><div></div>
+    <div></div><div></div><div></div><div></div>
+    <div></div><div></div><div></div><div></div>
+  </div>
+  <div class="hero-inner">
+    <div class="eyebrow">confusion-mapper <span class="dot">&middot;</span> runs entirely in this tab, nothing leaves your browser</div>
+    <h1>Two raters disagreed.<br><span class="accent">How much does that matter?</span></h1>
+    <p class="sub">Paste two columns of labels below and get Cohen's kappa, Gwet's AC1, and a real confusion matrix &mdash; the same Python this package ships, compiled to WebAssembly, computed on your machine.</p>
+    <div class="hero-ctas">
+      <a href="#demo" class="btn btn-primary">Try it now &darr;</a>
+      <a href="https://github.com/Manik-Maurya/Confusion-Mapper" class="btn btn-ghost">View on GitHub</a>
+    </div>
+  </div>
+</div>
+
+<section id="demo">
+  <div class="section-label">Live demo</div>
+  <h2>Compute inter-rater reliability</h2>
+  <p class="section-intro">Columns: <code>item_id, human_label, ai_label</code>. Categories default to the CFI taxonomy (RF / PK / CF / INT) &mdash; paste your own labels and it adapts.</p>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span><span class="dots"><span></span><span></span><span></span></span></span>
+      <span id="pyodide-status">loading Python runtime&hellip;</span>
+    </div>
+    <textarea id="csv-input" spellcheck="false"></textarea>
+    <div class="panel-actions">
+      <button class="btn btn-primary" id="compute-btn" disabled>Compute reliability</button>
+      <button class="btn btn-ghost" id="example-btn">Load example data</button>
+      <span class="status" id="status-msg"></span>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">COHEN'S KAPPA</div>
+        <div class="stat-value" id="stat-kappa">&mdash;</div>
+        <div class="stat-note" id="stat-kappa-note"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">GWET'S AC1</div>
+        <div class="stat-value" id="stat-ac1">&mdash;</div>
+        <div class="stat-note" id="stat-ac1-note"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">PABAK</div>
+        <div class="stat-value" id="stat-pabak">&mdash;</div>
+        <div class="stat-note">skew-corrected agreement</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">N ITEMS</div>
+        <div class="stat-value" id="stat-n">&mdash;</div>
+        <div class="stat-note" id="stat-n-note"></div>
+      </div>
+    </div>
+    <div id="matrix-svg-wrap"><div id="matrix-svg"></div></div>
+    <div class="legend">
+      <span><span class="sw" style="background:#4a90d9"></span>RF &mdash; Recall Failure</span>
+      <span><span class="sw" style="background:#f5a623"></span>PK &mdash; Partial Knowledge</span>
+      <span><span class="sw" style="background:#e74c3c"></span>CF &mdash; Confabulation</span>
+      <span><span class="sw" style="background:#9b59b6"></span>INT &mdash; Interference</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-label">Beyond the browser</div>
+  <h2>The full toolkit</h2>
+  <p class="section-intro">This page runs three functions from the package. The installed CLI has fifteen &mdash; multi-rater panels, R/SPSS/JASP export, AI-assisted coding, semantic search, pattern mining, publication drafts.</p>
+  <div class="cmd-list">
+    <div class="cmd-row"><span class="label">Start here</span><span class="cmd">pip install confusion-mapper &amp;&amp; confusion-mapper quickstart</span></div>
+    <div class="cmd-row"><span class="label">3+ human coders</span><span class="cmd">confusion-mapper multirater data.csv</span></div>
+    <div class="cmd-row"><span class="label">Export to R / SPSS / JASP</span><span class="cmd">confusion-mapper export data.csv --out results/</span></div>
+    <div class="cmd-row"><span class="label">AI-assisted bulk coding</span><span class="cmd">confusion-mapper assist data.csv</span></div>
+    <div class="cmd-row"><span class="label">Publication-ready draft</span><span class="cmd">confusion-mapper publication data.csv --out results.md</span></div>
+  </div>
+</section>
+
+<footer>
+  ConfusionMapper &middot; MIT License &middot; <a href="https://github.com/Manik-Maurya/Confusion-Mapper">github.com/Manik-Maurya/Confusion-Mapper</a>
+</footer>
+
+<script>
+const PY_CORE = "import math\n\nERROR_TYPES = ['RF', 'PK', 'CF', 'INT']\nTAXONOMY = {'RF': {'name': 'Recall Failure', 'number': '1', 'definition': 'No consolidated memory trace. The answer is random, implausible, or reflects explicit uncertainty. The student simply has no encoding.', 'example': \"Answering 'mitochondria' to a photosynthesis question, no logical link.\", 'color': '#4a90d9'}, 'PK': {'name': 'Partial Knowledge', 'number': '2', 'definition': \"Correct direction but incomplete model. Student is 'almost right', the concept is partially encoded. Scaffolding resolves this quickly.\", 'example': 'Knowing photosynthesis needs sunlight, but not that it produces oxygen.', 'color': '#f5a623'}, 'CF': {'name': 'Confabulation', 'number': '3', 'definition': 'Strong incorrect belief, a documented misconception. The student selects with moderate-to-high confidence. The wrong answer is coherent and plausible.', 'example': \"Believing plants get food from soil because 'roots absorb nutrients'.\", 'color': '#e74c3c'}, 'INT': {'name': 'Interference', 'number': '4', 'definition': 'Correct answer for a DIFFERENT topic. Well-encoded knowledge from Topic A fires incorrectly in response to a Topic B question.', 'example': \"Answering 'chloroplast' (correct for photosynthesis) to a cellular-respiration question.\", 'color': '#9b59b6'}}\n_SVG_COLORS = {'bg': '#ffffff', 'text': '#1a1a1a', 'grid': '#cccccc', 'diag_lo': '#e8f4ea', 'diag_hi': '#2e7d32', 'off_lo': '#ffffff', 'off_hi': '#c0392b'}\n\ndef compute_cohens_kappa(human_labels, ai_labels, weights=\"nominal\", categories=None):\n    \"\"\"\n    Compute Cohen's kappa between two raters.\n\n    Supports three weighting schemes:\n      - \"nominal\"   (default): every disagreement counts equally. This is the\n                    standard Cohen (1960) kappa.\n      - \"linear\"    Cicchetti-Allison weights, |i - j| / (k - 1). Use when the\n                    categories form an ordinal scale and adjacent-category\n                    disagreements should count less than far-apart ones.\n      - \"quadratic\" Fleiss-Cohen weights, (i - j)**2 / (k - 1)**2. Sharper\n                    penalisation of far-apart disagreements. Equivalent to the\n                    intraclass correlation coefficient (ICC) under certain\n                    assumptions.\n\n    Args:\n        human_labels (list[str]): rater 1 labels.\n        ai_labels    (list[str]): rater 2 labels, same length as human_labels.\n        weights      (str): \"nominal\" | \"linear\" | \"quadratic\".\n        categories   (list[str] | None): explicit category order. If None,\n                     uses the module-level ERROR_TYPES. Required for weighted\n                     kappa because position in this list defines ordinal rank.\n\n    Returns:\n        dict with keys: kappa, interpretation, po, pe, n, agreements, weights.\n\n    Worked nominal example:\n        human = [\"CF\",\"CF\",\"CF\",\"CF\",\"RF\",\"RF\",\"PK\",\"PK\",\"INT\",\"INT\"]\n        ai    = [\"CF\",\"CF\",\"CF\",\"RF\",\"RF\",\"RF\",\"PK\",\"CF\",\"INT\",\"INT\"]\n        Po = 8/10 = 0.8\n        Pe = 0.16 + 0.06 + 0.02 + 0.04 = 0.28\n        kappa = (0.8 - 0.28) / (1 - 0.28) = 0.7222\n\n    Worked linear example (same data, ordinal order [RF, PK, CF, INT]):\n        Adjacent-category disagreements (e.g. PK to CF) get weight 1/3\n        instead of 1, so the penalised observed agreement is higher.\n    \"\"\"\n    if categories is None:\n        categories = ERROR_TYPES\n    k = len(categories)\n    n = len(human_labels)\n\n    if n == 0:\n        return {\n            \"kappa\": 0.0,\n            \"interpretation\": \"No data to compute kappa.\",\n            \"po\": 0.0, \"pe\": 0.0,\n            \"n\": 0, \"agreements\": 0,\n            \"weights\": weights,\n        }\n\n    agreements = sum(1 for h, a in zip(human_labels, ai_labels) if h == a)\n\n    if weights == \"nominal\":\n        po = agreements / n\n        pe = 0.0\n        for label in categories:\n            p_human = human_labels.count(label) / n\n            p_ai    = ai_labels.count(label) / n\n            pe += p_human * p_ai\n        if pe >= 1.0:\n            kappa = 1.0\n        else:\n            kappa = (po - pe) / (1.0 - pe)\n    else:\n        if weights not in (\"linear\", \"quadratic\"):\n            raise ValueError(\n                f\"weights must be 'nominal', 'linear', or 'quadratic'; got {weights!r}\"\n            )\n        if k < 2:\n            raise ValueError(\"weighted kappa requires at least 2 categories\")\n        idx = {c: i for i, c in enumerate(categories)}\n        denom = (k - 1) ** (1 if weights == \"linear\" else 2)\n\n        def w(i, j):\n            d = abs(i - j)\n            return (d if weights == \"linear\" else d * d) / denom\n\n        # Observed and expected (chance) co-occurrence matrices over categories.\n        obs = [[0] * k for _ in range(k)]\n        for h, a in zip(human_labels, ai_labels):\n            if h in idx and a in idx:\n                obs[idx[h]][idx[a]] += 1\n        row_tot = [sum(row) for row in obs]\n        col_tot = [sum(obs[r][c] for r in range(k)) for c in range(k)]\n\n        weighted_disagreement_obs = 0.0\n        weighted_disagreement_exp = 0.0\n        for i in range(k):\n            for j in range(k):\n                wij = w(i, j)\n                weighted_disagreement_obs += wij * obs[i][j]\n                weighted_disagreement_exp += wij * (row_tot[i] * col_tot[j] / n)\n\n        if weighted_disagreement_exp == 0:\n            kappa = 1.0 if weighted_disagreement_obs == 0 else 0.0\n        else:\n            kappa = 1.0 - weighted_disagreement_obs / weighted_disagreement_exp\n\n        po = agreements / n\n        pe = 1.0 - weighted_disagreement_exp / n if weighted_disagreement_exp <= n else 0.0\n\n    if kappa < 0.20:\n        interp = \"Slight, rubric needs substantial revision before research use.\"\n    elif kappa < 0.40:\n        interp = \"Fair, significant revision needed. Review CF vs RF boundary.\"\n    elif kappa < 0.60:\n        interp = \"Moderate, improvement needed. Target is kappa >= 0.70.\"\n    elif kappa < 0.70:\n        interp = \"Substantial, close to target. Refine ambiguous cases.\"\n    elif kappa < 0.80:\n        interp = \"Substantial, research threshold reached! Proceed with validation.\"\n    else:\n        interp = \"Almost Perfect, excellent agreement.\"\n\n    return {\n        \"kappa\":          round(kappa, 4),\n        \"interpretation\": interp,\n        \"po\":             round(po, 4),\n        \"pe\":             round(pe, 4),\n        \"n\":              n,\n        \"agreements\":     agreements,\n        \"weights\":        weights,\n    }\n\n\ndef gwet_ac1(human_labels, ai_labels, categories=None):\n    \"\"\"\n    Compute Gwet's AC1 (Gwet, 2008) between two raters.\n\n    Cohen's kappa's chance-agreement term Pe assumes raters assign labels\n    independently in proportion to their own marginals -- a poor model when\n    one category dominates. On highly skewed marginals this makes kappa\n    paradoxically low even when raters agree on almost everything (the\n    \"kappa paradox\"; see PABAK / bias / prevalence indices in\n    compute_kappa_diagnostics, which diagnose the same issue). AC1 replaces\n    Pe with a term built from how *uniformly* items are spread across\n    categories rather than the raters' actual marginal distributions, so it\n    stays close to the raw observed agreement when one category is common\n    and the rest are rare -- exactly the shape of most real coding data,\n    including CFI data, where PK and RF are typically far more common than\n    INT.\n\n        Pe(AC1) = (1 / (q - 1)) * sum_k [ pi_k * (1 - pi_k) ]\n        pi_k    = (n_human_k + n_ai_k) / (2n)     (category k's average\n                                                     share across both raters)\n        AC1     = (Po - Pe(AC1)) / (1 - Pe(AC1))\n\n    Args:\n        human_labels (list[str]): rater 1 labels.\n        ai_labels    (list[str]): rater 2 labels, same length as human_labels.\n        categories   (list[str] | None): category set. If None, uses the\n                     module-level ERROR_TYPES.\n\n    Returns:\n        dict with keys: ac1, interpretation, po, pe_ac1, n, agreements.\n        Uses the same interpretation bands as compute_cohens_kappa, for\n        consistency within this package -- Gwet did not publish AC1-specific\n        benchmark bands, and the two statistics share a [-1, 1] scale with\n        the same \"no better than chance\" zero point, so reusing the bands\n        here is a project convention, not a claim about Gwet (2008) itself.\n\n    Worked example (hand-derived here, not taken from a published table --\n    verify by re-running the arithmetic yourself):\n        human = [\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"RF\"]\n        ai    = [\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"CF\",\"RF\",\"RF\"]\n        categories = [\"CF\", \"RF\"]   (2-category subset, for a clean example)\n\n        n = 10, agreements = 9, Po = 0.9\n\n        Cohen's kappa on this data:\n            Pe = P(CF)_human * P(CF)_ai + P(RF)_human * P(RF)_ai\n               = (9/10)(8/10) + (1/10)(2/10) = 0.72 + 0.02 = 0.74\n            kappa = (0.90 - 0.74) / (1 - 0.74) = 0.16 / 0.26 = 0.6154\n            -> \"Substantial, close to target.\"\n\n        Gwet's AC1 on the same data:\n            pi_CF = (9 + 8) / 20 = 0.85   pi_RF = (1 + 2) / 20 = 0.15\n            Pe(AC1) = (1/(2-1)) * [0.85*0.15 + 0.15*0.85] = 0.255\n            AC1 = (0.90 - 0.255) / (1 - 0.255) = 0.645 / 0.745 = 0.8658\n            -> \"Almost Perfect, excellent agreement.\"\n\n        Same 9/10 raw agreement, same data, two different pictures of\n        reliability -- kappa is dragged down by the skewed 9:1 marginal,\n        AC1 is not. Report both; a paper that only reports the flattering\n        one invites exactly the objection this function exists to answer.\n    \"\"\"\n    if categories is None:\n        categories = ERROR_TYPES\n    q = len(categories)\n    n = len(human_labels)\n\n    if n == 0:\n        return {\n            \"ac1\": 0.0,\n            \"interpretation\": \"No data to compute AC1.\",\n            \"po\": 0.0, \"pe_ac1\": 0.0,\n            \"n\": 0, \"agreements\": 0,\n        }\n    if q < 2:\n        raise ValueError(\"gwet_ac1 requires at least 2 categories\")\n\n    agreements = sum(1 for h, a in zip(human_labels, ai_labels) if h == a)\n    po = agreements / n\n\n    pe_ac1 = 0.0\n    for label in categories:\n        n_human = human_labels.count(label)\n        n_ai    = ai_labels.count(label)\n        pi_k = (n_human + n_ai) / (2.0 * n)\n        pe_ac1 += pi_k * (1.0 - pi_k)\n    pe_ac1 = pe_ac1 / (q - 1)\n\n    if pe_ac1 >= 1.0:\n        ac1 = 1.0\n    else:\n        ac1 = (po - pe_ac1) / (1.0 - pe_ac1)\n\n    if ac1 < 0.20:\n        interp = \"Slight, rubric needs substantial revision before research use.\"\n    elif ac1 < 0.40:\n        interp = \"Fair, significant revision needed. Review CF vs RF boundary.\"\n    elif ac1 < 0.60:\n        interp = \"Moderate, improvement needed. Target is kappa >= 0.70.\"\n    elif ac1 < 0.70:\n        interp = \"Substantial, close to target. Refine ambiguous cases.\"\n    elif ac1 < 0.80:\n        interp = \"Substantial, research threshold reached! Proceed with validation.\"\n    else:\n        interp = \"Almost Perfect, excellent agreement.\"\n\n    return {\n        \"ac1\":            round(ac1, 4),\n        \"interpretation\": interp,\n        \"po\":             round(po, 4),\n        \"pe_ac1\":         round(pe_ac1, 4),\n        \"n\":              n,\n        \"agreements\":     agreements,\n    }\n\n\ndef build_confusion_matrix(human_labels, ai_labels, categories=None):\n    \"\"\"\n    Build a confusion matrix where rows are human labels and columns are AI labels.\n\n    Args:\n        human_labels (list[str]): rater 1 labels.\n        ai_labels    (list[str]): rater 2 labels, same length as human_labels.\n        categories   (list[str] | None): explicit category order. If None,\n                     uses the module-level ERROR_TYPES.\n\n    Returns:\n        dict: matrix[human_label][ai_label] = count. Sum of diagonal cells\n        equals the number of agreements; sum of all cells equals len(human_labels).\n    \"\"\"\n    if categories is None:\n        categories = ERROR_TYPES\n    matrix = {row: {col: 0 for col in categories} for row in categories}\n    for h, a in zip(human_labels, ai_labels):\n        if h in matrix and a in matrix[h]:\n            matrix[h][a] += 1\n    return matrix\n\n\ndef get_per_type_stats(human_labels, ai_labels, categories=None):\n    \"\"\"\n    Compute per-category agreement statistics.\n\n    Args:\n        human_labels (list[str]): rater 1 labels.\n        ai_labels    (list[str]): rater 2 labels, same length as human_labels.\n        categories   (list[str] | None): explicit category order. If None,\n                     uses the module-level ERROR_TYPES.\n\n    Returns:\n        dict: code -> {\"total\": items the human labelled this code,\n                       \"agreed\": items where AI matched the human,\n                       \"pct\": agreement percentage (0 to 100)}.\n    \"\"\"\n    if categories is None:\n        categories = ERROR_TYPES\n    stats = {}\n    for label in categories:\n        indices = [i for i, h in enumerate(human_labels) if h == label]\n        if not indices:\n            stats[label] = {\"total\": 0, \"agreed\": 0, \"pct\": 0}\n        else:\n            agreed = sum(1 for i in indices if ai_labels[i] == label)\n            stats[label] = {\n                \"total\":  len(indices),\n                \"agreed\": agreed,\n                \"pct\":    round((agreed / len(indices)) * 100),\n            }\n    return stats\n\n\ndef compute_kappa_diagnostics(human_labels, ai_labels, categories=None):\n    \"\"\"\n    Compute kappa together with the prevalence and bias indices that explain\n    its behaviour, and PABAK (prevalence-adjusted bias-adjusted kappa).\n\n    Cohen's kappa has a known paradox (Feinstein and Cicchetti, 1990): on\n    highly skewed marginals, two raters can agree on most items yet still get\n    a low kappa. The standard diagnostic toolkit for this situation is:\n\n      - Bias Index (BI):       difference between rater marginals\n                               on each category, summarised. BI > 0 means the\n                               two raters use the categories at different rates.\n      - Prevalence Index (PI): how lopsided the agreement is across categories.\n                               High PI inflates the chance-agreement term.\n      - PABAK:                 2 * Po - 1. The kappa value that would be observed\n                               if both raters' marginals were perfectly balanced\n                               (Byrt et al., 1993). Useful as a sanity check when\n                               kappa looks suspiciously low.\n\n    These are reported alongside the nominal kappa so a reader can tell whether\n    a low kappa reflects genuine disagreement or just a prevalence artefact.\n\n    Args:\n        human_labels (list[str]): rater 1 labels.\n        ai_labels    (list[str]): rater 2 labels.\n        categories   (list[str] | None): explicit category order, defaults to ERROR_TYPES.\n\n    Returns:\n        dict with kappa, pabak, prevalence_index, bias_index, n, plus the\n        nominal kappa diagnostics from compute_cohens_kappa.\n    \"\"\"\n    if categories is None:\n        categories = ERROR_TYPES\n    n = len(human_labels)\n    base = compute_cohens_kappa(human_labels, ai_labels, categories=categories)\n\n    if n == 0:\n        return {**base, \"pabak\": 0.0, \"prevalence_index\": 0.0, \"bias_index\": 0.0}\n\n    po = base[\"po\"]\n    pabak = 2.0 * po - 1.0\n\n    # Prevalence Index: max over categories of |2 * p_pos - 1| where p_pos is\n    # the fraction of items both raters placed in that category. Higher = more\n    # lopsided marginals.\n    prevalence = 0.0\n    for c in categories:\n        both = sum(1 for h, a in zip(human_labels, ai_labels) if h == c and a == c)\n        p_pos = both / n\n        prevalence = max(prevalence, abs(2 * p_pos - 1))\n\n    # Bias Index: average absolute difference between rater marginals.\n    bias = 0.0\n    for c in categories:\n        p_human = human_labels.count(c) / n\n        p_ai    = ai_labels.count(c) / n\n        bias += abs(p_human - p_ai)\n    bias = bias / 2.0  # normalised so values lie in [0, 1]\n\n    return {\n        **base,\n        \"pabak\":            round(pabak, 4),\n        \"prevalence_index\": round(prevalence, 4),\n        \"bias_index\":       round(bias, 4),\n    }\n\n\ndef _lerp_color(hex_lo, hex_hi, t):\n    \"\"\"Linear-interpolate between two #rrggbb colors, t in [0,1].\"\"\"\n    lo = tuple(int(hex_lo[i:i + 2], 16) for i in (1, 3, 5))\n    hi = tuple(int(hex_hi[i:i + 2], 16) for i in (1, 3, 5))\n    mixed = tuple(round(lo[c] + (hi[c] - lo[c]) * t) for c in range(3))\n    return f\"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}\"\n\n\ndef _category_name(code, taxonomy=None):\n    if taxonomy is None:\n        taxonomy = TAXONOMY\n    return taxonomy.get(code, {}).get(\"name\", code)\n\n\ndef generate_confusion_matrix_svg(matrix, categories=None, taxonomy=None,\n                                  rater1_name=\"Rater 1\", rater2_name=\"Rater 2\"):\n    \"\"\"\n    An SVG heatmap of a confusion matrix (build_confusion_matrix()'s\n    return shape) -- diagonal cells shaded green by agreement intensity,\n    off-diagonal cells shaded red by disagreement intensity, the same\n    visual convention as the tkinter GUI's confusion-matrix panel\n    (gui._draw_confusion_matrix), reimplemented for SVG since a\n    tkinter Canvas can't be exported as a file for a manuscript.\n\n    Args:\n        matrix (dict[str, dict[str, int]]): rows = rater1, cols = rater2.\n        categories (list[str] | None): defaults to matrix's own row order.\n        taxonomy (dict | None): for real category names in axis labels.\n        rater1_name, rater2_name (str): axis labels.\n\n    Returns:\n        str: standalone SVG document (starts with <svg ...>).\n    \"\"\"\n    categories = categories or list(matrix.keys())\n    n = len(categories)\n    cell = 70\n    margin_left, margin_top = 140, 90\n    width = margin_left + cell * n + 20\n    height = margin_top + cell * n + 40\n\n    row_max = max((sum(matrix[c].values()) for c in categories), default=1) or 1\n\n    parts = [f'<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {width} {height}\" '\n            f'font-family=\"Helvetica,Arial,sans-serif\">']\n    parts.append(f'<rect width=\"{width}\" height=\"{height}\" fill=\"{_SVG_COLORS[\"bg\"]}\"/>')\n    parts.append(f'<text x=\"{width/2}\" y=\"24\" text-anchor=\"middle\" font-size=\"14\" '\n                f'font-weight=\"bold\" fill=\"{_SVG_COLORS[\"text\"]}\">Confusion Matrix</text>')\n    parts.append(f'<text x=\"{margin_left + cell*n/2}\" y=\"46\" text-anchor=\"middle\" '\n                f'font-size=\"11\" fill=\"{_SVG_COLORS[\"text\"]}\">{rater2_name} &#8594;</text>')\n    parts.append(f'<text x=\"20\" y=\"{margin_top + cell*n/2}\" text-anchor=\"middle\" font-size=\"11\" '\n                f'fill=\"{_SVG_COLORS[\"text\"]}\" transform=\"rotate(-90 20 {margin_top + cell*n/2})\">'\n                f'{rater1_name} &#8594;</text>')\n\n    for j, col_code in enumerate(categories):\n        x = margin_left + j * cell + cell / 2\n        parts.append(f'<text x=\"{x}\" y=\"{margin_top - 8}\" text-anchor=\"middle\" font-size=\"10\" '\n                    f'fill=\"{_SVG_COLORS[\"text\"]}\">{col_code}</text>')\n\n    for i, row_code in enumerate(categories):\n        y = margin_top + i * cell\n        parts.append(f'<text x=\"{margin_left - 8}\" y=\"{y + cell/2 + 4}\" text-anchor=\"end\" '\n                    f'font-size=\"10\" fill=\"{_SVG_COLORS[\"text\"]}\">{row_code}</text>')\n        for j, col_code in enumerate(categories):\n            x = margin_left + j * cell\n            count = matrix.get(row_code, {}).get(col_code, 0)\n            t = min(1.0, count / row_max) if row_max else 0.0\n            is_diag = (row_code == col_code)\n            color = (_lerp_color(_SVG_COLORS[\"diag_lo\"], _SVG_COLORS[\"diag_hi\"], t) if is_diag\n                    else _lerp_color(_SVG_COLORS[\"off_lo\"], _SVG_COLORS[\"off_hi\"], t * 0.6))\n            text_color = \"#ffffff\" if t > 0.55 else _SVG_COLORS[\"text\"]\n            parts.append(f'<rect x=\"{x}\" y=\"{y}\" width=\"{cell}\" height=\"{cell}\" '\n                        f'fill=\"{color}\" stroke=\"{_SVG_COLORS[\"grid\"]}\"/>')\n            parts.append(f'<text x=\"{x + cell/2}\" y=\"{y + cell/2 + 5}\" text-anchor=\"middle\" '\n                        f'font-size=\"13\" fill=\"{text_color}\">{count}</text>')\n\n    row_names = \", \".join(f\"{c}={_category_name(c, taxonomy)}\" for c in categories)\n    parts.append(f'<text x=\"{margin_left}\" y=\"{height - 8}\" font-size=\"9\" '\n                f'fill=\"{_SVG_COLORS[\"grid\"]}\">{row_names}</text>')\n    parts.append('</svg>')\n    return \"\\n\".join(parts)\n\n\n";
+const EXAMPLE_CSV = "item_id,human_label,ai_label\nQ1_A,PK,PK\nQ1_B,CF,CF\nQ1_C,INT,PK\nQ1_D,RF,RF\nQ2_A,CF,CF\nQ2_B,PK,PK\nQ2_C,RF,RF\nQ3_A,INT,INT\nQ3_B,CF,CF\nQ3_C,PK,CF\nQ4_A,RF,RF\nQ4_B,PK,PK\nQ4_C,CF,CF\nQ5_A,INT,INT\nQ5_B,RF,RF";
+
+const statusEl = document.getElementById('pyodide-status');
+const computeBtn = document.getElementById('compute-btn');
+const exampleBtn = document.getElementById('example-btn');
+const statusMsg = document.getElementById('status-msg');
+const csvInput = document.getElementById('csv-input');
+
+let pyodide = null;
+
+async function initPyodide() {
+  try {
+    pyodide = await loadPyodide();
+    pyodide.runPython(PY_CORE);
+    statusEl.textContent = 'Python runtime ready';
+    computeBtn.disabled = false;
+  } catch (err) {
+    statusEl.textContent = 'Could not load the Python runtime (see console)';
+    console.error(err);
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 2) throw new Error('Need a header row plus at least one data row.');
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const hIdx = header.indexOf('human_label');
+  const aIdx = header.indexOf('ai_label');
+  if (hIdx === -1 || aIdx === -1) {
+    throw new Error('Header must include human_label and ai_label columns.');
+  }
+  const human = [], ai = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(',').map(c => c.trim());
+    if (cells.length <= Math.max(hIdx, aIdx)) continue;
+    human.push(cells[hIdx]);
+    ai.push(cells[aIdx]);
+  }
+  if (human.length === 0) throw new Error('No valid data rows found.');
+  return { human, ai };
+}
+
+function interpColor(interp) {
+  if (!interp) return 'var(--text)';
+  const s = interp.toLowerCase();
+  if (s.includes('almost perfect')) return '#3fb950';
+  if (s.includes('substantial')) return '#f5a623';
+  if (s.includes('moderate')) return '#f5a623';
+  return '#e74c3c';
+}
+
+async function compute() {
+  statusMsg.textContent = '';
+  statusMsg.className = 'status';
+  let human, ai;
+  try {
+    ({ human, ai } = parseCSV(csvInput.value));
+  } catch (err) {
+    statusMsg.textContent = err.message;
+    statusMsg.className = 'status err';
+    return;
+  }
+
+  try {
+    pyodide.globals.set('_human', human);
+    pyodide.globals.set('_ai', ai);
+    const resultJson = pyodide.runPython(`
+import json
+categories = sorted(set(_human) | set(_ai), key=lambda c: ERROR_TYPES.index(c) if c in ERROR_TYPES else 99)
+_kappa = compute_cohens_kappa(list(_human), list(_ai), categories=categories)
+_ac1 = gwet_ac1(list(_human), list(_ai), categories=categories)
+_diag = compute_kappa_diagnostics(list(_human), list(_ai), categories=categories)
+_matrix = build_confusion_matrix(list(_human), list(_ai), categories=categories)
+_svg = generate_confusion_matrix_svg(_matrix, categories=categories, rater1_name="Human", rater2_name="AI")
+json.dumps({"kappa": _kappa, "ac1": _ac1, "diag": _diag, "svg": _svg, "categories": categories})
+    `);
+    const result = JSON.parse(resultJson);
+
+    document.getElementById('stat-kappa').textContent = result.kappa.kappa;
+    document.getElementById('stat-kappa').style.color = interpColor(result.kappa.interpretation);
+    document.getElementById('stat-kappa-note').textContent = result.kappa.interpretation;
+
+    document.getElementById('stat-ac1').textContent = result.ac1.ac1;
+    document.getElementById('stat-ac1').style.color = interpColor(result.ac1.interpretation);
+    document.getElementById('stat-ac1-note').textContent = result.ac1.interpretation;
+
+    document.getElementById('stat-pabak').textContent = result.diag.pabak;
+
+    document.getElementById('stat-n').textContent = result.kappa.n;
+    document.getElementById('stat-n-note').textContent = result.kappa.agreements + ' agreements';
+
+    document.getElementById('matrix-svg').innerHTML = result.svg;
+    document.getElementById('results').style.display = 'block';
+
+    statusMsg.textContent = 'computed in-browser \u2014 nothing was uploaded';
+    statusMsg.className = 'status ok';
+  } catch (err) {
+    statusMsg.textContent = 'Computation failed: ' + err.message;
+    statusMsg.className = 'status err';
+    console.error(err);
+  }
+}
+
+exampleBtn.addEventListener('click', () => { csvInput.value = EXAMPLE_CSV; });
+computeBtn.addEventListener('click', compute);
+csvInput.value = EXAMPLE_CSV;
+
+initPyodide();
+</script>
+
+</body>
+</html>

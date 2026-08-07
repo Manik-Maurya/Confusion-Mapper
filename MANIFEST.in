@@ -10,8 +10,12 @@ include pyproject.toml
 
 recursive-include sample_data *.csv *.json
 recursive-include examples *.py
+recursive-include benchmarks *.py *.md
+recursive-include case_study *.py *.csv *.json *.md
+recursive-include dashboard *.html
 recursive-include tests *.py
 recursive-include docs *.md
+include quickstart_demo.gif
 
 global-exclude __pycache__
 global-exclude *.py[cod]
