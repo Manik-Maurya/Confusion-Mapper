@@ -1,28 +1,13 @@
 """
-Entry points: the `kappa/alpha/diagnostics/plan/refine/.../embed-search`
-stats subcommand router (`cli()`), the blind interactive
-reliability-check session (`main()`), the Copilot-style AI-suggest/
-human-approves session (`run_assist_entry()`, see assist.py), and `run()`,
-which dispatches between the three based on argv.
+The command-line entry point. Every subcommand routes through run()
+below. The subcommands are, in the order I usually reach for them:
 
-`cli()` is moved unmodified from the tail of the old "SECTION 3" block, and
-`main()` is moved unmodified from "SECTION 8, MAIN" of the pre-2.6
-single-file confusion_mapper.py, as part of the v2.6.0 package reorganization.
+    quickstart, kappa, diagnostics, alpha, multirater, refine, export,
+    validate, embed-index, embed-search, assist, evidence, codebook,
+    patterns, publication, discovery
 
-`run()` and `run_assist_entry()` are new in v2.6.0. `run()`'s job was
-originally just fixing a bug (see below); it now also keeps assist mode on
-its own dispatch branch, on purpose -- "assist" is never reachable through
-the same argv path as the blind reliability-check session, so there's no
-way to end up running one while thinking you're running the other.
-
-Previously, `python confusion_mapper.py kappa ...` dispatched correctly
-(see the `if __name__ == "__main__":` block that used to sit at the bottom
-of the file), but the installed console-script entry point
-(`confusion-mapper = "confusion_mapper:main"`) called `main()` directly and
-so never reached that dispatch logic -- the `kappa/alpha/diagnostics/plan/
-refine` subcommands were unreachable from the installed `confusion-mapper`
-command. `run()` fixes this: it is now the single entry point used by both
-the installed console script and `python -m confusion_mapper`.
+Argument parsing is done by hand (argparse) not click, because I did
+not want a third-party CLI framework in the dependency list.
 """
 
 import os
@@ -146,7 +131,7 @@ def cli(argv=None):
                      help="comma-separated list, e.g. RF,PK,CF,INT (defaults to built-in)")
     p_e.add_argument("--taxonomy-file", default=None,
                      help="a custom taxonomy JSON (see stats.load_taxonomy_from_json / "
-                          "sample_data/item_bank_distractor_taxonomy.json) -- category names "
+                          "sample_data/item_bank_distractor_taxonomy.json), category names "
                           "in the R/SPSS/JASP output come from this instead of the built-in "
                           "CFI taxonomy. Implies --categories from the file unless overridden.")
 
@@ -174,7 +159,7 @@ def cli(argv=None):
     p_cb.add_argument("--categories", default=None,
                       help="comma-separated list, e.g. RF,PK,CF,INT (defaults to built-in)")
     p_cb.add_argument("--taxonomy-file", default=None,
-                      help="a custom taxonomy JSON -- generates a real codebook (names, "
+                      help="a custom taxonomy JSON, generates a real codebook (names, "
                            "definitions, examples) for that taxonomy instead of the built-in "
                            "CFI one. Implies --categories from the file unless overridden.")
     p_cb.add_argument("--title", default="CFI Coding Manual")
@@ -182,7 +167,7 @@ def cli(argv=None):
                       help="omit the generation-date/version/fingerprint header")
 
     p_ei = sub.add_parser("embed-index", help="Build/update a persistent local semantic-search "
-                                               "index from a CSV (never called automatically -- "
+                                               "index from a CSV (never called automatically, "
                                                "always an explicit action)")
     p_ei.add_argument("csv_path", help="CSV with an id column and a text column to index")
     p_ei.add_argument("--index", default="confusion_mapper_embeddings.json",
@@ -203,7 +188,7 @@ def cli(argv=None):
 
     p_disc = sub.add_parser("discover", help="Propose candidate misconception categories "
                                               "from low-purity clusters (never writes to "
-                                              "any taxonomy -- proposal only)")
+                                              "any taxonomy, proposal only)")
     p_disc.add_argument("index_path", help="a persistent embeddings index built with "
                                             "--label-column set (see embed-index)")
     p_disc.add_argument("--label-key", default="human_label",
@@ -226,7 +211,7 @@ def cli(argv=None):
     p_pat.add_argument("--item2", default=None, help="required for item-pair")
     p_pat.add_argument("--timepoint-order", default=None,
                        help="comma-separated chronological order, e.g. pretest,week2,posttest "
-                            "(transitions/pathways/trend -- without it timepoints sort "
+                            "(transitions/pathways/trend, without it timepoints sort "
                             "alphabetically, rarely what you want)")
     p_pat.add_argument("--sequence-length", type=int, default=2, help="for pathways")
     p_pat.add_argument("--top-k", type=int, default=10, help="for pathways")
@@ -244,7 +229,7 @@ def cli(argv=None):
     p_pub.add_argument("--out", default=None, help="write to this file instead of stdout")
 
     sub.add_parser("quickstart", help="A guided, non-interactive walkthrough of the core "
-                                       "workflow on built-in demo data -- start here")
+                                       "workflow on built-in demo data, start here")
 
     args = parser.parse_args(argv)
     if args.cmd is None:
@@ -631,7 +616,7 @@ def _quickstart_demo_data():
     """
     A small, deterministic, self-contained demo dataset built from the
     built-in question bank's own pre-assigned error_type (its ground
-    truth), not sample_data/ -- sample_data/ is only in the sdist via
+    truth), not sample_data/, sample_data/ is only in the sdist via
     MANIFEST.in, not the installed wheel (pyproject.toml's `packages =
     ["confusion_mapper"]` doesn't include it), so quickstart can't depend
     on it existing on disk after `pip install confusion-mapper`.
@@ -666,7 +651,7 @@ def run_quickstart():
     print("=" * 70)
     print("\n  Walking through the core workflow on 15 built-in demo items.")
     print("  Your own data: replace this with any CSV that has")
-    print("  human_label/ai_label columns -- see `confusion-mapper --help`.\n")
+    print("  human_label/ai_label columns, see `confusion-mapper --help`.\n")
 
     print("-" * 70)
     print("  1. Cohen's kappa (human vs. AI rater)")
@@ -725,7 +710,7 @@ def run_assist_entry(argv):
     args, prompts for a rater_id the same way main() does, then hands off
     to assist.run_assist_session().
 
-    This function -- not cli() and not main() -- is what "assist" routes
+    This function, not cli() and not main(), is what "assist" routes
     to in run() below. It is not a stats subcommand (it's interactive, and
     produces a session file, not a JSON report to stdout) and it is not
     main() (it's Copilot-style, not blind). Keeping it a third, distinct
@@ -737,7 +722,7 @@ def run_assist_entry(argv):
     parser = argparse.ArgumentParser(
         prog="confusion-mapper assist",
         description="AI-suggests / human-approves bulk coding. NOT for reliability "
-                    "data -- see console.run_session() / plain `confusion-mapper` "
+                    "data, see console.run_session() / plain `confusion-mapper` "
                     "for the blind reliability-check session.")
     parser.add_argument("csv_path", help="CSV of items to code (needs a distractor_text "
                                          "column at minimum; item_id, question_text, "
@@ -755,7 +740,7 @@ def run_assist_entry(argv):
 
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
-        print("  No OPENAI_API_KEY set -- assist mode will run, but every "
+        print("  No OPENAI_API_KEY set, assist mode will run, but every "
              "'suggestion' will be unavailable and every item a manual entry. "
              "There's no assistance without a key.\n")
 
@@ -785,7 +770,7 @@ def run(argv=None):
                                           reliability-check session)
     Branch 1 exists specifically so there is no argv path by which assist
     mode and the blind reliability-check session could be confused for
-    each other -- they are not two flags on the same command, they are two
+    each other, they are not two flags on the same command, they are two
     different subcommands that happen to share this dispatcher.
     """
     import sys as _sys

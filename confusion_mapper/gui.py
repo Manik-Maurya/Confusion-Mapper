@@ -1,10 +1,9 @@
 """
-Tkinter results dashboard: kappa gauge, confusion matrix heatmap, and
-per-category bar chart.
-
-Moved unmodified from the "SECTION 6, TKINTER VISUALISATION (3 panels)"
-block of the pre-2.6.0 single-file confusion_mapper.py during the v2.6.0
-package reorganization. No rendering logic changed.
+Tkinter GUI. Optional, headless environments never touch this. It
+shows the current item, the four category buttons, and the running
+tally. It exists because I found the plain terminal loop tiring after
+a couple of hours of coding, and a friend I asked to help me code data
+outright refused to use the terminal version.
 """
 
 import math
@@ -135,10 +134,10 @@ def _draw_kappa_gauge(parent, kappa):
     r_in   = 72        # Inner radius (creates ring look via overlay)
     ring_w = 22        # Arc stroke width
 
-    # Five coloured zone arcs, kappa zones: 0.0, 0.20, 0.40, 0.70, 0.80, 1.0
-    # In tkinter: angle 0° = 3 o'clock, increases counter-clockwise.
-    # We want kappa=0 at 180° (9 o'clock) and kappa=1 at 0° (3 o'clock).
-    # A value kappa maps to start_angle = 180 - kappax180.
+    # five zone arcs across the Landis/Koch bands: 0.0, 0.20, 0.40, 0.70,
+    # 0.80, 1.0. tkinter arc angles are geometric: 0 degrees is 3 o'clock
+    # and angles grow counter-clockwise. I want kappa=0 at the 9 o'clock
+    # side and kappa=1 at the 3 o'clock side, so start_angle = 180 - k*180.
     zones = [
         (0.00, 0.20, C["z0"]),
         (0.20, 0.40, C["z1"]),

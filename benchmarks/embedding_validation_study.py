@@ -7,11 +7,11 @@ similarity thresholds (embeddings.cluster_index), then compute the
 Adjusted Rand Index (see ari.py) between the resulting cluster assignment
 and the dataset's real, independently-assigned human_label. ARI is
 chance-corrected by construction (E[ARI] = 0 for a random labeling, 1.0
-for a perfect match), so no separate random baseline is needed -- the
+for a perfect match), so no separate random baseline is needed, the
 metric's own zero point IS the chance baseline.
 
 This is NOT a claim that high ARI is "success" for the discovery workflow
-specifically -- discovery.py's whole premise is that LOW cluster/label
+specifically, discovery.py's whole premise is that LOW cluster/label
 purity is often the interesting signal (a taxonomy gap). This study asks
 a narrower, prior question: does the embedding capture real content
 similarity at all, well enough to be worth using as clustering input in

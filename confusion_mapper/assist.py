@@ -1,28 +1,12 @@
 """
-Assist mode: AI suggests a category (with confidence and reasoning, plus
-the nearest already-coded examples from a persistent index if you point
-one at it), the human accepts or overrides. New in v2.6.0.
+The assist workflow. A copilot-style loop where the model suggests a
+label with reasoning, and a human either accepts it or overrides.
 
-This is a DIFFERENT workflow from run_session() / main(), on purpose, and
-the two are never reachable through the same entry point (see cli.py's
-run() -- "assist" is routed separately from both the JSON stats
-subcommands and the blind interactive session). The reason is not
-stylistic: run_session() works because the human and AI rate
-independently, which is what makes their kappa a meaningful reliability
-estimate. Here the AI's opinion is shown to the human before they decide,
-on purpose, to make bulk-coding faster -- which means a label produced in
-this mode is not independent evidence of anything, and this module never
-computes or reports a kappa/AC1/alpha for that reason. What it reports
-instead is an acceptance_rate (how often the human kept the AI's
-suggestion unchanged) -- a real, honestly-labeled efficiency metric, not
-a reliability one. Every session this module produces carries an explicit
-reliability_warning string for exactly this reason, so the distinction
-survives even if the file is read out of context later.
-
-Intended use: after you've established kappa >= 0.70 with run_session()'s
-blind mode and are confident your rubric/AI prompt are solid, use this to
-code your actual (larger) dataset faster than one-at-a-time blind rating
-would allow.
+Important: this is not a reliability-check mode. Once a human has seen
+the AI's opinion before deciding, the human's label is not independent
+evidence any more, so this module reports acceptance_rate instead of
+kappa and every session file it writes carries a reliability_warning
+string so it can never be mistaken for one later on.
 """
 
 import csv
@@ -52,7 +36,7 @@ def load_assist_csv(path):
 
     Returns:
         list[dict]: {item_id, distractor_text, question_text,
-        correct_answer, topic} -- item_id defaults to "row_{n}" if the
+        correct_answer, topic}, item_id defaults to "row_{n}" if the
         column is missing or a cell is empty, so every item always has a
         usable identifier for the embedding index / evidence log.
     """
@@ -71,11 +55,11 @@ def load_assist_csv(path):
 
 def classify_with_confidence(question_text, correct_answer, distractor_text, topic, api_key):
     """
-    Like ai.classify_with_ai(), but also asks for a confidence score. A
-    separate function rather than an extension of classify_with_ai()
-    itself, specifically so the prompt sent to OpenAI during a live
-    blind-mode reliability-check session never changes -- ai.py stays
-    exactly as it was.
+    Same idea as ai.classify_with_ai(), but also asks the model for a
+    confidence score. Kept as a separate function so that the blind
+    reliability-check prompt in ai.py never has to change. That prompt
+    is the one that goes into methods sections, so I do not want to
+    touch it.
 
     Returns:
         dict with keys: label (str), confidence (float 0-1 or None),
@@ -172,13 +156,13 @@ def run_assist_session(items, api_key, rater_id, index_path=None, index_k=5):
         items (list[dict]): as returned by load_assist_csv().
         api_key (str): OpenAI key. Assist mode without a key still runs,
             but every "suggestion" is unavailable and every item is a pure
-            manual override -- there's no assistance without a key.
+            manual override, there's no assistance without a key.
         rater_id (str)
         index_path (str | None): path to a persistent embeddings index
             (see embeddings.py). If given and the file doesn't exist yet,
             a fresh local-backend index is created for retrieval (empty at
             first, so "nearest examples" starts empty and fills in as you
-            code -- items are NOT automatically added to this index by
+            code, items are NOT automatically added to this index by
             this function; use `confusion-mapper embed-index build` for
             that, so indexing stays an explicit, separate action).
         index_k (int): how many similar examples to show per item.
@@ -207,9 +191,8 @@ def run_assist_session(items, api_key, rater_id, index_path=None, index_k=5):
             raw = get_choice("  [Enter=accept / 1-4=override / Q=quit]: ",
                              {"", "1", "2", "3", "4", "Q"})
         else:
-            # Nothing to accept: the AI gave no real suggestion, so this is
-            # plain manual coding, not an "override" of anything -- Enter
-            # isn't offered as an option here.
+            # no AI suggestion, so there is nothing to "accept". just plain
+            # manual coding, and Enter is not offered as an option.
             raw = get_choice("  [1-4=your label, no AI suggestion available / Q=quit]: ",
                              {"1", "2", "3", "4", "Q"})
 
@@ -217,7 +200,7 @@ def run_assist_session(items, api_key, rater_id, index_path=None, index_k=5):
             break
 
         if raw == "":
-            # Only reachable when suggestion["available"] is True.
+            # only reachable when a real suggestion existed
             final_label      = suggestion["label"]
             accepted         = True
             override_reason  = None
@@ -231,9 +214,9 @@ def run_assist_session(items, api_key, rater_id, index_path=None, index_k=5):
                     while not override_reason:
                         override_reason = input("  A reason is required: ").strip()
             else:
-                # No suggestion existed, so "accepted"/"overridden" isn't a
-                # meaningful distinction here -- this is just a label, not
-                # counted in acceptance_rate at all (see below).
+                # nothing was suggested so "accepted vs overridden" is not
+                # a meaningful distinction. these items don't count toward
+                # acceptance_rate at all (see the aggregation below).
                 accepted = None
                 override_reason = None
 
@@ -269,11 +252,12 @@ def run_assist_session(items, api_key, rater_id, index_path=None, index_k=5):
 
 def load_assist_sessions(path=ASSIST_DATA_FILE):
     """
-    Load previously saved assist-mode sessions. Deliberately a separate
-    function from storage.load_sessions() against a separate file
-    (ASSIST_DATA_FILE, not DATA_FILE) -- so there is no code path by which
-    an assist-mode session and a blind reliability-check session ever end
-    up read together as if they were the same kind of data.
+    Load past assist-mode sessions from ASSIST_DATA_FILE (never DATA_FILE).
+
+    Kept as a separate function against a separate file on purpose. If
+    someone ever writes a script that lists past sessions, an assist
+    session cannot accidentally land in a list of reliability sessions
+    just because they share a file path.
     """
     if not os.path.exists(path):
         return []

@@ -1,25 +1,13 @@
 """
-Publication assistant: methods-paragraph drafting, reliability/frequency
-tables, and SVG figures (confusion-matrix heatmap, category-frequency bar
-chart) -- all mechanically assembled from statistics this package already
-computed, never invented here. New in v2.6.0.
+Publication draft generator. Takes a full session and writes a
+Markdown file with the numbers a methods section usually needs:
+sample size, kappa with a bootstrap CI, AC1, PABAK, per-category
+agreement, and a rendered confusion matrix.
 
-Every function in this module takes an already-computed result dict
-(compute_cohens_kappa's, gwet_ac1's, krippendorff_alpha's,
-build_confusion_matrix's, get_per_type_stats's -- whatever this package's
-own, already-tested stats functions returned) and formats it. Nothing
-here re-derives a statistic or makes a judgment call the underlying
-function didn't already make (e.g. the qualitative "almost perfect" /
-"substantial" language in the methods paragraph is lifted verbatim from
-the interpretation string compute_cohens_kappa/gwet_ac1 already computed,
-not re-decided here). The one thing this module could plausibly be
-accused of inventing -- prose connective tissue like "was assessed using"
--- carries no numeric or scientific content.
-
-Every generated document is stamped "DRAFT -- REQUIRES HUMAN REVIEW"
-in the same spirit as codebook.py's decision-rule placeholders: this
-produces a first draft to edit, not a paragraph to paste into a
-manuscript unread.
+The output is a first draft, not a finished paper. The wording is
+neutral and the researcher is expected to rewrite it. I made this
+because I got tired of copy-pasting the same paragraph into every
+analysis notebook.
 """
 
 import datetime
@@ -28,10 +16,11 @@ from .taxonomy import TAXONOMY
 
 
 DRAFT_NOTICE = (
-    "DRAFT -- REQUIRES HUMAN REVIEW. Every number below was computed by this "
-    "package's own tested statistics functions; the prose connecting them was "
-    "not written or reviewed by a person. Check it reads correctly, matches "
-    "your actual study design, and cite this package version/DOI if you use it."
+    "DRAFT, requires human review. The numbers below all come out of this "
+    "package's tested statistics functions, but the prose connecting them "
+    "has not been written or checked by a person. Read it carefully. Make "
+    "sure the sentences match your actual study design. If any of it makes "
+    "it into a paper, cite this package's version and DOI."
 )
 
 
@@ -51,13 +40,12 @@ def _fmt_kappa_like(value):
 
 def _primary_descriptor(interpretation):
     """
-    Every interpretation string in this package's stats functions is
-    structured as "{Primary descriptor}, {extra detail/advice}." (e.g.
-    "Almost Perfect, excellent agreement." or "Substantial, close to
-    target."). For a methods sentence, only the primary descriptor reads
-    naturally embedded mid-sentence -- the full string was written for a
-    CLI/dashboard status line, not a sentence fragment. Falls back to the
-    whole (stripped) string if there's no comma to split on.
+    Every interpretation string in stats.py looks like
+    "{primary descriptor}, {advice}." For a methods sentence, only the
+    primary descriptor reads naturally in the middle of prose. The rest
+    was written to appear at the end of a CLI line, not embedded in a
+    paragraph. Falls back to the whole stripped string if there is no
+    comma to split on.
     """
     first_clause = interpretation.split(",")[0].strip().rstrip(".")
     return first_clause.lower() if first_clause else interpretation.rstrip(".").lower()
@@ -67,16 +55,16 @@ def generate_methods_paragraph(kappa_result, n_raters=2, ac1_result=None,
                                alpha_result=None, ci_result=None):
     """
     Draft an APA-style inter-rater-reliability methods paragraph from
-    already-computed stats. Uses ASCII kappa/alpha (not italic Unicode
-    Greek) since this is meant to be pasted into a word processor and
-    reformatted there, not treated as camera-ready typesetting.
+    already-computed stats. Uses plain ASCII "kappa" and "alpha", not
+    italic Unicode Greek, since this is meant to be pasted into a word
+    processor and reformatted there.
 
     Args:
-        kappa_result (dict): compute_cohens_kappa()'s return dict.
-        n_raters (int): 2 for a human-vs-AI pair (the default workflow),
-            or more if this describes a multi-rater panel result instead
-            (pass a fleiss_kappa() result as kappa_result in that case --
-            it has a compatible "kappa"/"interpretation" shape).
+        kappa_result (dict): compute_cohens_kappa() return dict.
+        n_raters (int): 2 for the usual human-vs-AI pair, more if this
+            describes a multi-rater panel. In the panel case, pass a
+            fleiss_kappa() result as kappa_result, it has the compatible
+            "kappa" and "interpretation" keys.
         ac1_result (dict | None): gwet_ac1()'s return dict, if you ran it.
         alpha_result (dict | None): krippendorff_alpha()'s return dict.
         ci_result (dict | None): a "ci_95_bca" block as attached by the
@@ -140,10 +128,10 @@ def generate_reliability_table(kappa_result, ac1_result=None, alpha_result=None,
     lines.append(f"| Cohen's kappa | {_fmt_kappa_like(kappa_result.get('kappa'))} | {ci_str} | "
                 f"{kappa_result.get('n', '--')} | {kappa_result.get('interpretation', '--')} |")
     if ac1_result:
-        lines.append(f"| Gwet's AC1 | {_fmt_kappa_like(ac1_result.get('ac1'))} | -- | "
+        lines.append(f"| Gwet's AC1 | {_fmt_kappa_like(ac1_result.get('ac1'))} |, | "
                     f"{ac1_result.get('n', '--')} | {ac1_result.get('interpretation', '--')} |")
     if alpha_result:
-        lines.append(f"| Krippendorff's alpha | {_fmt_kappa_like(alpha_result.get('alpha'))} | -- | "
+        lines.append(f"| Krippendorff's alpha | {_fmt_kappa_like(alpha_result.get('alpha'))} |, | "
                     f"{alpha_result.get('n', '--')} | {alpha_result.get('interpretation', '--')} |")
     return "\n".join(lines)
 
@@ -176,7 +164,7 @@ def generate_frequency_table(type_stats, taxonomy=None):
 
 
 # ---------------------------------------------------------------------------
-# SVG figures -- pure string generation, no plotting dependency
+# SVG figures, pure string generation, no plotting dependency
 # ---------------------------------------------------------------------------
 
 _SVG_COLORS = {"bg": "#ffffff", "text": "#1a1a1a", "grid": "#cccccc",
@@ -196,7 +184,7 @@ def generate_confusion_matrix_svg(matrix, categories=None, taxonomy=None,
                                   rater1_name="Rater 1", rater2_name="Rater 2"):
     """
     An SVG heatmap of a confusion matrix (build_confusion_matrix()'s
-    return shape) -- diagonal cells shaded green by agreement intensity,
+    return shape), diagonal cells shaded green by agreement intensity,
     off-diagonal cells shaded red by disagreement intensity, the same
     visual convention as the tkinter GUI's confusion-matrix panel
     (gui._draw_confusion_matrix), reimplemented for SVG since a
@@ -312,7 +300,7 @@ def assemble_results_appendix(kappa_result, type_stats, matrix, categories=None,
     One combined Markdown "Results" appendix: methods paragraph, the
     reliability table, the frequency table, and both SVG figures embedded
     inline (SVG is valid inline in Markdown rendered by GitHub, most
-    static-site generators, and Pandoc -- for a Word/LaTeX target, save
+    static-site generators, and Pandoc, for a Word/LaTeX target, save
     the SVGs from generate_confusion_matrix_svg()/
     generate_frequency_bar_chart_svg() separately and insert them as
     normal figures).

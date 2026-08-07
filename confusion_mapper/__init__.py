@@ -5,7 +5,7 @@ A tool for classifying wrong answer choices in multiple-choice questions by
 the type of cognitive error they represent, and for measuring how well a
 human researcher and an AI agree on those labels.
 
-Manik Maurya, Department of Cognitive Science, IIT Kanpur.
+Manik Maurya, Independent Researcher, Kanpur, India.
 
 What this does
 --------------
@@ -76,7 +76,7 @@ a package, split by concern:
   discovery.py      human-in-the-loop candidate-category proposals from
                      low-purity clusters (never writes to any taxonomy)
   patterns.py       co-occurrence, transition matrices, temporal trend,
-                     cohort comparison -- pattern mining across
+                     cohort comparison, pattern mining across
                      longitudinal / multi-item coded data
   publication.py    methods paragraph, tables, and SVG figures --
                      mechanical formatting of already-computed stats,

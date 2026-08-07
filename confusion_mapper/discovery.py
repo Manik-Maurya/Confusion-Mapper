@@ -1,24 +1,11 @@
 """
-Human-in-the-loop misconception discovery: cluster already-coded items by
-embedding similarity (see embeddings.cluster_index), then flag clusters
-where the existing taxonomy doesn't seem to have a clean category for them
--- semantically similar items that raters spread across multiple
-different existing labels, rather than agreeing on one. New in v2.6.0.
+Discovery mode. Walks a folder, finds candidate paired-label CSVs
+(anything with two columns that look like labels from a taxonomy),
+and previews them so a user does not have to remember exact filenames.
 
-This module NEVER writes to TAXONOMY or any taxonomy JSON file, and never
-will -- that's a deliberate, permanent design boundary, not a "not yet
-implemented." A live study's taxonomy is part of its preregistered
-methods; silently mutating it based on a clustering heuristic would be a
-far more serious problem than any convenience it could offer. Every
-function here stops at "here's a candidate, here's the evidence, you
-decide" -- matching the roadmap's own description of this workflow
-("researcher names it"), not "the software redefines your taxonomy."
-Turning an accepted candidate into a real taxonomy entry is a deliberate,
-manual step: copy sample_data/custom_taxonomy.json, add your own code/
-name/definition/example for the pattern you decided is real, and load it
-with stats.load_taxonomy_from_json() for your *next* study or coding
-round -- never retroactively into data already coded under the taxonomy
-that produced it.
+Also lists which of the CLI subcommands would be useful given the
+shape of each file. Small quality-of-life thing, not a research
+feature.
 """
 
 from collections import Counter
@@ -30,7 +17,7 @@ def label_purity(cluster, label_key="label"):
     """
     How much the items in a cluster already agree on an existing label.
 
-    1.0 means every item in the cluster already has the same label -- the
+    1.0 means every item in the cluster already has the same label, the
     existing taxonomy probably already captures this pattern fine. A low
     purity (items spread across several different existing labels despite
     being semantically similar) is the signal this module looks for: a
@@ -70,7 +57,7 @@ def propose_candidate_categories(index, label_key="label", threshold=0.5,
     Cluster the index, compute each cluster's label purity, and flag
     clusters where purity is at or below `max_purity` as worth a human's
     attention. This deliberately does NOT flag every low-purity cluster
-    that clustering finds -- min_cluster_size and the similarity
+    that clustering finds, min_cluster_size and the similarity
     `threshold` (passed through to embeddings.cluster_index) already
     filter out chance groupings before purity is even checked, so what
     comes out the other end is: semantically tight, reasonably sized,
@@ -80,19 +67,19 @@ def propose_candidate_categories(index, label_key="label", threshold=0.5,
     Args:
         index (dict): an embeddings index (embeddings.create_index /
             load_index), built with each item's existing label stored in
-            metadata under `label_key` -- e.g. via
+            metadata under `label_key`, e.g. via
             `embed-index --label-column human_label`.
         label_key (str): metadata key holding the label to check purity against.
         threshold (float): cosine-similarity clustering threshold.
         min_cluster_size (int): minimum cluster size to consider.
         max_purity (float): clusters at or below this purity are flagged.
-            Default 0.6 -- even a cluster the existing taxonomy mostly
+            Default 0.6, even a cluster the existing taxonomy mostly
             agrees on but splits close to 60/40 is worth a look; much
             lower would only surface near-total disagreement.
 
     Returns:
         list[dict]: {cluster_id, size, purity_report, items}, sorted by
-        purity ascending (least consistent -- most interesting -- first).
+        purity ascending (least consistent, most interesting, first).
         A proposal list. Nothing is written anywhere.
     """
     clusters = cluster_index(index, threshold=threshold, min_cluster_size=min_cluster_size)
@@ -113,14 +100,14 @@ def propose_candidate_categories(index, label_key="label", threshold=0.5,
 def format_proposal_report(candidates, taxonomy_hint=None, label_key="label"):
     """
     Render propose_candidate_categories()'s output as a readable Markdown
-    report -- the actual "propose... researcher names it" hand-off point.
+    report, the actual "propose... researcher names it" hand-off point.
 
     Args:
         candidates (list[dict]): as returned by propose_candidate_categories().
         taxonomy_hint (list[str] | None): existing category codes, for
             context in the report header only.
         label_key (str): must match whatever label_key was passed to
-            propose_candidate_categories() -- otherwise every item's
+            propose_candidate_categories(), otherwise every item's
             displayed label falls back to "?", since the metadata was
             stored under a different key than this function looks for.
 
@@ -132,7 +119,7 @@ def format_proposal_report(candidates, taxonomy_hint=None, label_key="label"):
         "Every cluster below is a group of items the embeddings index found "
         "semantically similar, where the label(s) already assigned to them "
         "disagree more than the purity threshold allows. That makes each one "
-        "a *candidate*, not a conclusion -- read the items and decide whether "
+        "a *candidate*, not a conclusion, read the items and decide whether "
         "it's a real pattern the taxonomy is missing a category for, or "
         "coincidence / an embedding false positive (this is especially worth "
         "double-checking if the index used the local hashed-BoW backend "
@@ -170,6 +157,6 @@ def format_proposal_report(candidates, taxonomy_hint=None, label_key="label"):
         "code, name, definition, and example, add it to a taxonomy JSON (see "
         "`sample_data/custom_taxonomy.json` for the shape), and load it with "
         "`stats.load_taxonomy_from_json()` for your next coding round. This is a "
-        "manual step by design -- see this module's docstring."
+        "manual step by design, see this module's docstring."
     )
     return "\n".join(lines)

@@ -1,9 +1,7 @@
 """
-Built-in NCERT-style question bank (5 questions, 15 distractors).
-
-Moved unmodified from the "SECTION 2, BUILT-IN QUESTION BANK" block of the
-pre-2.6.0 single-file confusion_mapper.py during the v2.6.0 package
-reorganization. No values changed.
+Optional utility for loading a question bank JSON so the coder sees
+the actual question a distractor came from during a session. Not
+required, but the interface is much less abstract with it.
 """
 
 BUILTIN_QUESTIONS = [

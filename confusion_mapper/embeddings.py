@@ -1,30 +1,13 @@
 """
-Embeddings and a persistent local semantic-search index.
+Semantic search over already-coded items. Two backends, picked at
+index creation time and then locked in so a later run without an API
+key cannot silently produce a garbage dimension mismatch.
 
-New in v2.6.0. This module is never imported by console.py / run_session()
--- building or updating the index is always an explicit, separate CLI
-action (`confusion-mapper embed-index build ...`), never something that
-happens silently during a live coding session. That's a deliberate
-boundary: adding a network call (OpenAI embeddings) or extra latency to
-the interactive loop your coders run during data collection is exactly
-the kind of change that needs sign-off, the same reasoning that kept
-run_session() untouched for validation.py/multirater.py/export.py and
-that motivated asking before adding provenance fields to it.
-
-Two backends, chosen once per index and locked for that index's lifetime:
-
-- "openai": OpenAI's text-embedding-3-small (1536-dim), real semantic
-  understanding (synonyms, paraphrase), costs a small amount per call,
-  needs network + an API key.
-- "local": a from-scratch, pure-stdlib hashed bag-of-words vector
-  (512-dim, L2-normalized). Zero cost, zero network, zero new
-  dependencies -- and honestly weaker: it catches shared vocabulary and
-  phrasing, not synonyms or paraphrase. Documented as a fallback, not
-  presented as equivalent to real embeddings.
-
-An index is locked to whichever backend it was created with. Adding to an
-"openai" index later without an API key fails with a clear error rather
-than silently mixing incompatible vector spaces into one index.
+The openai backend uses text-embedding-3-small. It is the one I use.
+The local backend is a from-scratch hashed bag-of-words vector, pure
+stdlib, zero cost, zero network. It is honestly not as good, and the
+module docstring says so, but it means the package works offline for
+anyone who needs it to.
 """
 
 import datetime
@@ -42,9 +25,8 @@ _OPENAI_EMBEDDING_DIM   = 1536
 _LOCAL_MODEL            = "hashed-bow-v1"
 _LOCAL_DIM              = 512
 
-# A short, hardcoded stopword list -- enough to cut the most common English
-# function words out of a hashed bag-of-words vector without pulling in a
-# dependency for it. Not exhaustive by design.
+# tiny stopword list, just the common English glue. I did not want to
+# pull nltk in for this one thing. deliberately not exhaustive.
 _STOPWORDS = frozenset("""
 a an the is are was were be been being to of in on at for with by from
 this that these those it its as and or but if then so not no do does did
@@ -59,14 +41,16 @@ def _tokenize(text):
 
 def _embed_local(text, dim=_LOCAL_DIM):
     """
-    Hashed bag-of-words: each token occurrence hashes (via sha256, so the
-    result is stable across processes and machines -- Python's builtin
-    hash() is NOT, due to per-process hash randomization for strings, and
-    would silently make an index unusable the next time you open Python)
-    to a bucket in [0, dim) with a hash-derived sign, then the whole
-    vector is L2-normalized. Standard "feature hashing" (Weinberger et
-    al., 2009); no corpus-wide IDF statistics are needed, so items can be
-    added to the index one at a time without recomputing anything.
+    Hashed bag-of-words. Each token hashes into a bucket in [0, dim)
+    with a sign derived from the same hash, and the vector is L2
+    normalized at the end. Standard feature hashing, Weinberger et al.
+    2009.
+
+    I use sha256 here on purpose. Python's built-in hash() randomizes
+    strings per process, so an index built in one Python session would
+    silently not match one built the next time you opened Python. That
+    caught me once and I did not want it to catch anyone else.
+
     """
     vector = [0.0] * dim
     for token in _tokenize(text):
@@ -111,8 +95,8 @@ def cosine_similarity(v1, v2):
     """Standard cosine similarity, pure Python. Returns 0.0 for a
     zero-vector rather than raising a division-by-zero error."""
     if len(v1) != len(v2):
-        raise ValueError(f"vector dimension mismatch: {len(v1)} vs {len(v2)} -- "
-                         f"are these from the same index/backend?")
+        raise ValueError(f"vector dimension mismatch: {len(v1)} vs {len(v2)}. "
+                         f"probably mixing an openai index with a local one.")
     dot = sum(a * b for a, b in zip(v1, v2))
     n1 = math.sqrt(sum(a * a for a in v1))
     n2 = math.sqrt(sum(b * b for b in v2))
@@ -124,7 +108,7 @@ def cosine_similarity(v1, v2):
 def create_index(backend="local"):
     """
     A fresh, empty index. `backend` is locked in for this index's
-    lifetime -- every subsequent add_to_index() / search() call against
+    lifetime, every subsequent add_to_index() / search() call against
     this index uses whatever backend it was created with, regardless of
     what's passed to those functions later, so the vector space stays
     consistent no matter how many times this index is reopened.
@@ -147,11 +131,11 @@ def create_index(backend="local"):
 def add_to_index(index, item_id, text, metadata=None, api_key=None):
     """
     Embed `text` with the index's own locked-in backend and store it
-    under `item_id` (upsert -- re-adding an existing item_id overwrites
+    under `item_id` (upsert, re-adding an existing item_id overwrites
     its text/vector/metadata, for re-indexing after an edit).
 
     Raises RuntimeError with a clear message if the index's backend is
-    "openai" and no usable API key is available -- it will not silently
+    "openai" and no usable API key is available, it will not silently
     fall back to "local" and produce a dimension mismatch buried in the
     index for someone to find later.
     """
@@ -234,7 +218,7 @@ def index_stats(index):
 def load_index(path, default_backend="local"):
     """
     Load an index from disk, or create a fresh empty one (with
-    `default_backend`) if the file doesn't exist yet -- so the first
+    `default_backend`) if the file doesn't exist yet, so the first
     `embed-index build` against a new path just works without a separate
     init step.
     """
@@ -256,7 +240,7 @@ def save_index(index, path):
 
 class _UnionFind:
     """Standard disjoint-set structure with path compression + union by
-    rank -- textbook implementation, not a novel data structure."""
+    rank, textbook implementation, not a novel data structure."""
 
     def __init__(self, items):
         self.parent = {x: x for x in items}
@@ -286,7 +270,7 @@ def cluster_index(index, threshold=0.5, min_cluster_size=2):
     each pair (via disjoint-set / union-find) if its similarity clears
     `threshold`, in similarity order. This is deterministic regardless of
     the order items were added to the index (unlike a greedy single-pass
-    "leader" clustering, which depends on iteration order) -- it's the
+    "leader" clustering, which depends on iteration order), it's the
     same algorithm as building a minimum-spanning-tree and cutting edges
     below a weight threshold, applied to clustering instead of routing.
 
@@ -301,7 +285,7 @@ def cluster_index(index, threshold=0.5, min_cluster_size=2):
     Returns:
         list[dict]: {cluster_id, item_ids, items: [{item_id, text,
         metadata}], size}, sorted largest-first. cluster_id is a stable
-        integer index into this list, not persisted anywhere -- recompute
+        integer index into this list, not persisted anywhere, recompute
         it each time you call this (clusters can shift as the index grows).
 
     Complexity: O(n^2) pairwise similarities + O(n^2 log n) sort --

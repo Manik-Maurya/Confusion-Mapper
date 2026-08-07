@@ -1,13 +1,12 @@
 """
-Dataset validation for coded-item files (the item_id / distractor_text /
-human_label / ai_label CSV shape used everywhere else in this package).
+Simple data-quality checks I run before any statistic is computed.
 
-New in v2.6.0. This module is purely additive: nothing here changes what
-compute_cohens_kappa() or any other stats function computes on a given
-input. It exists to catch, *before* those functions run, the data-entry
-mistakes that would otherwise silently distort a kappa value or crash deep
-inside a stats function with a confusing traceback -- a typo'd label
-category, a duplicate item_id counted twice, a blank cell.
+The story here: on my very first run of a real dataset the kappa looked
+strangely low. I dug in and found two rows with typos in the label
+column, one row with an empty item_id, and a duplicate id. None of that
+should have been kappa's problem. So this module catches those issues
+and prints a warning before the number is computed, and the --strict
+flag makes it hard-fail so a paper is never written on dirty data.
 """
 
 from .taxonomy import ERROR_TYPES
@@ -33,12 +32,12 @@ def validate_dataset(rows, categories=None):
             valid (bool):     True iff there are zero errors. Warnings
                                alone do not fail validation.
             n_records (int)
-            errors   (list[dict]): {row, item_id, issue} -- would silently
+            errors   (list[dict]): {row, item_id, issue}, would silently
                 distort a kappa/AC1/alpha computation or crash a stats
                 function. Examples: empty human_label, a label that isn't
                 in `categories` (a typo, e.g. "CG" instead of "CF"), a
                 duplicate item_id.
-            warnings (list[dict]): {row, item_id, issue} -- worth a look,
+            warnings (list[dict]): {row, item_id, issue}, worth a look,
                 won't break a computation. Examples: missing item_id
                 (duplicate-checking can't cover that row), empty
                 distractor_text.
@@ -65,8 +64,8 @@ def validate_dataset(rows, categories=None):
         elif human not in categories:
             errors.append({"row": row_num, "item_id": item_id or None,
                             "issue": f"human_label {human!r} is not one of "
-                                     f"{categories} (impossible value -- "
-                                     f"check for a typo)."})
+                                     f"{categories}. impossible value, "
+                                     f"probably a typo."})
 
         if not ai:
             errors.append({"row": row_num, "item_id": item_id or None,
@@ -74,13 +73,13 @@ def validate_dataset(rows, categories=None):
         elif ai not in categories:
             errors.append({"row": row_num, "item_id": item_id or None,
                             "issue": f"ai_label {ai!r} is not one of "
-                                     f"{categories} (impossible value -- "
-                                     f"check for a typo)."})
+                                     f"{categories}. impossible value, "
+                                     f"probably a typo."})
 
         if item_id:
             if item_id in seen_ids:
                 errors.append({"row": row_num, "item_id": item_id,
-                                "issue": f"duplicate item_id -- first seen "
+                                "issue": f"duplicate item_id, first seen "
                                          f"at row {seen_ids[item_id]}."})
             else:
                 seen_ids[item_id] = row_num

@@ -1,10 +1,10 @@
 """
-benchmark_embeddings.py -- local vs. OpenAI embedding backend, same
+benchmark_embeddings.py, local vs. OpenAI embedding backend, same
 methodology as the local-only study already run (see
 EMBEDDING_VALIDATION_FINDINGS.md).
 
 This script needs OPENAI_API_KEY and network access to run the "openai"
-half -- neither is available in the sandbox this was written in, so this
+half, neither is available in the sandbox this was written in, so this
 file has been written carefully and reviewed, but the openai-backend
 numbers in it have NOT been executed by anyone yet. Run it yourself:
 
@@ -15,7 +15,7 @@ numbers in it have NOT been executed by anyone yet. Run it yourself:
 What it does: builds a `local`-backend index and an `openai`-backend index
 from the same labeled CSV, clusters each at the same thresholds, and
 reports Adjusted Rand Index (see ari.py) against the real human_label
-column for both -- so you get a direct, apples-to-apples comparison on
+column for both, so you get a direct, apples-to-apples comparison on
 your own data, not just on the two small bundled sample files.
 
 Cost note: OpenAI's text-embedding-3-small is billed per token. For the
@@ -34,7 +34,7 @@ from ari import adjusted_rand_index
 try:
     from confusion_mapper.embeddings import create_index, add_to_index, cluster_index
 except ImportError:
-    print("confusion_mapper not importable -- run `pip install -e .` from the repo "
+    print("confusion_mapper not importable, run `pip install -e .` from the repo "
          "root first, or `pip install confusion-mapper` once it's on PyPI.")
     sys.exit(1)
 
@@ -81,7 +81,7 @@ def run_comparison(csv_path, dataset_name, id_col="item_id", text_col="distracto
     """
     Note the different default threshold ranges: cosine similarity means
     something different across the two vector spaces (512-dim hashed
-    bag-of-words vs. 1536-dim OpenAI embeddings) -- real embeddings
+    bag-of-words vs. 1536-dim OpenAI embeddings), real embeddings
     typically cluster at higher raw cosine similarity even for loosely
     related text, so sweeping the same 0.15-0.40 range used for the local
     backend would likely under-cluster the openai backend. Adjust both

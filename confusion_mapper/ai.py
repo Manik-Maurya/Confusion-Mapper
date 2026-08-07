@@ -1,26 +1,25 @@
 """
-ChatGPT-based AI rater: distractor classification and question generation.
+The OpenAI wrapper. One function, classify_with_ai, which is called
+in blind mode by the reliability-check session in cli.py.
 
-Moved unmodified from the "SECTION 4, CHATGPT / AI RATER" block of the
-pre-2.6.0 single-file confusion_mapper.py during the v2.6.0 package
-reorganization. No logic changed.
+The prompt is intentionally small and stable. It does not send session
+context, does not send prior human labels for the same item, and does
+not change based on what the human has decided so far. Keeping that
+promise is why assist.py has its own classify_with_confidence function
+instead of reaching into this one.
 """
 
 import json
 
-# Graceful fallback if openai not installed
+# let the whole package import cleanly even if openai isn't there.
+# I ran into this on my friend's laptop and it was annoying.
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
-    OpenAI = None  # noqa: N816 -- keeps the name importable when openai is absent.
-    # This line is new in v2.6.0. The original single-file module left `OpenAI`
-    # unbound on ImportError, which was harmless there because nothing at
-    # module level ever touched it. `confusion_mapper/__init__.py` now
-    # re-exports `OpenAI` at package level for API parity, so the name has
-    # to exist even when the import failed; every guarded call site below
-    # still checks OPENAI_AVAILABLE before ever using it, so this changes
-    # no runtime behavior.
+    # bind the name so __init__.py can re-export it; every real call site
+    # below still checks OPENAI_AVAILABLE first.
+    OpenAI = None  # noqa: N816
     OPENAI_AVAILABLE = False
 
 from .taxonomy import ERROR_TYPES
@@ -37,7 +36,7 @@ def classify_with_ai(question_text, correct_answer, distractor_text, topic, api_
     Returns:
         dict with keys: label (str), reasoning (str), available (bool)
     """
-    # Graceful degradation
+    # no openai library, no network. return something the caller can display.
     if not OPENAI_AVAILABLE:
         return {
             "label": "N/A",
@@ -86,7 +85,8 @@ Respond ONLY with valid JSON, no extra text:
         )
         raw = response.choices[0].message.content.strip()
 
-        # Strip markdown fences if present
+        # some models wrap JSON in ```json ... ``` fences even after being
+        # told not to. strip them.
         if "```" in raw:
             raw = raw.split("```")[1]
             if raw.startswith("json"):

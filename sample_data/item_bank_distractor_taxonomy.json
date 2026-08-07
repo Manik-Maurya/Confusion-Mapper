@@ -1,11 +1,11 @@
 {
-  "_comment": "A distractor-FUNCTIONING taxonomy for multiple-choice item banks in large-scale assessment (PISA-style math/science/reading literacy items, or any MCQ item bank where you care about how each wrong answer behaves psychometrically, not just whether it's chosen). This is NOT an official OECD/PISA taxonomy -- PISA's own published coding is item-specific partial-credit rubrics (e.g. 'Code 2: selects Yes and gives an acceptable explanation...'), not a single reusable cross-item scheme. This taxonomy is modeled on established, published item-analysis concepts instead: the <5% non-functional-distractor threshold and distractor-efficiency categorization used in MCQ item analysis (see e.g. Considine, Botti & Thomas-style DE/DI item-analysis studies, PMC7372664), and the 'Potentially Lead to Misconception' (PLM) distractor concept from mathematics-education item analysis (ScienceDirect S1871187124002712). Use it as-is for a quick item-bank audit, or copy and edit it -- that's the point of this file being editable JSON, not a hardcoded taxonomy.",
+  "_comment": "A distractor-FUNCTIONING taxonomy for multiple-choice item banks in large-scale assessment (PISA-style math/science/reading literacy items, or any MCQ item bank where you care about how each wrong answer behaves psychometrically, not just whether it's chosen). This is NOT an official OECD/PISA taxonomy, PISA's own published coding is item-specific partial-credit rubrics (e.g. 'Code 2: selects Yes and gives an acceptable explanation...'), not a single reusable cross-item scheme. This taxonomy is modeled on established, published item-analysis concepts instead: the <5% non-functional-distractor threshold and distractor-efficiency categorization used in MCQ item analysis (see e.g. Considine, Botti & Thomas-style DE/DI item-analysis studies, PMC7372664), and the 'Potentially Lead to Misconception' (PLM) distractor concept from mathematics-education item analysis (ScienceDirect S1871187124002712). Use it as-is for a quick item-bank audit, or copy and edit it, that's the point of this file being editable JSON, not a hardcoded taxonomy.",
   "labels": [
     {
       "code": "NF",
       "name": "Non-Functional Distractor",
       "number": "1",
-      "definition": "Selected by fewer than roughly 5% of examinees. Doesn't meaningfully discriminate between higher- and lower-ability test-takers and contributes little to the item's measurement precision -- a strong candidate for revision or removal in the next item-bank cycle.",
+      "definition": "Selected by fewer than roughly 5% of examinees. Doesn't meaningfully discriminate between higher- and lower-ability test-takers and contributes little to the item's measurement precision, a strong candidate for revision or removal in the next item-bank cycle.",
       "example": "An option so implausible or oddly worded that almost no one picks it, correct or incorrect reasoning alike.",
       "color": "#95a5a6"
     },
@@ -14,15 +14,15 @@
       "name": "Potentially Lead to Misconception",
       "number": "2",
       "definition": "Selected at a meaningful rate, disproportionately by examinees who share one specific, identifiable incorrect reasoning pattern. The option is plausible enough that it could actively reinforce that misconception in a guessing or uncertain student, not just passively catch it.",
-      "example": "On a proportional-reasoning item, a distractor that results from applying addition where multiplication was required -- selected consistently by students who additively (rather than multiplicatively) compare quantities.",
+      "example": "On a proportional-reasoning item, a distractor that results from applying addition where multiplication was required, selected consistently by students who additively (rather than multiplicatively) compare quantities.",
       "color": "#e74c3c"
     },
     {
       "code": "FD",
       "name": "Functional Distractor",
       "number": "3",
-      "definition": "Selected at a meaningful rate (roughly >=5%) without pointing to one specific coherent misconception -- useful for overall discrimination between ability levels, but not diagnostically informative about *why* a student got the item wrong.",
-      "example": "A plausible wrong answer chosen by a mix of students for varied, non-systematic reasons -- careless error, partial recall, simple guessing.",
+      "definition": "Selected at a meaningful rate (roughly >=5%) without pointing to one specific coherent misconception, useful for overall discrimination between ability levels, but not diagnostically informative about *why* a student got the item wrong.",
+      "example": "A plausible wrong answer chosen by a mix of students for varied, non-systematic reasons, careless error, partial recall, simple guessing.",
       "color": "#4a90d9"
     },
     {

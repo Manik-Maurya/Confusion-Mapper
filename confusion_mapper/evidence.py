@@ -1,30 +1,12 @@
 """
-Evidence panel: for every coded item, the original answer, the assigned
-label, the reason behind it, free-text notes, and a full revision history
--- the Level 1.5 "evidence panel" from the roadmap this package has been
-built against.
+Evidence panel. For each coded item, the answer text, the label given,
+the AI reasoning if any, free-text notes, and every revision that was
+made afterward.
 
-New in v2.6.0. Deliberately NOT wired into run_session() / console.py.
-Prompting a human coder to type a reason for every one of 15-90 distractors
-during a live session is a real change to the coding workflow's pace and
-cognitive load, not a silent metadata addition like the provenance fields
-in storage.py/taxonomy.py -- exactly the kind of change that shouldn't
-happen without you signing off first, given the Sept 22 data collection
-window. So this module works the other way around: post-hoc, on top of
-already-saved session files, without ever touching them.
-
-Session ratings already carry three of the five things an evidence panel
-needs -- distractor_id, distractor_text (the original answer), human_label
-(the assigned label) -- plus ai_reasoning when the AI rater ran, which
-already IS a "reason" for the AI's half of the pair. What's genuinely new
-here is notes and revision history, both stored in a separate,
-append-only JSON log keyed by distractor_id. The original session file is
-never opened for writing by this module. If you revise a label, the
-original human_label in the session file stays exactly what was recorded
-live; the revision log records the change, the reason, who made it, and
-when, and current_label() tells you what the item's label is *now* by
-checking the log first, falling back to the session's original label only
-if there's no revision on file.
+The rule I enforce here: revising a label never rewrites history. The
+old value stays, the new value is added on top, and the reason is
+required. This is meant for the review phase, not for live coding, so
+it deliberately does not touch the session file it reads from.
 """
 
 import datetime
@@ -34,14 +16,15 @@ import os
 
 def build_evidence_panel(session):
     """
-    Turn a session's `ratings` list into an evidence panel: one entry per
-    distractor, using only fields already present in the session (no
-    revision/note data yet -- combine with an evidence log via
-    current_label() / get_revision_history() / get_notes() for that).
+    Turn a session's `ratings` list into one entry per distractor.
+
+    This function only reads from the session, no notes or revisions yet.
+    For those, layer on load_evidence_log() and use current_label(),
+    get_revision_history(), get_notes() over the same distractor_id.
 
     Args:
-        session (dict): a session dict as returned by run_session() /
-            saved by save_session() -- must have a "ratings" key.
+        session (dict): a session dict from run_session() or
+            save_session(). Needs a "ratings" key.
 
     Returns:
         dict: {distractor_id: {original_answer, assigned_label, ai_label,
@@ -71,8 +54,8 @@ def _entry(evidence_log, distractor_id):
 
 def add_note(evidence_log, distractor_id, note, author=None):
     """
-    Append a free-text note to an item. Does not touch any other item's
-    entry and never overwrites a previous note -- notes accumulate.
+    Add a free-text note to an item. Notes accumulate, nothing here
+    ever overwrites a previous note.
 
     Args:
         evidence_log (dict): as returned by load_evidence_log() / an empty
@@ -105,9 +88,9 @@ def revise_label(evidence_log, distractor_id, new_label, reason, author=None, ol
         evidence_log (dict)
         distractor_id (str)
         new_label (str): the revised label.
-        reason (str): required -- a revision without a stated reason
-            defeats the purpose of keeping the log. Raises ValueError if
-            empty.
+        reason (str): required. A revision without a reason is the
+            exact thing this whole module exists to prevent. Raises
+            ValueError if empty.
         author (str | None)
         old_label (str | None): the label being superseded, for the
             record. If you don't pass it, it's inferred as the previous
@@ -137,10 +120,9 @@ def revise_label(evidence_log, distractor_id, new_label, reason, author=None, ol
 
 def current_label(evidence_log, session, distractor_id):
     """
-    The item's label *right now*: the newest revision if the evidence log
-    has one, otherwise the original human_label from the session --
-    session data is never mutated, so this is always computed, never
-    stored redundantly.
+    The item's label right now: newest revision if there is one, else
+    the original human_label from the session. Session data is never
+    mutated, this is always computed on the fly.
     """
     entry = evidence_log.get(distractor_id)
     if entry and entry["revisions"]:

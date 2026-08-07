@@ -1,19 +1,13 @@
 """
-Codebook generator: render the CFI taxonomy as a publication-ready
-research appendix -- category definitions and examples, formatted for a
-Methods/Appendix section. The Level 2 "codebook generator" from the
-roadmap this package has been built against.
+Codebook generator. Turns the CFI taxonomy in taxonomy.py into a
+Markdown research appendix that reviewers can print or attach as
+supplementary material.
 
-New in v2.6.0. Deliberately does NOT auto-generate "decision rules" as
-finished, authoritative text. TAXONOMY has definitions and examples --
-real, already-written content -- but no separately-authored decision-rule
-field, and synthesizing one from the definition/example text and
-presenting it as equivalent would mean fabricating part of a research
-instrument's methodology and handing it back as if it were reviewed
-content. Every category section instead gets an explicit, clearly-marked
-placeholder ("*(fill in from your coding manual / Stage 1 RR methods)*")
-so a human writes the actual decision rule, and it's obvious in the output
-that this one field needs attention before the appendix is submission-ready.
+The decision-rule field for each category is left as a literal
+placeholder. I could have asked the model to invent a rule from the
+definition, but that would be presenting fabricated methodology as if
+a human wrote it, and I would rather leave a blank the researcher
+fills in themselves.
 """
 
 import datetime
@@ -29,26 +23,21 @@ def generate_codebook(categories=None, taxonomy=None, title="CFI Coding Manual",
 
     Args:
         categories (list[str] | None): defaults to ERROR_TYPES. Any code
-            not found in `taxonomy` falls back to just the code itself, with
-            "(no definition on file)" placeholders -- so this also works,
-            gracefully, for a partially-documented custom taxonomy.
+            not found in `taxonomy` falls back to just the code with a
+            "(no definition on file)" placeholder, so partially documented
+            taxonomies still render cleanly.
         taxonomy (dict | None): a taxonomy dict in the same shape as the
-            built-in TAXONOMY constant (code -> {name, number, definition,
-            example, ...}). Defaults to the built-in CFI TAXONOMY. Pass the
-            second element returned by stats.load_taxonomy_from_json() to
-            generate a proper codebook -- with real names, definitions, and
-            examples, not placeholders -- for any custom taxonomy, e.g. a
-            large-scale-assessment item bank's own distractor-functioning
-            categories. See sample_data/custom_taxonomy.json and
-            sample_data/item_bank_distractor_taxonomy.json for two worked
-            examples completely unrelated to the CFI categories.
+            built-in TAXONOMY (code -> {name, number, definition, example,
+            ...}). Defaults to the built-in CFI TAXONOMY. Pass the second
+            element of stats.load_taxonomy_from_json() to render any custom
+            taxonomy properly. See sample_data/custom_taxonomy.json and
+            sample_data/item_bank_distractor_taxonomy.json for two
+            unrelated worked examples.
         title (str): appendix title.
-        include_metadata (bool): include the generation-date /
-            software-version / taxonomy-fingerprint header block. The
-            fingerprint is only computed for the built-in TAXONOMY (custom
-            taxonomies don't have one -- there's nothing to compare a
-            custom JSON file's fingerprint against, so this block is
-            skipped automatically when `taxonomy` is given explicitly).
+        include_metadata (bool): include the generation-date, software
+            version, and taxonomy fingerprint header. The fingerprint
+            only makes sense for the built-in TAXONOMY, so it is skipped
+            automatically when a custom `taxonomy` is passed.
 
     Returns:
         str: Markdown source.
@@ -72,14 +61,14 @@ def generate_codebook(categories=None, taxonomy=None, title="CFI Coding Manual",
             lines += [
                 f"*Generated {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} "
                 f"by confusion-mapper {installed_package_version()}, from a custom taxonomy "
-                f"(not the built-in CFI categories -- no fingerprint to compare against).*",
+                f"(not the built-in CFI categories, no fingerprint to compare against).*",
                 "",
             ]
         lines += [
-            "*This document was generated from the definitions and examples in "
-            "the taxonomy in effect. Decision rules are marked as a "
-            "placeholder below and need to be filled in by a human from the "
-            "study's actual coding manual -- they are not auto-generated.*",
+            "*Generated from the definitions and examples in the taxonomy "
+            "in effect. Decision rules are left as placeholders and need to "
+            "be filled in by a human from the study's coding manual, they "
+            "are not auto-generated.*",
             "",
         ]
 

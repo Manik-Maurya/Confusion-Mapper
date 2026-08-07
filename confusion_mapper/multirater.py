@@ -1,16 +1,12 @@
 """
-Multi-rater workflow: three or more human coders on the same items, with a
-pairwise agreement matrix, Fleiss' kappa across the whole panel, conflict
-detection, and majority-vote consensus suggestions.
+Multi-rater support. When there are three or more human coders, pairwise
+kappa is not enough on its own, so this module also runs Fleiss' kappa
+across the whole panel and lists items where the coders disagreed.
 
-New in v2.6.0. This module introduces no new statistical formula -- it is a
-data model and reporting layer built entirely on top of the existing,
-already-tested stats.py functions (compute_cohens_kappa, gwet_ac1,
-fleiss_kappa). The two-rater human-vs-AI workflow in console.py / cli.py is
-unchanged; this is an additional, independent workflow for research teams
-running 3+ human coders (Researcher A / B / C) on the same item set, which
-was previously only reachable by hand-assembling calls to fleiss_kappa()
-yourself.
+Nothing here invents a new statistic. It is an adapter over the kappa
+and Fleiss functions in stats.py, and a ranked view of conflicts so a
+research team can walk through them in one sitting instead of grepping
+through a spreadsheet.
 """
 
 import csv
@@ -115,27 +111,22 @@ def panel_fleiss_kappa(ratings, rater_names, categories=None):
 
 def detect_conflicts(item_ids, ratings, rater_names):
     """
-    Flag every item where the panel didn't unanimously agree, ranked by how
-    split the panel was (more distinct labels given = ranked first). This
-    is what "don't make researchers hunt" means in practice: unanimous
-    items are omitted entirely rather than left for a researcher to filter
-    out by hand.
+    Return every item the panel disagreed on, worst first. Unanimous items
+    drop out here so no one has to filter them by hand afterwards.
 
-    Returns:
-        list[dict], sorted worst-disagreement-first:
-            item_id, labels (dict rater->label), n_distinct,
-            majority_label (str or None if tied), majority_count,
-            tied_labels (list[str] or None if there's a clear majority).
+    Result is a list of dicts with:
+        item_id, labels (rater -> label), n_distinct, majority_label,
+        majority_count, tied_labels.
 
-        majority_label is a suggestion for a human to accept or override --
-        nothing in this function writes a consensus label anywhere.
+    majority_label is only a suggestion. Nothing in this function writes a
+    consensus label back into a rater's column, that call is the reviewer's.
     """
     conflicts = []
     for item_id, row in zip(item_ids, ratings):
         labels = {r: row[r] for r in rater_names}
         counts = Counter(labels.values())
         if len(counts) <= 1:
-            continue  # unanimous -- not a conflict
+            continue  # everyone agreed, skip
 
         top_label, top_count = counts.most_common(1)[0]
         tied = [lbl for lbl, c in counts.items() if c == top_count]

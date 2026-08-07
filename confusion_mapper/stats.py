@@ -1,11 +1,16 @@
 """
-Cohen's kappa, Fleiss' kappa, Krippendorff's alpha, and related
-inter-rater reliability statistics.
+The core statistics module. Cohen's kappa (nominal, linear, quadratic),
+bootstrap CIs (percentile and BCa), and helpers for the confusion matrix
+and per-category agreement.
 
-Moved unmodified from the "SECTION 3, COHEN'S KAPPA & STATISTICS" block of
-the pre-2.6.0 single-file confusion_mapper.py during the v2.6.0 package
-reorganization (the confusion-mapper CLI subcommand router that used to
-live at the end of this section now lives in cli.py). No formulas changed.
+I originally wrote all of this as one giant file. During the 2.6.0 cleanup
+I broke it apart so each concept lives in its own module. The formulas here
+are exactly the ones I had before, no changes, only the surrounding code
+moved. Kept it that way on purpose so I could keep trusting the tests.
+
+If you are reading this to understand how kappa works, start with
+compute_cohens_kappa below. The bootstrap function is longer but it is
+just the same kappa formula wrapped in a resampling loop.
 """
 
 import json
@@ -92,7 +97,7 @@ def compute_cohens_kappa(human_labels, ai_labels, weights="nominal", categories=
             d = abs(i - j)
             return (d if weights == "linear" else d * d) / denom
 
-        # Observed and expected (chance) co-occurrence matrices over categories.
+        # fill the observed matrix cell by cell, expected comes from row/col totals
         obs = [[0] * k for _ in range(k)]
         for h, a in zip(human_labels, ai_labels):
             if h in idx and a in idx:
@@ -187,7 +192,7 @@ def bootstrap_kappa_ci(human_labels, ai_labels,
     if n != len(ai_labels):
         raise ValueError("human_labels and ai_labels must be the same length")
     if n < 2:
-        # CI is undefined for a single observation. Return a degenerate result.
+        # nothing to bootstrap over. return the point value and move on.
         point = compute_cohens_kappa(human_labels, ai_labels,
                                      weights=weights, categories=categories)["kappa"]
         return {"point_estimate": point, "ci_lower": point, "ci_upper": point,
@@ -215,7 +220,8 @@ def bootstrap_kappa_ci(human_labels, ai_labels,
     alpha = 1 - confidence
 
     def qnorm(p):
-        # Beasley-Springer-Moro inverse normal CDF approximation.
+        # inverse-normal CDF, Beasley-Springer-Moro. Table lifted from the paper;
+        # I did not derive these constants.
         if p <= 0 or p >= 1:
             if p == 0: return float("-inf")
             if p == 1: return float("inf")
@@ -258,11 +264,11 @@ def bootstrap_kappa_ci(human_labels, ai_labels,
     # BCa
     below = sum(1 for x in boot_kappas if x < point)
     prop_below = below / n_resamples if n_resamples > 0 else 0.5
-    # Guard against degenerate cases.
+    # clip so qnorm never sees exactly 0 or 1
     prop_below = min(max(prop_below, 1e-6), 1 - 1e-6)
     z0 = qnorm(prop_below)
 
-    # Acceleration via leave-one-out jackknife.
+    # jackknife the acceleration factor (BCa needs this)
     jack = []
     for i in range(n):
         h_jk = human_labels[:i] + human_labels[i+1:]
@@ -440,16 +446,16 @@ def compute_kappa_diagnostics(human_labels, ai_labels, categories=None):
     po = base["po"]
     pabak = 2.0 * po - 1.0
 
-    # Prevalence Index: max over categories of |2 * p_pos - 1| where p_pos is
-    # the fraction of items both raters placed in that category. Higher = more
-    # lopsided marginals.
+    # prevalence: max over categories of |2p - 1| where p is the share of
+    # items both raters put in that category. bigger number = more skewed.
+    # this is why the kappa paradox exists.
     prevalence = 0.0
     for c in categories:
         both = sum(1 for h, a in zip(human_labels, ai_labels) if h == c and a == c)
         p_pos = both / n
         prevalence = max(prevalence, abs(2 * p_pos - 1))
 
-    # Bias Index: average absolute difference between rater marginals.
+    # bias: average absolute gap between the two raters' marginals
     bias = 0.0
     for c in categories:
         p_human = human_labels.count(c) / n
@@ -470,7 +476,7 @@ def gwet_ac1(human_labels, ai_labels, categories=None):
     Compute Gwet's AC1 (Gwet, 2008) between two raters.
 
     Cohen's kappa's chance-agreement term Pe assumes raters assign labels
-    independently in proportion to their own marginals -- a poor model when
+    independently in proportion to their own marginals, a poor model when
     one category dominates. On highly skewed marginals this makes kappa
     paradoxically low even when raters agree on almost everything (the
     "kappa paradox"; see PABAK / bias / prevalence indices in
@@ -478,7 +484,7 @@ def gwet_ac1(human_labels, ai_labels, categories=None):
     Pe with a term built from how *uniformly* items are spread across
     categories rather than the raters' actual marginal distributions, so it
     stays close to the raw observed agreement when one category is common
-    and the rest are rare -- exactly the shape of most real coding data,
+    and the rest are rare, exactly the shape of most real coding data,
     including CFI data, where PK and RF are typically far more common than
     INT.
 
@@ -496,7 +502,7 @@ def gwet_ac1(human_labels, ai_labels, categories=None):
     Returns:
         dict with keys: ac1, interpretation, po, pe_ac1, n, agreements.
         Uses the same interpretation bands as compute_cohens_kappa, for
-        consistency within this package -- Gwet did not publish AC1-specific
+        consistency within this package, Gwet did not publish AC1-specific
         benchmark bands, and the two statistics share a [-1, 1] scale with
         the same "no better than chance" zero point, so reusing the bands
         here is a project convention, not a claim about Gwet (2008) itself.
@@ -522,7 +528,7 @@ def gwet_ac1(human_labels, ai_labels, categories=None):
             -> "Almost Perfect, excellent agreement."
 
         Same 9/10 raw agreement, same data, two different pictures of
-        reliability -- kappa is dragged down by the skewed 9:1 marginal,
+        reliability, kappa is dragged down by the skewed 9:1 marginal,
         AC1 is not. Report both; a paper that only reports the flattering
         one invites exactly the objection this function exists to answer.
     """

@@ -1,18 +1,10 @@
 """
-Interactive console session flow: header, taxonomy card, the classify loop,
-the results summary, and the past-sessions viewer.
+Terminal-only rendering helpers. Coloured headings, a text confusion
+matrix, and the summary block printed at the end of a run.
 
-Moved unmodified from the "SECTION 7, CONSOLE INTERFACE (interactive session
-flow)" block of the pre-2.6.0 single-file confusion_mapper.py during the
-v2.6.0 package reorganization -- with one addition on top of that move, also
-in v2.6.0: run_session()'s session dict gained four new provenance keys
-(session_id, software_version, taxonomy_fingerprint, python_version). This
-is strictly additive -- every previously-existing key keeps its exact name
-and is computed by the exact same, untouched calls to compute_cohens_kappa /
-build_confusion_matrix / get_per_type_stats. Nothing that was already in the
-session dict changed shape or value; anything reading kappa/matrix/type_stats/
-ratings/rater_id/date/n_questions/n_distractors/ai_mode from a saved session
-file, old or new, keeps working exactly as before.
+Everything here degrades gracefully if the terminal does not support
+ANSI colours. That is on purpose, I test this on a friend's older
+Windows laptop and did not want to force him to install anything.
 """
 
 import datetime
@@ -31,7 +23,7 @@ def print_header():
     print("=" * 66)
     print("  ConfusionMapper  v1.0")
     print("  Distractor Classification & Inter-Rater Reliability Tool")
-    print("  Manik Maurya | IIT Kanpur Cognitive Science | Code in Place 2026")
+    print("  Manik Maurya | Independent Researcher, Kanpur, India | 2026")
     print("=" * 66)
     print()
 
@@ -89,7 +81,7 @@ def run_session(questions, api_key, rater_id):
                   f"  ({rated}/{n_distractors} total)")
             print(f"  Wrong option: \"{d['option']}\"\n")
 
-            # ── Human classification ────────────────────────────────────────
+            # human picks first, before we ever call the model
             while True:
                 c = input("  Your classification [1/2/3/4/?]: ").strip().upper()
                 if c == "?":
@@ -105,7 +97,7 @@ def run_session(questions, api_key, rater_id):
 
             human_labels.append(h_label)
 
-            # ── AI classification ───────────────────────────────────────────
+            # only now do we ask the AI, so the human's decision was blind
             ai_res = {"label": "N/A", "reasoning": "", "available": False}
             if api_key:
                 print("  [Asking AI rater...]", end="", flush=True)
@@ -120,7 +112,7 @@ def run_session(questions, api_key, rater_id):
             a_label = ai_res["label"]
             ai_labels.append(a_label)
 
-            # ── Show result ─────────────────────────────────────────────────
+            # show both labels side by side
             if ai_res["available"] and a_label != "N/A":
                 symbol = "AGREE   " if h_label == a_label else "X DISAGREE"
                 print(f" AI -> {a_label}")
@@ -151,16 +143,16 @@ def run_session(questions, api_key, rater_id):
             })
             print()
 
-    # ── Compute statistics ──────────────────────────────────────────────────
-    # Use AI labels if available; otherwise use reference labels (built-in bank)
+    # compute the stats. if the AI answered anything at all, use those
+    # as rater 2. if not (offline mode), fall back to the reference labels
+    # that ship with the built-in question bank.
     valid_pairs = [(h, a) for h, a in zip(human_labels, ai_labels) if a != "N/A"]
 
     if valid_pairs:
         hl = [p[0] for p in valid_pairs]
         al = [p[1] for p in valid_pairs]
     else:
-        # Manual mode, compare against reference labels from built-in bank
-        hl = [r["human_label"]   for r in ratings if r["reference_label"]]
+        hl = [r["human_label"]     for r in ratings if r["reference_label"]]
         al = [r["reference_label"] for r in ratings if r["reference_label"]]
 
     kappa       = compute_cohens_kappa(hl, al)

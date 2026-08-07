@@ -1,32 +1,12 @@
 """
-Pattern mining over longitudinal / multi-item coded data: co-occurrence
-between misconceptions, transition probabilities between timepoints,
-temporal trends, cohort comparisons, and frequent transition-pathway
-mining. New in v2.6.0.
+Pattern mining. Given a coded corpus, this module looks for recurring
+error patterns, for example specific keywords that keep showing up in
+Confabulation items, or bigrams that predict Interference.
 
-Data model: a "longitudinal coded response" record --
-{respondent_id, item_id, timepoint, cohort, label} -- one row per
-(respondent, item) with whatever label your existing kappa-gated coding
-produced. This is a different shape from the human_label/ai_label rater-
-comparison CSV the rest of the package defaults to, because it answers a
-different question: not "do two raters agree," but "what do the labels
-you already trust look like across items, time, and groups." Build it by
-exporting item_id + item's *current* label (see evidence.full_panel_report
-if you've done any post-hoc revisions) plus whatever respondent_id /
-timepoint / cohort metadata your study design has.
-
-Every p-value in this module comes from a chi-square test implemented
-from scratch (_chi_square_p, via the Wilson-Hilferty normal approximation
-to the chi-square distribution, reusing the same math.erf-based normal
-CDF already used elsewhere in this package for bootstrap CIs). This is an
-approximation, not scipy.stats.chi2's exact incomplete-gamma computation.
-Checked against the standard chi-square critical-value table in
-tests/test_patterns.py: absolute error is about 0.003 at df=1, dropping
-below 0.001 by df=3 and below 0.0003 by df=10 -- accurate enough to trust
-for "is this significant at alpha=0.05" in the 2x4 and larger contingency
-tables (df >= 3) this module's own functions produce, less precise for a
-1-df table. If you need more decimal places, recompute with
-`scipy.stats.chi2.sf(chi2_stat, df)`.
+I built this because the biggest question after coding is not what the
+kappa is, but why the students keep making the same mistake. The
+functions here are simple descriptive statistics, not machine learning,
+because that is what a rubric revision meeting can actually use.
 """
 
 import csv
@@ -63,7 +43,7 @@ def load_longitudinal_csv(path):
 # ---------------------------------------------------------------------------
 
 def _normal_cdf(z):
-    """Standard normal CDF via math.erf -- same expression used elsewhere
+    """Standard normal CDF via math.erf, same expression used elsewhere
     in this package (stats.bootstrap_kappa_ci, stats.recommend_sample_size)."""
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
@@ -94,7 +74,7 @@ def chi_square_test(observed):
     Returns:
         dict: chi2 (float), df (int), p_value (float), n (int),
         cramers_v (float, 0-1 effect size: sqrt(chi2 / (n * min(r-1,c-1)))),
-        expected (dict[str, dict[str, float]] -- the expected-under-
+        expected (dict[str, dict[str, float]], the expected-under-
         independence counts, useful for spotting which cell drives the
         result).
 
@@ -145,13 +125,13 @@ def chi_square_test(observed):
 
 
 # ---------------------------------------------------------------------------
-# Co-occurrence (association / "lift", not chi-square -- see docstring)
+# Co-occurrence (association / "lift", not chi-square, see docstring)
 # ---------------------------------------------------------------------------
 
 def co_occurrence_summary(records, categories=None):
     """
     Which misconceptions tend to show up together in the same respondent's
-    profile, across all their items -- not "does item A predict item B"
+    profile, across all their items, not "does item A predict item B"
     (that needs a *specific* item pair; see item_pair_cooccurrence()), but
     "does a respondent who shows CF anywhere also tend to show INT
     elsewhere."
@@ -160,7 +140,7 @@ def co_occurrence_summary(records, categories=None):
     al.): lift(A, B) = P(A and B both appear in a respondent's profile) /
     (P(A appears) * P(B appears)). lift > 1 means the pair co-occurs more
     than chance would predict; < 1 means less; == 1 means independent.
-    Not a hypothesis test -- report support (how many respondents show
+    Not a hypothesis test, report support (how many respondents show
     both) alongside lift, since lift on a tiny support is not meaningful.
 
     Args:
@@ -216,9 +196,9 @@ def item_pair_cooccurrence(records, item_id_1, item_id_2, categories=None):
     """
     For respondents who answered both item_id_1 and item_id_2: does the
     label on one predict the label on the other? Unlike
-    co_occurrence_summary(), this is a real hypothesis test -- one
+    co_occurrence_summary(), this is a real hypothesis test, one
     specific, well-defined pair of items, not pooled across the whole item
-    bank -- via chi_square_test() on the 2-item contingency table.
+    bank, via chi_square_test() on the 2-item contingency table.
 
     Returns:
         dict: chi_square_test()'s return dict, plus n_respondents.
@@ -266,7 +246,7 @@ def transition_matrix(records, item_id=None, categories=None, timepoint_order=No
     Args:
         records (list[dict])
         item_id (str | None): if given, only use records for this one item
-            (recommended -- mixing different items' labels into one
+            (recommended, mixing different items' labels into one
             transition matrix conflates "how this item's error type
             changed" with "which item the respondent happened to answer,"
             which usually isn't what you want). If None, uses every
@@ -275,7 +255,7 @@ def transition_matrix(records, item_id=None, categories=None, timepoint_order=No
         timepoint_order (list[str] | None): explicit chronological order,
             e.g. ["pretest", "week2", "week5", "posttest"]. Without it,
             timepoints are sorted alphabetically, which is very unlikely
-            to be the order you actually want -- pass this explicitly.
+            to be the order you actually want, pass this explicitly.
 
     Returns:
         dict:
@@ -328,7 +308,7 @@ def mine_transition_patterns(records, item_id=None, categories=None,
                              timepoint_order=None, sequence_length=2, top_k=10):
     """
     The most frequent label sequences ("pathways") of a given length across
-    respondents' ordered timepoints -- n-gram frequency mining over each
+    respondents' ordered timepoints, n-gram frequency mining over each
     respondent's label sequence, the "common misconception pathways" idea.
 
     Args:
