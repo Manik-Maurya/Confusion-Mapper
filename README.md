@@ -9,11 +9,11 @@ A Python tool for classifying wrong answer choices in multiple-choice questions 
 
 ## What it does
 
-In educational research, you cannot use qualitative labels in a statistical analysis unless two independent raters can produce roughly the same labels on the same items. The usual way to check this is Cohen's kappa.
+If you want to make a claim about qualitative data, two people have to be able to read the same item and put roughly the same label on it. Otherwise the label is just one person's opinion. Cohen's kappa is the number that tells you whether that condition is met.
 
-ConfusionMapper handles the full workflow. You go through a set of distractors one by one and pick a label for each. If you have an OpenAI API key, an AI rater labels the same distractors in parallel. At the end, the program computes Cohen's kappa, draws a 4x4 confusion matrix of where the two raters agreed and disagreed, and saves everything to JSON.
+ConfusionMapper does the whole loop for you. You go through a set of distractors one at a time and pick a category for each. If you have an OpenAI key, an AI rater labels them in parallel. When you are done, the program computes Cohen's kappa, draws a 4x4 confusion matrix of where the two of you agreed and disagreed, and saves the whole session to JSON.
 
-It was built as the reliability check for a preregistered RCT on cognitive error feedback in government junior high schools (OSF: https://doi.org/10.17605/OSF.IO/YU6P5). Data collection in that study could only start once kappa cleared 0.70.
+I built it as the reliability check for a preregistered RCT on cognitive error feedback in government junior high schools in Kanpur Dehat (OSF: https://doi.org/10.17605/OSF.IO/YU6P5). We could not collect any real data in that study until kappa cleared 0.70.
 
 ## The four error types
 
@@ -26,9 +26,9 @@ The taxonomy is called the Confusion Fingerprint Index (CFI). It splits wrong an
 | CF | Confabulation | A coherent misconception held with confidence |
 | INT | Interference | A correct answer pulled from the wrong topic |
 
-CFI is this package's flagship taxonomy and everything defaults to it, but none of the reliability statistics, the multi-rater workflow, dataset validation, export packages, the codebook generator, or the embeddings/semantic-search tooling are actually CFI-specific -- they all take a `categories` list and, as of this release, an optional `taxonomy` dict, and work identically for any coding scheme. Swap in your own via `stats.load_taxonomy_from_json()` (a JSON file: a `code`, `name`, and `definition` per category, optionally `number`/`color`/`example`) and the whole toolkit -- kappa, AC1, Krippendorff's alpha, the multi-rater agreement matrix, `validate`, `export`, `codebook`, `embed-index` -- works the same way it does for CFI.
+CFI is what this package defaults to, but none of the machinery actually needs it. Every stats function, the multi-rater workflow, the validator, the exporters, the codebook generator, and the embeddings tools take a `categories` list. Load your own taxonomy from a JSON file with `load_taxonomy_from_json()` (each entry needs a `code`, `name`, and `definition`; `number`, `color`, and `example` are optional) and everything works the same way.
 
-`sample_data/item_bank_distractor_taxonomy.json` is a worked, non-CFI example: a 4-category **distractor-functioning** taxonomy for multiple-choice item banks in large-scale assessment (PISA-style math/science/reading literacy items, or any MCQ bank where you care about how a wrong answer behaves psychometrically, not just whether it was chosen) -- Non-Functional, Potentially-Lead-to-Misconception, Functional, and Ambiguous/Flawed distractors, modeled on published item-analysis literature (the <5% non-functional-distractor threshold and the "Potentially Lead to Misconception" concept from mathematics-education item analysis; see the taxonomy file's own comment for citations). It is **not** an official OECD/PISA taxonomy -- PISA's own published coding is item-specific partial-credit rubrics, not one reusable cross-item scheme -- it's a demonstration, with `sample_data/item_bank_demo.csv`, that this package's machinery is genuinely general-purpose:
+To show this, `sample_data/item_bank_distractor_taxonomy.json` ships a completely different scheme: a 4-category taxonomy for how distractors *behave* in a large-scale MCQ item bank. Non-Functional, Potentially-Lead-to-Misconception, Functional, and Ambiguous/Flawed. Modelled on real item-analysis literature (the under-5% non-functional threshold and the PLM concept from math-education studies; citations are in the file itself). It is not an official OECD/PISA taxonomy, PISA uses item-specific partial-credit rubrics. This is a demo to prove the pipeline is not hardcoded to CFI:
 
 ```bash
 confusion-mapper kappa sample_data/item_bank_demo.csv --categories NF,PLM,FD,AMB
@@ -90,7 +90,7 @@ under [Command line](#command-line) below.
 
 For each distractor, type `1` for RF, `2` for PK, `3` for CF, or `4` for INT. When you finish, the dashboard opens and the session writes itself to JSON.
 
-**Session provenance.** Every saved session includes, alongside the ratings and computed statistics: a `session_id` (UUID4), `software_version` (the actually-installed confusion-mapper version, read from package metadata), `taxonomy_fingerprint` (a 12-character hash of the exact CFI category definitions in effect -- lets you tell later whether two sessions were coded under the same taxonomy or it changed in between), and `python_version`. All four are purely additive: every key that was in a session file before this release is still there, computed by the exact same, untouched functions.
+**Session provenance.** Every saved session includes, alongside the ratings and computed statistics: a `session_id` (UUID4), `software_version` (the actually-installed confusion-mapper version, read from package metadata), `taxonomy_fingerprint` (a 12-character hash of the exact CFI category definitions in effect, lets you tell later whether two sessions were coded under the same taxonomy or it changed in between), and `python_version`. All four are purely additive: every key that was in a session file before this release is still there, computed by the exact same, untouched functions.
 
 ## Case study
 
@@ -110,11 +110,17 @@ pre-registration gate PASSES at the 0.70 threshold.
 
 ## Benchmarks
 
-`benchmarks/` asks a question the rest of this README asserts but doesn't measure: does the local (hashed bag-of-words) embedding backend actually capture real signal, or is it noise dressed up as a feature? Full write-up in [`benchmarks/EMBEDDING_VALIDATION_FINDINGS.md`](benchmarks/EMBEDDING_VALIDATION_FINDINGS.md); the short version is not flattering and is reported anyway: Adjusted Rand Index (implemented from scratch in `ari.py`, hand-derived worked example, verified three separate ways) between the local backend's clusters and the real `human_label` column on both bundled labeled datasets comes out at or near zero at every threshold tested -- the local backend does not recover the taxonomy from content alone. The write-up traces this to a real property of the data (cognitive-error-type and topic are close to orthogonal by construction: every label spans many different questions, while distractors *within* one question carry different labels) rather than explaining it away, and argues a study that found *high* agreement here would be the more suspicious result. `benchmarks/benchmark_embeddings.py` runs the identical comparison against the `openai` backend and is ready to go -- it hasn't been run yet, since that needs an API key and network access. If you run it, the findings doc is where the second half of that comparison belongs.
+`benchmarks/` answers a question the rest of this README skips: does the local hashed bag-of-words embedding backend actually capture real signal, or is it noise pretending to be a feature? Full writeup is in [`benchmarks/EMBEDDING_VALIDATION_FINDINGS.md`](benchmarks/EMBEDDING_VALIDATION_FINDINGS.md). The short version is not flattering, and I am reporting it anyway.
+
+I compared the local backend's clusters against the real `human_label` column on both bundled labelled datasets using Adjusted Rand Index (my own implementation in `ari.py`, with a hand-derived worked example, checked three different ways). At every threshold I tried, ARI came out at or near zero. The local backend does not recover the CFI taxonomy from content alone.
+
+The writeup traces this to a property of the data, not a bug in the code. Cognitive error type and topic are close to orthogonal by design here: every label spans many different questions, and distractors *within* one question carry different labels. Bag-of-words has nothing to hold on to. A study that found high agreement in this setup would honestly be the more suspicious result.
+
+`benchmark_embeddings.py` runs the same comparison against the `openai` backend. I have not run it yet, that needs an API key and network access I do not want to spend right now. If you run it, the findings doc is where the second half of the comparison belongs.
 
 ```bash
 python benchmarks/embedding_validation_study.py   # the local-only study, as reported
-python benchmarks/benchmark_embeddings.py          # local vs. openai -- needs OPENAI_API_KEY
+python benchmarks/benchmark_embeddings.py          # local vs. openai, needs OPENAI_API_KEY
 ```
 
 ## Headless example
@@ -134,7 +140,20 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-357 tests across fifteen files, run in under two seconds. `test_kappa.py` (40) covers the kappa formula (with hand-verified worked examples), weighted kappa, bootstrap confidence intervals, PABAK and the bias/prevalence diagnostics, Gwet's AC1, Krippendorff's alpha, the sample-size estimator, custom-taxonomy loading, the confusion matrix, the prompt-refinement engine, Fleiss's kappa, and the CLI subcommand router. `test_validation.py` (15), `test_multirater.py` (20), `test_export.py` (19), `test_provenance.py` (11), `test_evidence.py` (25), and `test_codebook.py` (12) cover their namesake modules. `test_embeddings.py` (52) covers both embedding backends, cosine similarity, the full persistent-index lifecycle, and single-linkage clustering. `test_assist.py` (20) covers the AI-assist workflow end to end via simulated stdin, including a regression test for a real bug caught during development. `test_custom_taxonomy.py` (26) covers custom (non-CFI) taxonomy support end to end, including a full run against `sample_data/item_bank_distractor_taxonomy.json`. `test_patterns.py` (41 collected, parametrized) validates the from-scratch chi-square test against the standard critical-value table and covers co-occurrence, transitions, pathway mining, temporal trend, and cohort comparison. `test_discovery.py` (19) covers candidate-category proposals, including static and behavioral checks that the module never writes to a taxonomy file. `test_publication.py` (36) covers the methods paragraph, tables, and SVG figures (validated as well-formed XML), including regression tests for two real bugs caught during development. `test_quickstart.py` (11) covers the guided walkthrough, including that it never opens a file (sample_data/ isn't in the installed wheel). `test_ari.py` (10) independently re-verifies the Adjusted Rand Index implementation behind the embedding-validation benchmark. None of it needs an API key or a display, and none of it makes a real network call to OpenAI.
+357 tests across fifteen files. They finish in under two seconds, none of them touches the network, and none of them needs an API key or a display.
+
+The breakdown, in case you want to know what is being checked:
+
+- `test_kappa.py` (40): the kappa formula against hand-verified worked examples, weighted kappa, bootstrap CIs, PABAK and the bias/prevalence diagnostics, Gwet's AC1, Krippendorff's alpha, the sample-size estimator, custom-taxonomy loading, the confusion matrix, the prompt-refinement engine, Fleiss' kappa, and the CLI router.
+- `test_validation.py` (15), `test_multirater.py` (20), `test_export.py` (19), `test_provenance.py` (11), `test_evidence.py` (25), `test_codebook.py` (12): one file per module they cover.
+- `test_embeddings.py` (52): both embedding backends, cosine similarity, the full persistent-index lifecycle, and single-linkage clustering.
+- `test_assist.py` (20): the AI-assist loop end to end via simulated stdin. Includes a regression test for a real bug I caught during development.
+- `test_custom_taxonomy.py` (26): non-CFI taxonomy support end to end, including a full run on the distractor-functioning example.
+- `test_patterns.py` (41): the from-scratch chi-square test against a standard critical-value table, plus co-occurrence, transitions, pathways, temporal trend, and cohort comparison.
+- `test_discovery.py` (19): candidate-category proposals, including a behavioural check that the module never writes to a taxonomy file.
+- `test_publication.py` (36): the methods paragraph, tables, and SVG figures (validated as well-formed XML). Two of these tests were added after real bugs.
+- `test_quickstart.py` (11): the guided walkthrough, including that it never opens a file (`sample_data/` is not in the installed wheel).
+- `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 
 ## Advanced features
 
@@ -167,7 +186,7 @@ d = compute_kappa_diagnostics(human, ai)
 print(d['kappa'], d['pabak'], d['bias_index'], d['prevalence_index'])
 ```
 
-**Gwet's AC1.** A second, more principled answer to the same kappa-paradox problem PABAK diagnoses. Cohen's kappa assumes raters label independently in proportion to their own marginals -- a bad model when one category dominates, which drags kappa down even on near-perfect data. AC1 (Gwet, 2008) replaces that assumption with how uniformly items are spread across categories, so it stays close to raw agreement on the skewed-category-prevalence data most coding projects actually produce:
+**Gwet's AC1.** A second, more principled answer to the same kappa-paradox problem PABAK diagnoses. Cohen's kappa assumes raters label independently in proportion to their own marginals, a bad model when one category dominates, which drags kappa down even on near-perfect data. AC1 (Gwet, 2008) replaces that assumption with how uniformly items are spread across categories, so it stays close to raw agreement on the skewed-category-prevalence data most coding projects actually produce:
 
 ```python
 from confusion_mapper import gwet_ac1
@@ -175,7 +194,7 @@ r = gwet_ac1(human, ai)
 print(r['ac1'], r['interpretation'])
 ```
 
-Report kappa *and* AC1 together, not whichever one is higher -- also available from the CLI via `diagnostics`.
+Report kappa *and* AC1 together, not whichever one is higher, also available from the CLI via `diagnostics`.
 
 **Dataset validation.** Before any statistic runs on a CSV, catch the data-entry mistakes that would otherwise silently distort it: missing labels, a label that isn't in your taxonomy (a typo), duplicate `item_id`s, empty distractor text.
 
@@ -233,16 +252,16 @@ print(fleiss_kappa(ratings)['kappa'])
 
 ## Command line
 
-New to this? `pip install confusion-mapper && confusion-mapper quickstart` runs a self-contained, non-interactive walkthrough (kappa -> diagnostics -> per-category breakdown -> a codebook snippet -> pointers to everything else) on built-in demo data -- no CSV, no API key, nothing to set up first.
+New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. That walks you through the whole thing on built-in demo data. Kappa, then diagnostics, then a per-category breakdown, then a codebook snippet, then pointers to the rest. No CSV needed, no API key, nothing to set up.
 
 <p align="center"><img src="quickstart_demo.gif" alt="confusion-mapper quickstart running in a terminal" width="640"></p>
 
-Prefer a browser? `dashboard/index.html` runs three of this package's real functions (Cohen's kappa, Gwet's AC1, the confusion-matrix heatmap) client-side via [Pyodide](https://pyodide.org) -- paste labels, get results, nothing uploaded. Open it directly or host it on GitHub Pages.
+Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
 ConfusionMapper has a Unix-style CLI with sixteen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
-python -m confusion_mapper quickstart   # start here -- no CSV needed
+python -m confusion_mapper quickstart   # start here, no CSV needed
 python -m confusion_mapper kappa        sample_data/example_labels.csv --bootstrap 10000
 python -m confusion_mapper alpha        sample_data/example_labels.csv --level ordinal
 python -m confusion_mapper diagnostics  sample_data/example_labels.csv
@@ -260,7 +279,7 @@ python -m confusion_mapper patterns     transitions longitudinal.csv --timepoint
 python -m confusion_mapper publication  sample_data/example_labels.csv --bootstrap 10000 --out results.md
 ```
 
-`assist` (the AI-suggest/human-approves workflow) is documented separately below -- see [AI-assisted mode](#ai-assisted-mode). It's deliberately not grouped with the subcommands above: those are all one-shot, JSON/Markdown-out, non-interactive reports; `assist` is interactive and produces a session file, the same category as the plain `confusion-mapper` reliability-check session, not a stats report.
+`assist` (the AI-suggests, human-approves loop) is documented separately below, see [AI-assisted mode](#ai-assisted-mode). I keep it out of the list above on purpose. Everything above is one-shot, non-interactive, and prints JSON or Markdown. `assist` is interactive and produces a session file, more like the plain `confusion-mapper` session than a stats report.
 
 Every subcommand prints JSON (or Markdown for `refine`) on stdout, so you can redirect into a results bundle without writing any glue code.
 
@@ -279,9 +298,9 @@ python -m confusion_mapper multirater sample_data/example_multirater.csv
 python -m confusion_mapper multirater sample_data/example_multirater.csv --conflicts-only
 ```
 
-`majority_label` is a suggestion, not an automatic consensus write -- a tied item (no majority) reports `majority_label: null` and lists the tied options in `tied_labels` for a human to resolve. Nothing in this workflow silently overwrites a rater's original label.
+`majority_label` is a suggestion, not an automatic consensus write, a tied item (no majority) reports `majority_label: null` and lists the tied options in `tied_labels` for a human to resolve. Nothing in this workflow silently overwrites a rater's original label.
 
-**Export packages.** `export` writes a clean CSV plus a ready-to-open companion for R, SPSS, and JASP -- so getting coded data into the tool your co-author already uses doesn't mean re-typing four category labels by hand and hoping you didn't transpose one:
+**Export packages.** `export` writes a clean CSV plus a ready-to-open companion for R, SPSS, and JASP, so getting coded data into the tool your co-author already uses doesn't mean re-typing four category labels by hand and hoping you didn't transpose one:
 
 ```bash
 python -m confusion_mapper export sample_data/example_labels.csv --out results/
@@ -289,14 +308,14 @@ python -m confusion_mapper export sample_data/example_labels.csv --out results/ 
 ```
 
 - **R**: CSV + a `.R` script that sets `human_label`/`ai_label` as ordered factors matching the taxonomy in effect and runs `irr::kappa2()`.
-- **SPSS**: CSV + a `.sps` syntax file (`GET DATA` + `VALUE LABELS`) -- plain-text and stable across SPSS versions, deliberately not a binary `.sav`, so this package doesn't need a compiled dependency for it.
-- **JASP**: CSV + a short instructions file, since JASP opens CSV directly -- points at JASP's built-in "Cohen's & Fleiss' Kappa" analysis.
+- **SPSS**: CSV + a `.sps` syntax file (`GET DATA` + `VALUE LABELS`), plain-text and stable across SPSS versions, deliberately not a binary `.sav`, so this package doesn't need a compiled dependency for it.
+- **JASP**: CSV + a short instructions file, since JASP opens CSV directly, points at JASP's built-in "Cohen's & Fleiss' Kappa" analysis.
 
-Add `--taxonomy-file your_taxonomy.json` to get real category names (not the CFI ones) in the R factor labels / SPSS value labels / JASP instructions for a custom taxonomy -- see [above](#the-four-error-types) and `sample_data/item_bank_distractor_taxonomy.json`.
+Add `--taxonomy-file your_taxonomy.json` to get real category names (not the CFI ones) in the R factor labels / SPSS value labels / JASP instructions for a custom taxonomy, see [above](#the-four-error-types) and `sample_data/item_bank_distractor_taxonomy.json`.
 
-Parquet and a from-scratch SPSS `.sav` writer aren't implemented -- both would need a binary/compiled dependency (pyarrow, pyreadstat) this otherwise-pure-stdlib package doesn't have any other reason to carry. If you need Parquet: `pandas.DataFrame(rows).to_parquet(...)` covers it in one line once pandas is installed.
+Parquet and a from-scratch SPSS `.sav` writer aren't implemented, both would need a binary/compiled dependency (pyarrow, pyreadstat) this otherwise-pure-stdlib package doesn't have any other reason to carry. If you need Parquet: `pandas.DataFrame(rows).to_parquet(...)` covers it in one line once pandas is installed.
 
-**Evidence panel.** For every coded item: the original answer, the assigned label, the reasoning behind it, free-text notes, and a full revision history. Deliberately *not* wired into the live interactive session -- prompting a coder to type a reason for every one of 15-90 distractors mid-session would change the pace and cognitive load of actual data collection, which isn't a change to make silently. Instead this works post-hoc, on top of an already-saved session file, through a separate append-only log that never opens the session file for writing:
+**Evidence panel.** For every coded item: the original answer, the assigned label, the reasoning behind it, free-text notes, and a full revision history. Deliberately *not* wired into the live interactive session, prompting a coder to type a reason for every one of 15-90 distractors mid-session would change the pace and cognitive load of actual data collection, which isn't a change to make silently. Instead this works post-hoc, on top of an already-saved session file, through a separate append-only log that never opens the session file for writing:
 
 ```bash
 python -m confusion_mapper evidence panel  confusion_mapper_sessions.json
@@ -304,7 +323,7 @@ python -m confusion_mapper evidence note   confusion_mapper_sessions.json Q1_D2 
 python -m confusion_mapper evidence revise confusion_mapper_sessions.json Q1_D2 CF --reason "AI reasoning was more convincing on review" --author Manik
 ```
 
-`revise` requires `--reason` -- a label change without a stated reason defeats the point of keeping the log, so it's enforced, not just encouraged. Revising never touches the original session file: the item's `assigned_label` (as recorded live) stays exactly what it was, and `current_label` in the panel report reflects the latest revision, computed on the fly. Every session file this points at is opened read-only.
+`revise` requires `--reason`, a label change without a stated reason defeats the point of keeping the log, so it's enforced, not just encouraged. Revising never touches the original session file: the item's `assigned_label` (as recorded live) stays exactly what it was, and `current_label` in the panel report reflects the latest revision, computed on the fly. Every session file this points at is opened read-only.
 
 **Codebook generator.** Renders a taxonomy's definitions and examples as a Markdown research appendix, stamped with the same `taxonomy_fingerprint` used in session provenance (for the built-in CFI taxonomy) so a reader can tell exactly which version of the categories a given appendix documents:
 
@@ -313,22 +332,26 @@ python -m confusion_mapper codebook --out codebook.md
 python -m confusion_mapper codebook --taxonomy-file sample_data/item_bank_distractor_taxonomy.json --out item_bank_codebook.md
 ```
 
-Every category's decision-rule field is left as an explicit, literal placeholder (`*(fill in from your coding manual / Stage 1 RR methods -- not auto-generated)*`), not synthesized text. Definitions and examples are real, already-written content; a decision rule is part of a research instrument's methodology, and inventing one from the definition text and presenting it as finished would be fabricating that methodology, not generating a document from it.
+Every category's decision-rule field is left as an explicit, literal placeholder (`*(fill in from your coding manual / Stage 1 RR methods, not auto-generated)*`), not synthesized text. Definitions and examples are real, already-written content; a decision rule is part of a research instrument's methodology, and inventing one from the definition text and presenting it as finished would be fabricating that methodology, not generating a document from it.
 
 ## AI-assisted mode
 
-Everything above -- the plain `confusion-mapper` session, `kappa`, `alpha`, `diagnostics` -- exists to answer one question: does a human and an AI, rating *independently*, agree? That independence is what makes the resulting kappa meaningful. `assist` answers a different question -- can an AI make bulk-coding faster? -- and it does that by showing the AI's opinion to the human *before* they decide, which is the opposite of independent on purpose. Mixing the two up is the one failure mode this feature was designed around: a label produced in assist mode is not independent evidence of anything, so `assist` never computes or reports a kappa, AC1, or alpha, full stop, and every session it writes carries an explicit `reliability_warning` string so that stays true even if the file is read out of context later, without this README nearby.
+Everything above (the plain `confusion-mapper` session, `kappa`, `alpha`, `diagnostics`) exists to answer one question: does a human and an AI, rating *independently*, agree? The independence is what makes the resulting kappa mean anything at all. `assist` answers a different question, can an AI make bulk coding faster? It shows you the AI's opinion *before* you decide, which is the exact opposite of independent, and that is deliberate.
+
+Mixing the two up is the failure mode I designed this feature around. A label produced in assist mode is not independent evidence of anything. So `assist` never computes or reports a kappa, AC1, or alpha, and every session file it writes carries an explicit `reliability_warning` string, so the distinction survives even when the file is read out of context, without this README nearby.
 
 Use `assist` after you've already established kappa >= 0.70 with the blind session above and trust your rubric / AI prompt, to code a larger dataset faster than one-at-a-time blind rating allows:
 
 ```bash
-export OPENAI_API_KEY="your-key-here"   # optional -- without it, every item is a plain manual entry
+export OPENAI_API_KEY="your-key-here"   # optional, without it every item is a plain manual entry
 confusion-mapper assist my_dataset.csv --index confusion_mapper_embeddings.json
 ```
 
-`my_dataset.csv` needs a `distractor_text` column at minimum; `item_id`, `question_text`, `correct_answer`, and `topic` are optional but sharpen the AI's suggestion. For each item you'll see the AI's suggested category, a confidence score, one sentence of reasoning, and (if you pass `--index`) the nearest already-coded examples from a persistent local library -- press Enter to accept the suggestion, or type `1`-`4` to override it (a reason is required for an override; there's no skipping that). The saved session reports an `acceptance_rate` -- how often you kept the AI's suggestion -- which is a real, useful efficiency metric, just not a reliability one. Sessions land in `confusion_mapper_assist_sessions.json`, never `confusion_mapper_sessions.json` (the blind-mode file), so the two kinds of data can't end up merged by accident even if you go looking for "all my sessions" later.
+`my_dataset.csv` needs a `distractor_text` column at minimum. `item_id`, `question_text`, `correct_answer`, and `topic` are optional but they sharpen the suggestion. For each item you see the AI's category, a confidence score, one sentence of reasoning, and, if you pass `--index`, the nearest already-coded examples from a persistent local library. Press Enter to accept, or type `1` through `4` to override. Overrides require a reason, there is no skipping that.
 
-**The persistent semantic-search library** behind `--index` is built and updated only when you explicitly ask -- never automatically during a live session, the same reasoning that kept `run_session()` free of any new network calls when provenance was added. Build or grow one from any CSV:
+The saved session reports `acceptance_rate`, i.e. how often you kept the AI's suggestion. That is a real efficiency metric, just not a reliability one. Sessions land in `confusion_mapper_assist_sessions.json`, never in the blind-mode file, so the two kinds of data cannot get merged by accident later.
+
+**The persistent semantic-search library** behind `--index` is built and updated only when you explicitly ask for it. It is never touched automatically during a live session, same principle that kept `run_session()` free of any new network calls when I added provenance. Build one from any CSV, and grow it later:
 
 ```bash
 confusion-mapper embed-index sample_data/example_labels.csv \
@@ -341,22 +364,22 @@ confusion-mapper embed-search "students confusing voltage with current" \
 
 Two embedding backends, chosen once when an index is first created and locked in for that index's lifetime (so a later run without an API key can't silently produce a dimension mismatch buried in the file):
 
-- **`openai`** (`--backend openai`): OpenAI's `text-embedding-3-small`, real semantic understanding -- catches synonyms and paraphrase, not just shared words. Needs `OPENAI_API_KEY` and a network call per item.
-- **`local`** (the default): a from-scratch, pure-stdlib hashed bag-of-words vector. Zero cost, zero network, zero new dependencies -- and honestly weaker: it's a well-established technique ([feature hashing](https://en.wikipedia.org/wiki/Feature_hashing), Weinberger et al. 2009) that catches shared vocabulary and phrasing, not true synonyms. Documented as a fallback, not presented as equivalent to real embeddings.
+- **`openai`** (`--backend openai`): OpenAI's `text-embedding-3-small`, real semantic understanding, catches synonyms and paraphrase, not just shared words. Needs `OPENAI_API_KEY` and a network call per item.
+- **`local`** (the default): a from-scratch, pure-stdlib hashed bag-of-words vector. Zero cost, zero network, zero new dependencies, and honestly weaker: it's a well-established technique ([feature hashing](https://en.wikipedia.org/wiki/Feature_hashing), Weinberger et al. 2009) that catches shared vocabulary and phrasing, not true synonyms. Documented as a fallback, not presented as equivalent to real embeddings.
 
 ## Misconception discovery
 
-Clusters an embeddings index (single-linkage, by cosine-similarity threshold) and flags clusters where semantically similar items got inconsistent existing labels -- a signal the taxonomy might be missing a category, not a conclusion:
+Clusters an embeddings index (single-linkage, by cosine-similarity threshold) and flags clusters where semantically similar items got inconsistent existing labels, a signal the taxonomy might be missing a category, not a conclusion:
 
 ```bash
 confusion-mapper discover confusion_mapper_embeddings.json --threshold 0.5 --min-cluster-size 3 --max-purity 0.6
 ```
 
-This has a permanent design boundary, not a "coming later" one: **it never writes to any taxonomy file.** A study's taxonomy is part of its preregistered methods; a clustering heuristic silently redefining it would be a far bigger problem than any convenience it could offer. What you get instead is a Markdown report -- cluster contents, existing label breakdown, purity score -- for a human to read and decide. If you agree a cluster is real, the next step is manual and explicit: add a code/name/definition/example to a taxonomy JSON (`sample_data/custom_taxonomy.json` is the shape) and load it with `load_taxonomy_from_json()` for your *next* coding round, never retroactively into data already coded under the taxonomy that produced it.
+This has a permanent design boundary, not a "coming later" one: **it never writes to any taxonomy file.** A study's taxonomy is part of its preregistered methods. A clustering heuristic silently redefining it would be a bigger problem than any convenience it could offer. What you get instead is a Markdown report: cluster contents, existing label breakdown, and a purity score, for a human to read and decide on. If you agree a cluster is real, the next step is manual: add a code/name/definition/example to a taxonomy JSON (`sample_data/custom_taxonomy.json` shows the shape) and load it with `load_taxonomy_from_json()` for your *next* coding round. Never retroactively, over data already coded under the taxonomy that produced it.
 
 ## Pattern mining
 
-Over a *different* CSV shape than the rest of this package -- longitudinal / multi-item coded data (`respondent_id, item_id, label, timepoint, cohort`), not the human_label/ai_label rater-comparison shape -- because it answers a different question: not "do two raters agree," but "what do the labels you already trust look like across items, time, and groups."
+This one takes a different CSV shape than the rest of the package. Longitudinal / multi-item coded data (`respondent_id, item_id, label, timepoint, cohort`), not the human/AI paired-label shape. It answers a different question: not "do two raters agree" but "what do the labels I already trust look like across items, time, and groups."
 
 ```bash
 confusion-mapper patterns cooccurrence  longitudinal.csv
@@ -367,29 +390,31 @@ confusion-mapper patterns cohorts       longitudinal.csv
 confusion-mapper patterns item-pair     longitudinal.csv --item1 Q1 --item2 Q2
 ```
 
-- **`cooccurrence`** -- which misconceptions tend to show up together in the same respondent's profile, via lift (the standard association-rule-mining metric: >1 means the pair co-occurs more than chance).
-- **`transitions`** -- P(label at t+1 | label at t) across consecutive timepoints, plus each category's most likely next state.
-- **`pathways`** -- the most frequent label sequences ("A confused with B, then B confused with C") via n-gram frequency mining.
-- **`trend`** / **`cohorts`** -- does the category distribution change over time / differ between groups, via a chi-square test of independence implemented from scratch (Pearson's statistic, Cramer's V effect size, and a p-value via the Wilson-Hilferty approximation -- checked against the standard chi-square critical-value table, accurate to within about 0.003 at 1 degree of freedom and well under 0.001 by 3+; see `patterns.py`'s docstring for the full accuracy note).
-- **`item-pair`** -- a real hypothesis test (unlike `cooccurrence`, which pools across the whole item bank) for one specific, well-defined pair of items.
+- **`cooccurrence`**, which misconceptions tend to show up together in the same respondent's profile, via lift (the standard association-rule-mining metric: >1 means the pair co-occurs more than chance).
+- **`transitions`**, P(label at t+1 | label at t) across consecutive timepoints, plus each category's most likely next state.
+- **`pathways`**, the most frequent label sequences ("A confused with B, then B confused with C") via n-gram frequency mining.
+- **`trend`** / **`cohorts`**, does the category distribution change over time / differ between groups, via a chi-square test of independence implemented from scratch (Pearson's statistic, Cramer's V effect size, and a p-value via the Wilson-Hilferty approximation, checked against the standard chi-square critical-value table, accurate to within about 0.003 at 1 degree of freedom and well under 0.001 by 3+; see `patterns.py`'s docstring for the full accuracy note).
+- **`item-pair`**, a real hypothesis test (unlike `cooccurrence`, which pools across the whole item bank) for one specific, well-defined pair of items.
 
 ## Publication assistant
 
-Every number in the output below comes from this package's own already-computed, already-tested statistics -- nothing here re-derives a number or makes a judgment call the underlying function didn't already make:
+Every number below comes from this package's own tested statistics functions. Nothing here re-derives anything or makes a judgment the underlying function did not already make:
 
 ```bash
 confusion-mapper publication sample_data/example_labels.csv --bootstrap 10000 --out results.md
 ```
 
-Generates an APA-style methods paragraph, a reliability-statistics table, a category-frequency table, and two SVG figures (confusion-matrix heatmap, frequency bar chart -- pure string-generated SVG, no plotting dependency). The qualitative language in the methods paragraph ("agreement was almost perfect") is lifted verbatim from the primary descriptor of an interpretation string `compute_cohens_kappa`/`gwet_ac1` already computed, not decided fresh here. Every generated document is stamped `DRAFT -- REQUIRES HUMAN REVIEW` -- this is a first draft to edit, the same spirit as the codebook generator's decision-rule placeholders, not paste-into-a-manuscript-unread output.
+Produces an APA-style methods paragraph, a reliability-statistics table, a category-frequency table, and two SVG figures (a confusion-matrix heatmap and a frequency bar chart). Both figures are generated by hand as SVG strings, no plotting dependency. The qualitative phrasing in the methods paragraph ("agreement was almost perfect") is lifted from the interpretation string `compute_cohens_kappa` and `gwet_ac1` already produce, not decided fresh here.
 
-## Why a 4x4 confusion matrix instead of just kappa
+Every generated document is stamped `DRAFT, REQUIRES HUMAN REVIEW`. This is a first draft to edit, in the same spirit as the codebook generator's decision-rule placeholders. It is not paste-into-a-manuscript-unread output.
 
-The single kappa number tells you how much you and the AI agree overall. It does not tell you which category boundary is causing the disagreement. CF vs INT is the hardest distinction in the CFI taxonomy (a confident wrong belief looks a lot like a correct answer applied to the wrong topic), and the [CF, INT] cell of the confusion matrix is where most disagreement tends to land. Looking at the full 4x4 matrix lets you see exactly that, and rewrite the AI prompt or your own rubric until the cell stops glowing.
+## Why a 4x4 confusion matrix, not just kappa
+
+The kappa number tells you *how much* you and the AI agree. It does not tell you *where* you disagreed. In CFI, the hardest boundary in practice is CF vs INT: a confident wrong belief looks a lot like a correct answer applied to the wrong topic. When I look at the confusion matrix on real data, the [CF, INT] cell is almost always where the disagreement piles up. Seeing the full 4x4 is what lets me go back and rewrite the AI prompt or my rubric until that cell stops glowing.
 
 ## A note on ethics
 
-The AI rater is a starting point, not a substitute for a second human. For published research you should still run kappa between two trained human raters on the same calibration set. Treat the AI labels as a way to surface boundaries that need rubric work, not as a replacement for human judgment.
+The AI rater is a starting point, not a substitute for a second human. For published research you still need two trained humans coding the same calibration set. Treat the AI labels as a way to find boundaries that need rubric work, not as a shortcut around a human coder.
 
 ## How to cite
 
@@ -448,7 +473,7 @@ case_study/       reproducible worked example (see Case study, above)
 benchmarks/       the embedding-backend validation study (see Benchmarks, above)
 sample_data/      example CSVs and taxonomy JSONs used throughout this README
 examples/         a minimal headless script (see Headless example, above)
-dashboard/        index.html -- runs kappa/AC1/confusion-matrix in-browser via Pyodide
+dashboard/        index.html, runs kappa/AC1/confusion-matrix in-browser via Pyodide
 quickstart_demo.gif   real, captured `confusion-mapper quickstart` output, not staged
 ```
 

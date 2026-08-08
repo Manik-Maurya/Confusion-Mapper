@@ -1,19 +1,13 @@
-# Methodology
+# Methodology (short version)
 
-Human and AI independently classify distractors.
+A human and the AI look at each distractor and pick a category. Neither can see the other's answer while they are picking.
 
-Agreement is measured using Cohen's Kappa:
+We measure how much they end up agreeing with Cohen's kappa:
 
-kappa = (Po - Pe)/(1 - Pe)
+    kappa = (Po - Pe) / (1 - Pe)
 
-Where:
+Where Po is how often they picked the same category and Pe is how often that agreement would have happened by chance alone. Cohen (1960) is the original paper.
 
-Po = observed agreement
+We treat kappa >= 0.70 as the research threshold. Below that, the taxonomy is not reliable enough to build a study on, and we go back and rewrite either the definitions or the AI prompt before trying again.
 
-Pe = expected agreement by chance
-
-Research threshold:
-
-kappa >= 0.70
-
-The threshold must be reached before downstream data collection.
+The longer version, with every formula and citation, is in [`methods.md`](methods.md).

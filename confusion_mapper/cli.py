@@ -248,7 +248,7 @@ def cli(argv=None):
         if not report["valid"]:
             if strict:
                 sys.stderr.write(
-                    f"\n✗ {path}: {len(report['errors'])} validation error(s), "
+                    f"\n[error] {path}: {len(report['errors'])} validation error(s), "
                     f"aborting (--strict). Run `confusion-mapper validate {path}` "
                     f"for the full report.\n\n"
                 )
