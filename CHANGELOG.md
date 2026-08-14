@@ -2,6 +2,23 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-08-14
+
+### Added
+
+- `itembank.py` and `confusion-mapper generate-bank`: a CFI-labelled MCQ item generator with two backends. The `templates` backend is deterministic, seedable, and offline, and produces items across five templates (percent discount, percent tax, metric unit conversion, speed / distance / time, and a fixed science-literacy item). Every distractor carries a CFI label (RF / PK / CF / INT) that traces back to a rule I can defend from the template that generated it. The `ai` backend calls OpenAI to draft items in the same schema for topics outside the template set; every AI-generated item is put through the same validator before it is returned, so a malformed or duplicate-option item is rejected instead of silently landing in the bank.
+- Every generated item is validated at generation time. The validator catches missing keys, unknown `error_type` values, empty options or notes (a real bug: an early template took the last two digits of the correct answer as a distractor, which for values under 100 produced an empty string), and, most importantly, a distractor whose option equals the correct answer (another real bug: the "random plausible number" pool for RF distractors could coincidentally sample the correct answer, which made two options identical). Both bugs have regression tests in `tests/test_itembank.py`.
+- `tests/test_itembank.py`: 49 tests, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, a bank-level determinism test (same seed always produces the same bank), full round-trip through `save_bank` / `load_bank`, and integration checks that generated items feed straight into `run_session()` and `compute_cohens_kappa()` without adaptation.
+- The generator is a natural feeder for the reliability workflow: `confusion-mapper generate-bank 30 --seed 1 --out my_bank.json` produces a fully labelled 30-item calibration set that the existing `run_session()`, `kappa`, and `validate` subcommands accept directly.
+
+### Fixed
+
+- `[warning]` and `[error]` prefixes now replace the Unicode warning-sign and cross-mark characters used previously in CLI stderr output. Same information, plain text, easier to grep, no font-rendering surprises on Windows terminals.
+
+### Notes
+
+- 406 tests total (357 previous plus 49 new), running in under 5 seconds. No new runtime dependencies.
+
 ## [2.6.0] - 2026-07-30
 
 ### Added

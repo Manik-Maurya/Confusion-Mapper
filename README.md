@@ -140,7 +140,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-357 tests across fifteen files. They finish in under two seconds, none of them touches the network, and none of them needs an API key or a display.
+406 tests across sixteen files. They finish in under five seconds, none of them touches the network, and none of them needs an API key or a display.
 
 The breakdown, in case you want to know what is being checked:
 
@@ -154,6 +154,7 @@ The breakdown, in case you want to know what is being checked:
 - `test_publication.py` (36): the methods paragraph, tables, and SVG figures (validated as well-formed XML). Two of these tests were added after real bugs.
 - `test_quickstart.py` (11): the guided walkthrough, including that it never opens a file (`sample_data/` is not in the installed wheel).
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
+- `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
 
 ## Advanced features
 
@@ -250,6 +251,33 @@ ratings = [
 print(fleiss_kappa(ratings)['kappa'])
 ```
 
+## Generate a calibration bank
+
+New in 2.7.0. Writing 90 CFI-labelled distractors by hand for the RCT calibration set was slow and, honestly, biased: the wrong answers I could think of were shaped by the specific mistakes I had recently seen in class. `generate-bank` gives me a bigger, more even calibration pool where every distractor's CFI label traces back to the template rule that produced it.
+
+```bash
+# see what's available
+confusion-mapper generate-bank --list-templates
+
+# 30 items across all templates, reproducible under the seed
+confusion-mapper generate-bank 30 --seed 1 --out my_bank.json
+
+# only percent-word problems
+confusion-mapper generate-bank 20 --templates math.percent_discount,math.percent_tax --out percents.json
+
+# ai backend for topics outside the template set (needs OPENAI_API_KEY)
+confusion-mapper generate-bank 10 --backend ai --topic "class 8 algebra" --out algebra.json
+```
+
+Two backends:
+
+- **`templates`** (default). Deterministic, seedable, offline. Every distractor comes from a rule I can defend out loud, so the item traces back to the cognitive error type it is meant to test. Use this for the actual calibration set that reliability is computed on.
+- **`ai`**. Uses OpenAI to draft items in the same shape for topics the templates do not cover. Faster and more flexible, but the CFI labels here are the model's opinion and should be verified by a human coder before those numbers are quoted anywhere.
+
+Every item, from either backend, is validated at generation time. Two bugs I hit while building this are why the validator exists: an early template took the last two digits of the correct answer as a distractor and, for small numbers, produced an empty string; and the RF distractor pool could coincidentally sample the correct answer, which made two of the four options identical. Both have explicit regression tests in `tests/test_itembank.py`.
+
+Generated banks slot straight into the rest of the pipeline: pipe one through `run_session()`, `kappa`, or `validate` without any adaptation.
+
 ## Command line
 
 New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. That walks you through the whole thing on built-in demo data. Kappa, then diagnostics, then a per-category breakdown, then a codebook snippet, then pointers to the rest. No CSV needed, no API key, nothing to set up.
@@ -258,7 +286,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with sixteen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with seventeen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed
@@ -277,6 +305,7 @@ python -m confusion_mapper embed-search "confusing voltage with current" --index
 python -m confusion_mapper discover     embeddings.json
 python -m confusion_mapper patterns     transitions longitudinal.csv --timepoint-order pretest,posttest
 python -m confusion_mapper publication  sample_data/example_labels.csv --bootstrap 10000 --out results.md
+python -m confusion_mapper generate-bank 30 --seed 1 --out calibration_bank.json
 ```
 
 `assist` (the AI-suggests, human-approves loop) is documented separately below, see [AI-assisted mode](#ai-assisted-mode). I keep it out of the list above on purpose. Everything above is one-shot, non-interactive, and prints JSON or Markdown. `assist` is interactive and produces a session file, more like the plain `confusion-mapper` session than a stats report.
@@ -456,6 +485,7 @@ confusion_mapper/
 ├── publication.py    methods paragraph, tables, and SVG figures from real computed stats
 ├── assist.py         AI-suggest/human-approves workflow (separate from the
 │                     blind reliability-check path; never produces a kappa)
+├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
 ├── gui.py            the tkinter results dashboard

@@ -83,6 +83,8 @@ a package, split by concern:
                      never inventing a number or a judgment call
   assist.py         AI-suggest/human-approves workflow (separate from the
                      blind reliability-check path; never produces a kappa)
+  itembank.py       CFI-labelled MCQ item generator with a deterministic
+                     template backend and an optional OpenAI backend
   ai.py             the ChatGPT rater (classification + question generation)
   storage.py        session load/save (JSON)
   gui.py            the tkinter results dashboard
@@ -104,7 +106,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.6.0"
+    __version__ = "2.7.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -214,6 +216,15 @@ from .console import (
     view_past_sessions,
 )
 
+from .itembank import (
+    TEMPLATES as ITEMBANK_TEMPLATES,
+    generate_item,
+    generate_bank,
+    generate_bank_with_ai,
+    save_bank,
+    load_bank,
+)
+
 from .cli import cli, main, run
 
 __all__ = [
@@ -251,5 +262,7 @@ __all__ = [
     "show_results_window", "_draw_kappa_gauge", "_draw_confusion_matrix", "_draw_bar_chart",
     "print_header", "print_taxonomy_card", "get_choice", "run_session",
     "print_summary", "view_past_sessions",
+    "ITEMBANK_TEMPLATES", "generate_item", "generate_bank",
+    "generate_bank_with_ai", "save_bank", "load_bank",
     "cli", "main", "run",
 ]

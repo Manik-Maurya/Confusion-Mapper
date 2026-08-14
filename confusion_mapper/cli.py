@@ -58,7 +58,7 @@ from .console import (
 _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
-                      "quickstart"}
+                      "quickstart", "generate-bank"}
 
 
 def cli(argv=None):
@@ -228,6 +228,26 @@ def cli(argv=None):
     p_pub.add_argument("--seed", type=int, default=20260623)
     p_pub.add_argument("--out", default=None, help="write to this file instead of stdout")
 
+    p_gb = sub.add_parser("generate-bank", help="Generate a bank of CFI-labelled MCQ items "
+                                                  "from deterministic templates or an AI backend")
+    p_gb.add_argument("n", type=int, nargs="?", default=None,
+                      help="how many items to generate (not needed with --list-templates)")
+    p_gb.add_argument("--out", default=None,
+                      help="write to this JSON file instead of stdout")
+    p_gb.add_argument("--backend", choices=["templates", "ai"], default="templates",
+                      help="templates is deterministic and offline; ai calls OpenAI")
+    p_gb.add_argument("--templates", default=None,
+                      help="comma-separated subset of template keys "
+                           "(default = all). Use --list-templates to see them.")
+    p_gb.add_argument("--list-templates", action="store_true",
+                      help="print the registered templates and exit")
+    p_gb.add_argument("--topic", default="basic arithmetic",
+                      help="topic hint for the AI backend")
+    p_gb.add_argument("--class-level", type=int, default=8,
+                      help="class-level hint for the AI backend")
+    p_gb.add_argument("--seed", type=int, default=None,
+                      help="RNG seed for the templates backend (reproducible bank)")
+
     sub.add_parser("quickstart", help="A guided, non-interactive walkthrough of the core "
                                        "workflow on built-in demo data, start here")
 
@@ -258,7 +278,7 @@ def cli(argv=None):
                 sys.exit(1)
             else:
                 sys.stderr.write(
-                    f"⚠ {path}: {len(report['errors'])} validation error(s) found "
+                    f"[warning] {path}: {len(report['errors'])} validation error(s) found "
                     f"and included in this computation anyway. Run "
                     f"`confusion-mapper validate {path}` for details, or add "
                     f"--strict to abort instead.\n"
@@ -498,6 +518,38 @@ def cli(argv=None):
             print(doc)
         return 0
 
+    if args.cmd == "generate-bank":
+        from .itembank import (
+            TEMPLATES, generate_bank, generate_bank_with_ai, save_bank,
+        )
+        if args.list_templates:
+            for k in sorted(TEMPLATES.keys()):
+                print(k)
+            return 0
+        if args.n is None:
+            sys.stderr.write("[error] generate-bank needs the number of items to generate. "
+                             "run `generate-bank --list-templates` to see the template list.\n")
+            return 1
+        if args.backend == "ai":
+            api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+            if not api_key:
+                sys.stderr.write(
+                    "[error] the ai backend needs OPENAI_API_KEY in your "
+                    "environment. run without --backend ai to use the "
+                    "deterministic templates instead.\n"
+                )
+                return 1
+            bank = generate_bank_with_ai(args.n, args.topic, args.class_level, api_key)
+        else:
+            template_keys = args.templates.split(",") if args.templates else None
+            bank = generate_bank(args.n, templates=template_keys, seed=args.seed)
+        if args.out:
+            save_bank(bank, args.out)
+            sys.stderr.write(f"wrote {len(bank)} items -> {args.out}\n")
+        else:
+            print(_json.dumps(bank, indent=2, ensure_ascii=False))
+        return 0
+
     if args.cmd == "quickstart":
         return run_quickstart()
 
@@ -520,7 +572,7 @@ def main():
     if api_key:
         print("  OPENAI_API_KEY detected, AI rater mode enabled.")
     else:
-        print("  ℹ No OPENAI_API_KEY, running in Manual Mode.")
+        print("  [info] No OPENAI_API_KEY, running in Manual Mode.")
         print("    Set the environment variable to enable AI classification.")
     print()
 

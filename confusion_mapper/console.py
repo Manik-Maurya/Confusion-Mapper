@@ -207,7 +207,7 @@ def print_summary(kappa, type_stats, session):
     if k >= 0.70:
         print("  RESEARCH READY: Proceed with human-human validation.")
     elif k >= 0.60:
-        print("  ⚠ CLOSE: Review CF/RF boundary cases and re-pilot.")
+        print("  [close] Review CF/RF boundary cases and re-pilot.")
     else:
         print("  X REVISE RUBRIC before using this taxonomy in research.")
         print("    Common issues: CF vs RF (is the answer plausible?)")
