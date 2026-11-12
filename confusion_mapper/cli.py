@@ -2,9 +2,10 @@
 The command-line entry point. Every subcommand routes through run()
 below. The subcommands are, in the order I usually reach for them:
 
-    quickstart, kappa, diagnostics, alpha, multirater, refine, export,
-    validate, embed-index, embed-search, assist, evidence, codebook,
-    patterns, publication, discovery
+    quickstart, kappa, diagnostics, alpha, multirater, alt-test,
+    alt-test-plan, refine, export, validate, embed-index, embed-search,
+    assist, evidence, codebook, patterns, publication, discovery,
+    generate-bank
 
 Argument parsing is done by hand (argparse) not click, because I did
 not want a third-party CLI framework in the dependency list.
@@ -58,7 +59,7 @@ from .console import (
 _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
-                      "quickstart", "generate-bank"}
+                      "quickstart", "generate-bank", "alt-test", "alt-test-plan"}
 
 
 def cli(argv=None):
@@ -72,8 +73,9 @@ def cli(argv=None):
         prog="confusion-mapper",
         description=("Compute inter-rater reliability statistics on paired labels. "
                      "Subcommands: kappa, alpha, diagnostics, plan, refine, validate, "
-                     "multirater, export, evidence, codebook, embed-index, embed-search, "
-                     "discover, patterns, publication, quickstart."))
+                     "multirater, alt-test, alt-test-plan, export, evidence, codebook, "
+                     "embed-index, embed-search, discover, patterns, publication, "
+                     "generate-bank, quickstart."))
     sub = parser.add_subparsers(dest="cmd", required=False)
 
     def _add_csv(sp, strict=True):
@@ -227,6 +229,44 @@ def cli(argv=None):
                        help="bootstrap N resamples for a 95%% CI in the methods paragraph (0 to skip)")
     p_pub.add_argument("--seed", type=int, default=20260623)
     p_pub.add_argument("--out", default=None, help="write to this file instead of stdout")
+
+    p_at = sub.add_parser("alt-test", help="Can the AI replace a human coder? The Alternative "
+                                            "Annotator Test (Calderon, Reichart and Dror, ACL 2025)")
+    p_at.add_argument("csv_path", help="wide CSV: item_id, one column per human coder (3+ "
+                                        "recommended), plus the AI column(s). Blank cell = not labelled.")
+    p_at.add_argument("--ai-column", action="append", required=True,
+                      help="column holding the AI's labels. Repeat it to compare several "
+                           "AI judges or prompts against the same coders.")
+    p_at.add_argument("--id-column", default="item_id")
+    p_at.add_argument("--human-columns", default=None,
+                      help="comma-separated human coder columns (default: every other column)")
+    p_at_eps = p_at.add_mutually_exclusive_group(required=True)
+    p_at_eps.add_argument("--epsilon", type=float,
+                          help="cost-benefit allowance, decide it before you look at results")
+    p_at_eps.add_argument("--annotators", choices=["expert", "skilled", "crowd"],
+                          help="use the authors' preset: expert 0.2, skilled 0.15, crowd 0.1")
+    p_at.add_argument("--scoring", choices=["accuracy", "neg_rmse"], default="accuracy",
+                      help="accuracy for categories, neg_rmse for numeric ratings")
+    p_at.add_argument("--q", type=float, default=0.05, help="FDR level for Benjamini-Yekutieli")
+    p_at.add_argument("--min-items", type=int, default=30,
+                      help="skip coders with fewer usable items than this (default 30)")
+    p_at.add_argument("--report", default=None, help="also write a Markdown report to this file")
+
+    p_atp = sub.add_parser("alt-test-plan", help="Simulate how many items you need to label "
+                                                  "before running the alt-test")
+    p_atp_eps = p_atp.add_mutually_exclusive_group(required=True)
+    p_atp_eps.add_argument("--epsilon", type=float)
+    p_atp_eps.add_argument("--annotators", choices=["expert", "skilled", "crowd"])
+    p_atp.add_argument("--coders", type=int, default=3, help="number of human coders")
+    p_atp.add_argument("--categories", type=int, default=4, help="number of label categories")
+    p_atp.add_argument("--coder-noise", type=float, default=0.3,
+                       help="0 = perfect coder, 1 = pure guessing (0.3 is roughly kappa 0.5)")
+    p_atp.add_argument("--ai-noise", type=float, default=0.3, help="same scale, for the AI")
+    p_atp.add_argument("--sizes", default="30,50,75,100,150,200",
+                       help="comma-separated item counts to simulate, each at least 30")
+    p_atp.add_argument("--simulations", type=int, default=200)
+    p_atp.add_argument("--target-power", type=float, default=0.8)
+    p_atp.add_argument("--seed", type=int, default=20260623)
 
     p_gb = sub.add_parser("generate-bank", help="Generate a bank of CFI-labelled MCQ items "
                                                   "from deterministic templates or an AI backend")
@@ -516,6 +556,60 @@ def cli(argv=None):
             sys.stderr.write(f"wrote {args.out}\n")
         else:
             print(doc)
+        return 0
+
+    if args.cmd in ("alt-test", "alt-test-plan"):
+        from .alttest import (
+            EPSILON_PRESETS, load_alttest_csv, alt_test, compare_judges,
+            human_agreement_summary, format_alttest_report, format_comparison_report,
+            simulate_alt_test_power,
+        )
+        eps = args.epsilon if args.epsilon is not None else EPSILON_PRESETS[args.annotators]
+
+        if args.cmd == "alt-test-plan":
+            sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
+            try:
+                r = simulate_alt_test_power(
+                    n_items_grid=sizes, n_coders=args.coders, n_categories=args.categories,
+                    coder_noise=args.coder_noise, ai_noise=args.ai_noise, epsilon=eps,
+                    n_simulations=args.simulations, target_power=args.target_power,
+                    seed=args.seed)
+            except ValueError as e:
+                sys.stderr.write(f"[error] {e}\n")
+                return 1
+            print(_json.dumps(r, indent=2))
+            return 0
+
+        human_cols = args.human_columns.split(",") if args.human_columns else None
+        try:
+            humans, llms = load_alttest_csv(args.csv_path, args.ai_column,
+                                            id_column=args.id_column,
+                                            human_columns=human_cols)
+            sys.stderr.write("human coders: " + ", ".join(humans) + "\n"
+                             "AI judge(s):  " + ", ".join(llms) + "\n")
+            settings = dict(scoring=args.scoring, epsilon=eps, q_fdr=args.q,
+                            min_instances_per_human=args.min_items)
+            agreement = human_agreement_summary(humans) if args.scoring == "accuracy" else None
+            if len(llms) == 1:
+                name = next(iter(llms))
+                out = alt_test(llms[name], humans, **settings)
+                out["judge"] = name
+                report = format_alttest_report(out, agreement, judge_name=name,
+                                               annotator_profile=args.annotators)
+            else:
+                out = compare_judges(llms, humans, **settings)
+                report = format_comparison_report(out, agreement,
+                                                  annotator_profile=args.annotators)
+        except ValueError as e:
+            sys.stderr.write(f"[error] {e}\n")
+            return 1
+        if agreement is not None:
+            out["human_agreement"] = agreement
+        print(_json.dumps(out, indent=2, default=str))
+        if args.report:
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(report)
+            sys.stderr.write(f"wrote {args.report}\n")
         return 0
 
     if args.cmd == "generate-bank":

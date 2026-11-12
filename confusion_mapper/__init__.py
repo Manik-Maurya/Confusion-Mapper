@@ -85,6 +85,9 @@ a package, split by concern:
                      blind reliability-check path; never produces a kappa)
   itembank.py       CFI-labelled MCQ item generator with a deterministic
                      template backend and an optional OpenAI backend
+  alttest.py        the Alternative Annotator Test (Calderon, Reichart and
+                     Dror, ACL 2025): can the AI replace a human coder?
+                     Plus judge comparison and a power simulator
   ai.py             the ChatGPT rater (classification + question generation)
   storage.py        session load/save (JSON)
   gui.py            the tkinter results dashboard
@@ -106,7 +109,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.7.0"
+    __version__ = "2.8.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -225,6 +228,18 @@ from .itembank import (
     load_bank,
 )
 
+from .alttest import (
+    alt_test,
+    compare_judges,
+    human_agreement_summary,
+    load_alttest_csv,
+    simulate_alt_test_power,
+    generate_synthetic_panel,
+    format_alttest_report,
+    format_comparison_report,
+    EPSILON_PRESETS,
+)
+
 from .cli import cli, main, run
 
 __all__ = [
@@ -264,5 +279,8 @@ __all__ = [
     "print_summary", "view_past_sessions",
     "ITEMBANK_TEMPLATES", "generate_item", "generate_bank",
     "generate_bank_with_ai", "save_bank", "load_bank",
+    "alt_test", "compare_judges", "human_agreement_summary", "load_alttest_csv",
+    "simulate_alt_test_power", "generate_synthetic_panel",
+    "format_alttest_report", "format_comparison_report", "EPSILON_PRESETS",
     "cli", "main", "run",
 ]

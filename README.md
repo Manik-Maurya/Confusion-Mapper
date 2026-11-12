@@ -15,6 +15,8 @@ ConfusionMapper does the whole loop for you. You go through a set of distractors
 
 I built it as the reliability check for a preregistered RCT on cognitive error feedback in government junior high schools in Kanpur Dehat (OSF: https://doi.org/10.17605/OSF.IO/YU6P5). We could not collect any real data in that study until kappa cleared 0.70.
 
+Once you have a few human coders, it also answers the question that always comes next: is the AI good enough to replace one of them? See [Can the AI replace a human coder?](#can-the-ai-replace-a-human-coder)
+
 ## The four error types
 
 The taxonomy is called the Confusion Fingerprint Index (CFI). It splits wrong answers into four categories:
@@ -92,6 +94,57 @@ For each distractor, type `1` for RF, `2` for PK, `3` for CF, or `4` for INT. Wh
 
 **Session provenance.** Every saved session includes, alongside the ratings and computed statistics: a `session_id` (UUID4), `software_version` (the actually-installed confusion-mapper version, read from package metadata), `taxonomy_fingerprint` (a 12-character hash of the exact CFI category definitions in effect, lets you tell later whether two sessions were coded under the same taxonomy or it changed in between), and `python_version`. All four are purely additive: every key that was in a session file before this release is still there, computed by the exact same, untouched functions.
 
+## Can the AI replace a human coder?
+
+New in 2.8.0, and the feature I think matters most.
+
+Kappa tells you how much you and the AI agree. It does not tell you whether you are allowed to drop a human coder and use the AI's labels instead, which is the question everyone using an LLM as a coder actually has. Most papers answer it with a kappa cutoff that someone picked once and everyone else copied.
+
+Calderon, Reichart and Dror (ACL 2025) proposed a real statistical test for it, the Alternative Annotator Test. The idea is simple. Take one human coder out, and ask whether the AI agrees with the remaining coders at least as well as the coder you took out does. Do that for every coder, run a one-sided t-test each time with a small allowance, epsilon, for the fact that the AI is cheaper and faster, correct for multiple testing, and count how many coders the AI beats. If it beats at least half of them, it passes.
+
+`confusion-mapper alt-test` is a standard-library implementation of their method, built into the same CSV and reporting pipeline as the rest of this package. The method is theirs. Their reference code is a notebook that needs numpy and scipy, so I checked mine against both: identical verdicts on 369 random panels, p-values matching to within 5e-14. The full write-up is in [`benchmarks/ALTTEST_VALIDATION.md`](benchmarks/ALTTEST_VALIDATION.md).
+
+```bash
+# one AI against three human coders, epsilon from the authors' preset for skilled coders
+confusion-mapper alt-test sample_data/example_alttest.csv \
+  --ai-column ai_prompt_v1 --human-columns coder_A,coder_B,coder_C \
+  --annotators skilled --report alttest_report.md
+
+# two prompts head to head, ranked by advantage probability
+confusion-mapper alt-test sample_data/example_alttest.csv \
+  --ai-column ai_prompt_v1 --ai-column ai_prompt_v2 --annotators skilled
+
+# before you pay anyone to label: how many items will you need?
+confusion-mapper alt-test-plan --annotators skilled --coders 3 --categories 4 \
+  --coder-noise 0.3 --ai-noise 0.3
+```
+
+On the bundled example, `ai_prompt_v1` passes: after correction it beats 2 of the 3 coders. `ai_prompt_v2` fails and beats none of them, even though its advantage probability is 0.80. That is the whole point. An AI that agrees with people most of the time can still be clearly worse than any one of them. coder_B is worth a look too. Against v1 its raw p-value is 0.043, under the usual 0.05, but it does not survive the Benjamini-Yekutieli correction, so it does not count as a win. The example file is synthetic, and `examples/make_alttest_example.py` rebuilds it byte for byte, so you can check it was not hand-tuned.
+
+The Markdown report gives you the verdict in plain words, a coder-by-coder table, the mean pairwise kappa among your humans (the authors ask you to report it), their six-item reporting checklist with what is already filled in, a draft methods paragraph, and the citation.
+
+Three design choices I want to be upfront about:
+
+- **You have to choose epsilon yourself.** There is no default. Either `--epsilon` or `--annotators expert|skilled|crowd` (0.2, 0.15, 0.1, the authors' rule of thumb) is required. Picking epsilon after seeing the results, and nudging it until the AI passes, is exactly the flexibility the test exists to remove, so the tool will not pick one for you. Put it in your preregistration.
+- **It refuses to guess which columns are human.** While trying it on my own example file, I asked for one AI column and the other AI column quietly became a fourth "human coder". No crash, just wrong numbers. Now, if a leftover column looks like model output (`ai_...`, `llm...`, `gpt...`), it stops and asks you to name the human columns.
+- **It keeps the authors' minimums.** Items need at least 2 human labels, coders need at least 30 usable items, and it warns you below 3 coders or 50 items. Blank cells are fine, coders do not all have to label the same items.
+
+`alt-test-plan` runs the authors' simulation model from their appendix C in plain Python: random label priors, and coders and an AI who report the true label with probability 1 minus their noise. It returns the pass rate at each sample size, the smallest n that reaches 80% power, and the human kappa your noise setting actually implies, so you can sanity-check it against your own pilot data. At noise 0.3 it implies a kappa of about 0.49. The authors report 0.48 for the same setting.
+
+From Python:
+
+```python
+from confusion_mapper import load_alttest_csv, alt_test, compare_judges
+
+humans, ais = load_alttest_csv("panel.csv", ["ai_v1", "ai_v2"])
+r = alt_test(ais["ai_v1"], humans, epsilon=0.15)
+print(r["verdict"], r["winning_rate"], r["advantage_probability"])
+```
+
+If you use it, please cite the method's authors:
+
+> Calderon, N., Reichart, R., & Dror, R. (2025). The Alternative Annotator Test for LLM-as-a-Judge: How to Statistically Justify Replacing Human Annotators with LLMs. *Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)*, 16051-16081. https://aclanthology.org/2025.acl-long.782/
+
 ## Case study
 
 A fully reproducible worked example lives in [`case_study/`](case_study/). It runs the entire
@@ -121,7 +174,10 @@ The writeup traces this to a property of the data, not a bug in the code. Cognit
 ```bash
 python benchmarks/embedding_validation_study.py   # the local-only study, as reported
 python benchmarks/benchmark_embeddings.py          # local vs. openai, needs OPENAI_API_KEY
+python benchmarks/alttest_crosscheck.py            # alt-test vs. the authors' code and scipy, needs numpy + scipy
 ```
+
+The alt-test cross-check is a happier story. [`benchmarks/ALTTEST_VALIDATION.md`](benchmarks/ALTTEST_VALIDATION.md) checks the from-scratch alt-test against the authors' own reference implementation and against scipy, and they agree everywhere it matters.
 
 ## Headless example
 
@@ -140,7 +196,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-406 tests across sixteen files. They finish in under five seconds, none of them touches the network, and none of them needs an API key or a display.
+506 tests across seventeen files. They finish in a few seconds, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
 
 The breakdown, in case you want to know what is being checked:
 
@@ -155,6 +211,7 @@ The breakdown, in case you want to know what is being checked:
 - `test_quickstart.py` (11): the guided walkthrough, including that it never opens a file (`sample_data/` is not in the installed wheel).
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 - `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
+- `test_alttest.py` (100): the alt-test. The t distribution against exact closed forms for 1 and 2 degrees of freedom and printed t-table values, Benjamini-Yekutieli on hand-worked cases including its step-up behaviour, a fully hand-worked 3-coder example down to the t statistic, the paper's optimal-judge theorem (majority vote and mean rating both get advantage probability exactly 1), missing data, the power simulator, the reports, the CLI, and a regression test for the column bug described above.
 
 ## Advanced features
 
@@ -286,7 +343,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with seventeen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with nineteen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed
@@ -306,6 +363,8 @@ python -m confusion_mapper discover     embeddings.json
 python -m confusion_mapper patterns     transitions longitudinal.csv --timepoint-order pretest,posttest
 python -m confusion_mapper publication  sample_data/example_labels.csv --bootstrap 10000 --out results.md
 python -m confusion_mapper generate-bank 30 --seed 1 --out calibration_bank.json
+python -m confusion_mapper alt-test     sample_data/example_alttest.csv --ai-column ai_prompt_v1 --ai-column ai_prompt_v2 --annotators skilled
+python -m confusion_mapper alt-test-plan --annotators skilled --coders 3 --categories 4
 ```
 
 `assist` (the AI-suggests, human-approves loop) is documented separately below, see [AI-assisted mode](#ai-assisted-mode). I keep it out of the list above on purpose. Everything above is one-shot, non-interactive, and prints JSON or Markdown. `assist` is interactive and produces a session file, more like the plain `confusion-mapper` session than a stats report.
@@ -443,7 +502,7 @@ The kappa number tells you *how much* you and the AI agree. It does not tell you
 
 ## A note on ethics
 
-The AI rater is a starting point, not a substitute for a second human. For published research you still need two trained humans coding the same calibration set. Treat the AI labels as a way to find boundaries that need rubric work, not as a shortcut around a human coder.
+The AI rater is a starting point, not a substitute for a second human, unless you can show it is. For published research you still need trained humans coding a calibration set. Since 2.8.0 the alt-test gives you a principled way to decide whether, after that, the AI can stand in for one of them. Without that evidence, treat the AI labels as a way to find boundaries that need rubric work, not as a shortcut around a human coder.
 
 ## How to cite
 
@@ -486,6 +545,7 @@ confusion_mapper/
 ├── assist.py         AI-suggest/human-approves workflow (separate from the
 │                     blind reliability-check path; never produces a kappa)
 ├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
+├── alttest.py        can the AI replace a human coder? (alt-test, judge comparison, power planning)
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
 ├── gui.py            the tkinter results dashboard
@@ -500,9 +560,9 @@ Repo root, beyond the package itself:
 
 ```
 case_study/       reproducible worked example (see Case study, above)
-benchmarks/       the embedding-backend validation study (see Benchmarks, above)
+benchmarks/       the embedding-backend study and the alt-test cross-check (see Benchmarks, above)
 sample_data/      example CSVs and taxonomy JSONs used throughout this README
-examples/         a minimal headless script (see Headless example, above)
+examples/         a minimal headless script, and the script that rebuilds example_alttest.csv
 dashboard/        index.html, runs kappa/AC1/confusion-matrix in-browser via Pyodide
 quickstart_demo.gif   real, captured `confusion-mapper quickstart` output, not staged
 ```

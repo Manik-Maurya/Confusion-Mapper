@@ -174,7 +174,7 @@ class TestSessionNeverMutated:
         revise_label(log, "Q1_D1", "CF", "reconsidered", old_label="RF")
         revise_label(log, "Q1_D1", "INT", "reconsidered again")
         add_note(log, "Q1_D1", "some note")
-        assert sample_session == original, "session object was mutated -- this must never happen"
+        assert sample_session == original, "session object was mutated, this must never happen"
 
     def test_original_human_label_field_unchanged_even_after_revision(self, sample_session):
         log = {}

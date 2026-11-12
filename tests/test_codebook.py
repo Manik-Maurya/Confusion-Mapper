@@ -36,7 +36,7 @@ class TestGenerateCodebook:
         """
         text = generate_codebook()
         placeholder_count = text.count(
-            "*(fill in from your coding manual / Stage 1 RR methods -- not auto-generated)*"
+            "*(fill in from your coding manual / Stage 1 RR methods, not auto-generated)*"
         )
         assert placeholder_count == len(ERROR_TYPES)
 

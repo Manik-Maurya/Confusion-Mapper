@@ -5,7 +5,7 @@ save_assist_session/load_assist_sessions).
 
 New in v2.6.0. The property this suite cares about most: a session
 produced by this module must NEVER contain a kappa/matrix/type_stats key
-(see test_session_never_reports_a_kappa) -- assist-mode labels are not
+(see test_session_never_reports_a_kappa), assist-mode labels are not
 independent of the AI's suggestion, so a kappa computed on them would be
 scientifically meaningless, and its mere presence in a session file risks
 being misread later without this context. No test here makes a real
@@ -116,7 +116,7 @@ class TestReliabilityWarning:
 class TestRunAssistSessionNoApiKey:
     """
     Every scenario here runs with api_key=None, so classify_with_confidence
-    always returns available=False -- this exercises the full "no real
+    always returns available=False, this exercises the full "no real
     suggestion" branch of the loop (see the bug this was built to catch:
     it used to require an override reason and offer a nonsensical
     "accept N/A" option in this exact scenario).

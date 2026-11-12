@@ -2,7 +2,7 @@
 test_multirater.py - pytest suite for the 3+ rater workflow (multirater.py).
 
 New in v2.6.0. These tests deliberately don't re-derive kappa/AC1/Fleiss
-arithmetic by hand -- that's already covered by test_kappa.py, and
+arithmetic by hand, that's already covered by test_kappa.py, and
 multirater.py calls those functions unmodified. What's tested here is
 multirater.py's own logic: the CSV data model, the pairing/adapter code,
 and conflict detection.
@@ -96,7 +96,7 @@ class TestPairwiseAgreementMatrix:
         assert matrix["A|B"]["n"] == 10
 
     def test_result_matches_calling_compute_cohens_kappa_directly(self):
-        """pairwise_agreement_matrix is an adapter -- it must not silently
+        """pairwise_agreement_matrix is an adapter, it must not silently
         alter what compute_cohens_kappa would return for the same pair."""
         from confusion_mapper import compute_cohens_kappa
         ratings = [{"A": "CF", "B": "CF"}, {"A": "CF", "B": "RF"},
@@ -131,7 +131,7 @@ class TestPanelFleissKappa:
         Item 1 is unanimous (3/3 CF); item 2 splits 2 CF / 1 PK. With only 4
         categories and 2 items, one category (CF) dominates both items, so
         Fleiss' expected-by-chance agreement is high and kappa comes out
-        low/negative despite high raw per-item agreement -- the same
+        low/negative despite high raw per-item agreement, the same
         kappa-paradox shape gwet_ac1() exists to diagnose. Value below is
         confirmed by directly running panel_fleiss_kappa on this input, not
         assumed from the P_bar arithmetic alone.

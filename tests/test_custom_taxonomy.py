@@ -8,9 +8,9 @@ file" placeholders.
 
 New test file for v2.6.0. The end-to-end tests at the bottom load the real
 sample_data/item_bank_distractor_taxonomy.json and
-sample_data/item_bank_demo.csv shipped with the package -- a distractor-
+sample_data/item_bank_demo.csv shipped with the package, a distractor-
 functioning taxonomy modeled on published item-analysis literature (not an
-official PISA framework; see that file's _comment) -- and run kappa,
+official PISA framework; see that file's _comment), and run kappa,
 codebook, and export against them, as the concrete proof that this
 toolkit's reliability/export/documentation machinery works for a taxonomy
 that has nothing to do with the CFI categories the rest of the package

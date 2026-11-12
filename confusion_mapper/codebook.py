@@ -98,7 +98,7 @@ def generate_codebook(categories=None, taxonomy=None, title="CFI Coding Manual",
             f"**Example.** {example}",
             "",
             "**Decision rule.** *(fill in from your coding manual / Stage 1 RR "
-            "methods -- not auto-generated)*",
+            "methods, not auto-generated)*",
             "",
         ]
 

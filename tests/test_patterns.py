@@ -3,7 +3,7 @@ test_patterns.py - pytest suite for confusion_mapper.patterns (pattern
 mining: co-occurrence, transitions, temporal trend, cohort comparison).
 
 New in v2.6.0. TestChiSquarePAccuracy locks in the empirical accuracy
-check against the standard chi-square critical-value table -- if the
+check against the standard chi-square critical-value table, if the
 Wilson-Hilferty approximation in _chi_square_p ever regresses, this is
 where it would show up. Every other worked-example value below (the 2x2
 chi-square example, the lift example) was independently hand-derived in
@@ -165,7 +165,7 @@ class TestItemPairCooccurrence:
         records = [
             _rec("R1", "I1", "A"), _rec("R1", "I2", "A"),
             _rec("R2", "I1", "B"), _rec("R2", "I2", "B"),
-            _rec("R3", "I1", "A"),  # missing I2 -- should be excluded
+            _rec("R3", "I1", "A"),  # missing I2, should be excluded
         ]
         result = item_pair_cooccurrence(records, "I1", "I2", categories=["A", "B"])
         assert result["n_respondents"] == 2

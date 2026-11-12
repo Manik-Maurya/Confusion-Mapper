@@ -111,7 +111,7 @@ class TestExportForSPSS:
 
     def test_ends_with_a_period_terminated_variables_clause(self, sample_rows, tmp_dir):
         """A missing trailing period on /VARIABLES is a classic SPSS syntax
-        error -- guard against regressing it."""
+        error, guard against regressing it."""
         result = export_for_spss(sample_rows, os.path.join(tmp_dir, "out.csv"))
         script = open(result["script"], encoding="utf-8").read()
         variables_block = script.split("/VARIABLES=")[1].split("CACHE.")[0]
@@ -161,7 +161,7 @@ class TestExportAll:
 
     def test_all_three_formats_share_the_same_csv_content(self, sample_rows, tmp_dir):
         """r/spss/jasp all point at freshly (re)written copies of the same
-        rows under the same stem -- confirm they're identical, not
+        rows under the same stem, confirm they're identical, not
         silently diverging across calls."""
         result = export_all(sample_rows, tmp_dir, stem="shared")
         r_csv = open(result["r"]["csv"], encoding="utf-8").read()

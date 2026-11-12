@@ -3,7 +3,7 @@ test_ari.py - pytest suite for benchmarks/ari.py's adjusted_rand_index().
 
 New in v2.6.0. The hand-derived example here is the same one reported in
 benchmarks/EMBEDDING_VALIDATION_FINDINGS.md and asserted in ari.py's own
-__main__ block -- checked independently a third time here so the real
+__main__ block, checked independently a third time here so the real
 empirical study's numbers rest on a triply-verified implementation, not
 a single self-check.
 

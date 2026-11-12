@@ -1,7 +1,7 @@
 """
 test_embeddings.py - pytest suite for confusion_mapper.embeddings.
 
-New in v2.6.0. No tests here make real network calls to OpenAI -- the
+New in v2.6.0. No tests here make real network calls to OpenAI, the
 "openai" backend is exercised only up to the point where it correctly
 raises (missing API key / library), which is testable without a network
 call. The "local" backend, cosine_similarity, and the full index
@@ -236,7 +236,7 @@ class TestFindSimilar:
             find_similar(idx, "NONEXISTENT")
 
     def test_needs_no_api_key_even_for_openai_index(self):
-        """find_similar reuses the already-stored vector -- no re-embedding,
+        """find_similar reuses the already-stored vector, no re-embedding,
         so it should work without ever touching the network, even for an
         'openai'-backend index (as long as the item is already indexed)."""
         idx = create_index(backend="openai")
@@ -244,7 +244,7 @@ class TestFindSimilar:
                              "metadata": {}, "added": "2026-01-01"}
         idx["items"]["b"] = {"text": "y", "vector": [0.9] + [0.1] * 1535,
                              "metadata": {}, "added": "2026-01-01"}
-        results = find_similar(idx, "a")  # no api_key passed -- must not raise
+        results = find_similar(idx, "a")  # no api_key passed, must not raise
         assert results[0]["item_id"] == "b"
 
 
@@ -292,7 +292,7 @@ class TestPersistence:
 
     def test_incremental_updates_across_save_load_cycles(self):
         """The persistent-library use case: build, save, reload, add more,
-        save again -- nothing from the first batch should be lost or
+        save again, nothing from the first batch should be lost or
         altered."""
         fd, path = tempfile.mkstemp(suffix=".json")
         os.close(fd)

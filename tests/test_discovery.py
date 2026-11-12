@@ -5,7 +5,7 @@ test_discovery.py - pytest suite for confusion_mapper.discovery
 New in v2.6.0. TestNeverWritesTaxonomy is the property this module exists
 to guarantee: no function here should import or reference TAXONOMY,
 load_taxonomy_from_json, write_codebook, or any file-writing taxonomy
-function -- it should only ever read an embeddings index and produce a
+function, it should only ever read an embeddings index and produce a
 plain data structure / string, never touch a taxonomy file.
 
 Run with: pytest tests/test_discovery.py -v
@@ -26,9 +26,9 @@ from confusion_mapper.embeddings import create_index, add_to_index
 
 def _index_with_two_clusters():
     """
-    Cluster 1 (mitochondria, 3 items): labels PK, PK, CF -- purity 2/3 = 0.667
-    Cluster 2 (democracy, 3 items): labels RF, PK, INT -- purity 1/3 = 0.333
-        (maximally inconsistent -- the interesting candidate)
+    Cluster 1 (mitochondria, 3 items): labels PK, PK, CF, purity 2/3 = 0.667
+    Cluster 2 (democracy, 3 items): labels RF, PK, INT, purity 1/3 = 0.333
+        (maximally inconsistent, the interesting candidate)
     """
     idx = create_index(backend="local")
     add_to_index(idx, "a1", "mitochondria produce energy through cellular respiration",
@@ -182,7 +182,7 @@ class TestFormatProposalReport:
 
     def test_report_shows_question_marks_when_label_key_mismatched(self):
         """The inverse check: if you pass the WRONG label_key, "?" is the
-        correct, honest fallback -- not a silent wrong label."""
+        correct, honest fallback, not a silent wrong label."""
         idx = _index_with_two_clusters()
         candidates = propose_candidate_categories(
             idx, label_key="human_label", threshold=0.3, min_cluster_size=3, max_purity=1.0)

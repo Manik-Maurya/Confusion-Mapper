@@ -111,7 +111,7 @@ class TestBrokenFormatting:
 
     def test_missing_distractor_text_key_is_silently_skipped(self):
         """
-        distractor_text is optional metadata, not a required column -- a
+        distractor_text is optional metadata, not a required column, a
         minimal two-column (human_label, ai_label) CSV should validate
         cleanly with no distractor_text check at all.
         """

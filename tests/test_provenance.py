@@ -9,7 +9,7 @@ class below either checks a new function in isolation, or checks that
 run_session()'s pre-existing keys (kappa, matrix, type_stats, rater_id,
 date, n_questions, n_distractors, ratings, ai_mode) are byte-identical to
 calling compute_cohens_kappa / build_confusion_matrix / get_per_type_stats
-directly on the same inputs -- if a future edit to console.py ever changes
+directly on the same inputs, if a future edit to console.py ever changes
 that, this suite should fail.
 
 Run with: pytest tests/test_provenance.py -v

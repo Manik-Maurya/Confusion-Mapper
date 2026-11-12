@@ -86,7 +86,7 @@ class TestGenerateMethodsParagraph:
     def test_sentence_reads_naturally_no_run_on_clauses(self, sample_stats):
         """Regression check for the exact bug caught during development:
         the interpretation string's full text ('Almost Perfect, excellent
-        agreement.') must not appear verbatim mid-sentence -- only its
+        agreement.') must not appear verbatim mid-sentence, only its
         primary descriptor should."""
         text = generate_methods_paragraph(sample_stats["kappa"])
         assert "excellent agreement, kappa" not in text
@@ -173,7 +173,7 @@ class TestGenerateFrequencyTable:
 
     def test_reflects_real_percentages_not_always_zero(self, sample_stats):
         """Regression test: get_per_type_stats() returns the percentage
-        under the key 'pct', not 'percentage' -- a mismatched .get() key
+        under the key 'pct', not 'percentage', a mismatched .get() key
         would silently default to 0% for every row without raising."""
         table = generate_frequency_table(sample_stats["type_stats"])
         for code, stats in sample_stats["type_stats"].items():
