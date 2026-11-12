@@ -87,7 +87,8 @@ a package, split by concern:
                      template backend and an optional OpenAI backend
   alttest.py        the Alternative Annotator Test (Calderon, Reichart and
                      Dror, ACL 2025): can the AI replace a human coder?
-                     Plus judge comparison and a power simulator
+                     Plus judge comparison, a power simulator, a bootstrap
+                     robustness check and a preregistration lock
   ai.py             the ChatGPT rater (classification + question generation)
   storage.py        session load/save (JSON)
   gui.py            the tkinter results dashboard
@@ -109,7 +110,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.8.0"
+    __version__ = "2.9.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -238,6 +239,11 @@ from .alttest import (
     format_alttest_report,
     format_comparison_report,
     EPSILON_PRESETS,
+    bootstrap_alt_test,
+    create_prereg,
+    save_prereg,
+    load_prereg,
+    check_against_prereg,
 )
 
 from .cli import cli, main, run
@@ -282,5 +288,7 @@ __all__ = [
     "alt_test", "compare_judges", "human_agreement_summary", "load_alttest_csv",
     "simulate_alt_test_power", "generate_synthetic_panel",
     "format_alttest_report", "format_comparison_report", "EPSILON_PRESETS",
+    "bootstrap_alt_test", "create_prereg", "save_prereg", "load_prereg",
+    "check_against_prereg",
     "cli", "main", "run",
 ]

@@ -110,6 +110,16 @@ The Student's t CDF is computed through the regularized incomplete beta function
 
 Benjamini-Yekutieli: sort the p-values, find the largest k with p_(k) <= (k / m) * q / (1 + 1/2 + ... + 1/m), and reject the k smallest.
 
+### Bootstrap robustness check (ConfusionMapper's addition)
+
+Not part of the authors' procedure. `bootstrap_alt_test` draws B resamples of the items with replacement (each resample has as many draws as there are items, and a repeated item gets its own key), keeps every coder's label and the AI's label for each draw, and reruns the full alt-test, Benjamini-Yekutieli included. It reports the share of resamples that reach the same verdict as the real data, the percentile interval of the advantage probability (indices floor(B * alpha / 2) and ceil(B * (1 - alpha / 2)) - 1 of the sorted values, the same convention as `bootstrap_kappa_ci`), and how often each coder was beaten. Resamples in which no coder has enough items count as not passing. The verdict-held share is not a p-value and not power.
+
+### Preregistration lock
+
+`create_prereg` stores the decisions that determine the verdict (epsilon and its source, q, scoring function, both minimums, pass threshold, AI and human column names, planned item count) in a "locked" block, and records SHA-256 of that block serialised as JSON with sorted keys and no whitespace. `load_prereg` recomputes the hash and refuses a file whose locked block no longer matches it. `check_against_prereg` reports any locked setting or column set that differs from the run as a deviation, and a different item count as a note. The creation date and free-text notes are deliberately outside the hash.
+
+### Power simulator
+
 The power simulator (`simulate_alt_test_power`) follows the authors' appendix C: a label prior drawn from a flat Dirichlet, a true label per item from that prior, and each coder (and the AI) reporting the true label with probability 1 - noise, otherwise a draw from the prior.
 
 ## References

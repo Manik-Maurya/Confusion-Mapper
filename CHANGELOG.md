@@ -2,6 +2,27 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-11-12
+
+Two follow-ups a careful reviewer will ask about any alt-test verdict: did you choose epsilon before you saw the data, and would the verdict survive a slightly different sample?
+
+### Added
+
+- Preregistration lock. `confusion-mapper alt-test-prereg` writes a plan file holding every decision that sets the verdict (epsilon and where it came from, FDR level, scoring function, minimums, pass threshold, AI and human column names, planned item count) together with a SHA-256 hash of those decisions, for your OSF preregistration. `alt-test --prereg PLAN` then takes its settings and columns from the plan. If the command line contradicts the plan, the run stops and lists every difference. `--allow-deviation` lets it run anyway, and then every deviation is printed at the top of the report and counted in the draft methods paragraph. A plan whose locked settings were edited after it was made no longer matches its hash and is refused. The hash deliberately leaves out the creation date and the notes, since a date inside a file proves nothing, the registry's timestamp is what counts.
+- Bootstrap robustness check, `alt-test --bootstrap N` and `bootstrap_alt_test()`. Reruns the whole test, FDR correction included, on N resamples of the items and reports how often the verdict held, a percentile interval for the advantage probability, and how often each coder was beaten. This is ConfusionMapper's addition, not part of the authors' procedure, and the report says so. On the example data the pass for `ai_prompt_v1` holds in 75.9% of 1,000 resamples, and coder_B is beaten in only 45% of them.
+- `--pass-threshold` on `alt-test`, for studies that want a stricter rule than the authors' 0.5.
+- `sample_data/example_alttest_prereg.json`, an example plan for the example data.
+- `tests/test_alttest_bootstrap.py` (15 tests) and `tests/test_alttest_prereg.py` (33 tests). I checked that they can fail by breaking the code on purpose three times: making repeated bootstrap items share one key, leaving epsilon out of the hash, and letting deviations through without `--allow-deviation`. Each break was caught.
+
+### Changed
+
+- `alt-test` no longer requires `--ai-column` or an epsilon flag at the parser level, because both can come from `--prereg`. Without a plan, leaving either out still stops with a clear message.
+- `--scoring`, `--q` and `--min-items` on `alt-test` now default to "not given" internally so that a plan's values are not silently overridden by a default. The effective defaults without a plan are unchanged: accuracy, 0.05 and 30.
+
+### Notes
+
+- 554 tests total (506 previous plus 48 new). Still no runtime dependency beyond `openai`.
+
 ## [2.8.0] - 2026-11-12
 
 ### Added

@@ -125,11 +125,43 @@ The Markdown report gives you the verdict in plain words, a coder-by-coder table
 
 Three design choices I want to be upfront about:
 
-- **You have to choose epsilon yourself.** There is no default. Either `--epsilon` or `--annotators expert|skilled|crowd` (0.2, 0.15, 0.1, the authors' rule of thumb) is required. Picking epsilon after seeing the results, and nudging it until the AI passes, is exactly the flexibility the test exists to remove, so the tool will not pick one for you. Put it in your preregistration.
+- **You have to choose epsilon yourself.** There is no default. One of `--epsilon`, `--annotators expert|skilled|crowd` (0.2, 0.15, 0.1, the authors' rule of thumb) or `--prereg` is required. Picking epsilon after seeing the results, and nudging it until the AI passes, is exactly the flexibility the test exists to remove, so the tool will not pick one for you. Since 2.9.0 it can also hold you to your choice, see below.
 - **It refuses to guess which columns are human.** While trying it on my own example file, I asked for one AI column and the other AI column quietly became a fourth "human coder". No crash, just wrong numbers. Now, if a leftover column looks like model output (`ai_...`, `llm...`, `gpt...`), it stops and asks you to name the human columns.
 - **It keeps the authors' minimums.** Items need at least 2 human labels, coders need at least 30 usable items, and it warns you below 3 coders or 50 items. Blank cells are fine, coders do not all have to label the same items.
 
 `alt-test-plan` runs the authors' simulation model from their appendix C in plain Python: random label priors, and coders and an AI who report the true label with probability 1 minus their noise. It returns the pass rate at each sample size, the smallest n that reaches 80% power, and the human kappa your noise setting actually implies, so you can sanity-check it against your own pilot data. At noise 0.3 it implies a kappa of about 0.49. The authors report 0.48 for the same setting.
+
+### Lock your settings before the data exists
+
+New in 2.9.0. Telling people to choose epsilon in advance is easy. Proving you did is harder. So before anyone labels anything, write your settings to a plan file:
+
+```bash
+confusion-mapper alt-test-prereg --annotators skilled \
+  --ai-column ai_prompt_v1 --ai-column ai_prompt_v2 \
+  --human-columns coder_A,coder_B,coder_C --planned-items 81 \
+  --out alttest_prereg.json
+```
+
+It prints a SHA-256 hash of the locked decisions: epsilon and where it came from, the FDR level, the scoring function, the minimums, the pass threshold, and the column names. Put the file, or at least the hash, into your OSF preregistration. Later, run the test against it:
+
+```bash
+confusion-mapper alt-test sample_data/example_alttest.csv \
+  --prereg sample_data/example_alttest_prereg.json --report alttest_report.md
+```
+
+The settings and columns come from the plan. If anything you type on the command line contradicts the plan, say `--epsilon 0.2` when you locked 0.15, the run stops and tells you exactly what differs. You can still go ahead with `--allow-deviation`, because real studies sometimes have to, but then every deviation is listed at the top of the report and counted in the methods paragraph. If someone edits the locked settings inside the plan file afterwards, the hash no longer matches and the run refuses to start.
+
+Two things it does not pretend to do. The hash covers the decisions, not the date written in the file, because a date inside a file proves nothing. The date that counts is the one your registry stamps when you register. And a different number of items than planned is reported as a note, not a deviation, since losing a few items is normal, but it is still written down. The bundled `example_alttest_prereg.json` was obviously made after the example data existed. It is there to show the mechanism, with real data you would make it first.
+
+### How fragile is the verdict?
+
+Also new in 2.9.0, and this part is my addition, not the authors'. The alt-test gives one verdict on one sample of items. Add `--bootstrap 1000` and the whole test, FDR correction included, is rerun on 1,000 resamples of the items. The report then says how often the verdict came out the same, gives a 95% interval for the advantage probability, and shows how often each coder was beaten.
+
+On the example data, with seed 20260623 and 1,000 resamples, `ai_prompt_v1`'s pass holds in about 76% of resamples, its advantage probability interval runs from about 0.80 to 0.94, and coder_B, the one coder it did not beat, is beaten in only 45% of resamples. So it is a real pass, but not a rock-solid one, and a reviewer deserves to know that. `ai_prompt_v2`'s fail holds in about 87%.
+
+That number is not a p-value and not statistical power. A verdict that holds in only about half the resamples sits right on the edge, which is what you would expect when a p-value lands near the cutoff. The honest fix is more items, not a different epsilon.
+
+If you ran the AI more than once on the same items, `confusion-mapper multirater` on the run columns gives you the AI's run-to-run Fleiss' kappa, which is worth reporting next to all of this.
 
 From Python:
 
@@ -139,6 +171,10 @@ from confusion_mapper import load_alttest_csv, alt_test, compare_judges
 humans, ais = load_alttest_csv("panel.csv", ["ai_v1", "ai_v2"])
 r = alt_test(ais["ai_v1"], humans, epsilon=0.15)
 print(r["verdict"], r["winning_rate"], r["advantage_probability"])
+
+from confusion_mapper import bootstrap_alt_test
+rb = bootstrap_alt_test(ais["ai_v1"], humans, n_resamples=1000, seed=1, epsilon=0.15)
+print(rb["verdict_held"], rb["advantage_probability_ci"])
 ```
 
 If you use it, please cite the method's authors:
@@ -196,7 +232,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-506 tests across seventeen files. They finish in a few seconds, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
+554 tests across nineteen files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
 
 The breakdown, in case you want to know what is being checked:
 
@@ -211,6 +247,7 @@ The breakdown, in case you want to know what is being checked:
 - `test_quickstart.py` (11): the guided walkthrough, including that it never opens a file (`sample_data/` is not in the installed wheel).
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 - `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
+- `test_alttest_bootstrap.py` (15) and `test_alttest_prereg.py` (33): the bootstrap robustness check and the preregistration lock. They include a test that pins the exact bootstrap figures quoted in this README, and tests that a run departing from its plan is stopped, that an edited plan is caught, and that a forced deviation always ends up in the report. Before trusting them I broke the code on purpose three times (repeated items sharing a key, a hash that ignored epsilon, deviations that never blocked) and checked that each break made these tests fail.
 - `test_alttest.py` (100): the alt-test. The t distribution against exact closed forms for 1 and 2 degrees of freedom and printed t-table values, Benjamini-Yekutieli on hand-worked cases including its step-up behaviour, a fully hand-worked 3-coder example down to the t statistic, the paper's optimal-judge theorem (majority vote and mean rating both get advantage probability exactly 1), missing data, the power simulator, the reports, the CLI, and a regression test for the column bug described above.
 
 ## Advanced features
@@ -343,7 +380,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with nineteen subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with twenty subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed

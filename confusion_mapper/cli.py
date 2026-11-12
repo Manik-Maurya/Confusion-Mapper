@@ -2,8 +2,8 @@
 The command-line entry point. Every subcommand routes through run()
 below. The subcommands are, in the order I usually reach for them:
 
-    quickstart, kappa, diagnostics, alpha, multirater, alt-test,
-    alt-test-plan, refine, export, validate, embed-index, embed-search,
+    quickstart, kappa, diagnostics, alpha, multirater, alt-test-prereg,
+    alt-test, alt-test-plan, refine, export, validate, embed-index, embed-search,
     assist, evidence, codebook, patterns, publication, discovery,
     generate-bank
 
@@ -59,7 +59,8 @@ from .console import (
 _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
-                      "quickstart", "generate-bank", "alt-test", "alt-test-plan"}
+                      "quickstart", "generate-bank", "alt-test", "alt-test-plan",
+                      "alt-test-prereg"}
 
 
 def cli(argv=None):
@@ -73,7 +74,8 @@ def cli(argv=None):
         prog="confusion-mapper",
         description=("Compute inter-rater reliability statistics on paired labels. "
                      "Subcommands: kappa, alpha, diagnostics, plan, refine, validate, "
-                     "multirater, alt-test, alt-test-plan, export, evidence, codebook, "
+                     "multirater, alt-test, alt-test-plan, alt-test-prereg, export, "
+                     "evidence, codebook, "
                      "embed-index, embed-search, discover, patterns, publication, "
                      "generate-bank, quickstart."))
     sub = parser.add_subparsers(dest="cmd", required=False)
@@ -234,23 +236,54 @@ def cli(argv=None):
                                             "Annotator Test (Calderon, Reichart and Dror, ACL 2025)")
     p_at.add_argument("csv_path", help="wide CSV: item_id, one column per human coder (3+ "
                                         "recommended), plus the AI column(s). Blank cell = not labelled.")
-    p_at.add_argument("--ai-column", action="append", required=True,
+    p_at.add_argument("--ai-column", action="append", default=None,
                       help="column holding the AI's labels. Repeat it to compare several "
-                           "AI judges or prompts against the same coders.")
+                           "AI judges or prompts against the same coders. Can come from "
+                           "--prereg instead.")
     p_at.add_argument("--id-column", default="item_id")
     p_at.add_argument("--human-columns", default=None,
                       help="comma-separated human coder columns (default: every other column)")
-    p_at_eps = p_at.add_mutually_exclusive_group(required=True)
+    p_at_eps = p_at.add_mutually_exclusive_group()
     p_at_eps.add_argument("--epsilon", type=float,
                           help="cost-benefit allowance, decide it before you look at results")
     p_at_eps.add_argument("--annotators", choices=["expert", "skilled", "crowd"],
                           help="use the authors' preset: expert 0.2, skilled 0.15, crowd 0.1")
-    p_at.add_argument("--scoring", choices=["accuracy", "neg_rmse"], default="accuracy",
-                      help="accuracy for categories, neg_rmse for numeric ratings")
-    p_at.add_argument("--q", type=float, default=0.05, help="FDR level for Benjamini-Yekutieli")
-    p_at.add_argument("--min-items", type=int, default=30,
+    p_at.add_argument("--scoring", choices=["accuracy", "neg_rmse"], default=None,
+                      help="accuracy for categories (default), neg_rmse for numeric ratings")
+    p_at.add_argument("--q", type=float, default=None,
+                      help="FDR level for Benjamini-Yekutieli (default 0.05)")
+    p_at.add_argument("--min-items", type=int, default=None,
                       help="skip coders with fewer usable items than this (default 30)")
+    p_at.add_argument("--pass-threshold", type=float, default=None,
+                      help="winning rate needed to pass (default 0.5, the authors' rule)")
+    p_at.add_argument("--prereg", default=None,
+                      help="a plan file from alt-test-prereg. Settings come from the plan, "
+                           "and any difference from it stops the run.")
+    p_at.add_argument("--allow-deviation", action="store_true",
+                      help="run anyway when the settings differ from --prereg. Every "
+                           "deviation is listed in the output and the report.")
+    p_at.add_argument("--bootstrap", type=int, default=0,
+                      help="rerun the test on N bootstrap resamples of the items to see "
+                           "how fragile the verdict is (0 to skip, 1000 is a good number)")
+    p_at.add_argument("--seed", type=int, default=20260623, help="seed for --bootstrap")
     p_at.add_argument("--report", default=None, help="also write a Markdown report to this file")
+
+    p_pr = sub.add_parser("alt-test-prereg", help="Lock your alt-test settings before any data "
+                                                   "exists, and get a hash for your preregistration")
+    p_pr_eps = p_pr.add_mutually_exclusive_group(required=True)
+    p_pr_eps.add_argument("--epsilon", type=float)
+    p_pr_eps.add_argument("--annotators", choices=["expert", "skilled", "crowd"])
+    p_pr.add_argument("--scoring", choices=["accuracy", "neg_rmse"], default="accuracy")
+    p_pr.add_argument("--q", type=float, default=0.05)
+    p_pr.add_argument("--min-items", type=int, default=30)
+    p_pr.add_argument("--pass-threshold", type=float, default=0.5)
+    p_pr.add_argument("--ai-column", action="append", default=None,
+                      help="the AI column name(s) you will use; repeat for several")
+    p_pr.add_argument("--human-columns", default=None,
+                      help="comma-separated human coder column names you will use")
+    p_pr.add_argument("--planned-items", type=int, default=None)
+    p_pr.add_argument("--notes", default="", help="free text, not covered by the hash")
+    p_pr.add_argument("--out", required=True, help="where to write the plan (JSON)")
 
     p_atp = sub.add_parser("alt-test-plan", help="Simulate how many items you need to label "
                                                   "before running the alt-test")
@@ -558,15 +591,34 @@ def cli(argv=None):
             print(doc)
         return 0
 
-    if args.cmd in ("alt-test", "alt-test-plan"):
+    if args.cmd in ("alt-test", "alt-test-plan", "alt-test-prereg"):
         from .alttest import (
             EPSILON_PRESETS, load_alttest_csv, alt_test, compare_judges,
             human_agreement_summary, format_alttest_report, format_comparison_report,
-            simulate_alt_test_power,
+            simulate_alt_test_power, bootstrap_alt_test, create_prereg, save_prereg,
+            load_prereg, check_against_prereg,
         )
-        eps = args.epsilon if args.epsilon is not None else EPSILON_PRESETS[args.annotators]
+
+        if args.cmd == "alt-test-prereg":
+            try:
+                plan = create_prereg(
+                    epsilon=args.epsilon, annotators=args.annotators, q_fdr=args.q,
+                    scoring=args.scoring, min_instances_per_human=args.min_items,
+                    pass_threshold=args.pass_threshold, ai_columns=args.ai_column,
+                    human_columns=(args.human_columns.split(",") if args.human_columns else None),
+                    planned_items=args.planned_items, notes=args.notes)
+            except ValueError as e:
+                sys.stderr.write(f"[error] {e}\n")
+                return 1
+            save_prereg(plan, args.out)
+            print(_json.dumps(plan, indent=2))
+            sys.stderr.write(f"wrote {args.out}\nsha256: {plan['sha256']}\n"
+                             "Register this file, or at least the hash, on OSF (or your "
+                             "registry of choice) before anyone starts labelling.\n")
+            return 0
 
         if args.cmd == "alt-test-plan":
+            eps = args.epsilon if args.epsilon is not None else EPSILON_PRESETS[args.annotators]
             sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
             try:
                 r = simulate_alt_test_power(
@@ -580,31 +632,99 @@ def cli(argv=None):
             print(_json.dumps(r, indent=2))
             return 0
 
-        human_cols = args.human_columns.split(",") if args.human_columns else None
+        # alt-test: settings come from the command line, then the plan, then defaults
+        plan = None
+        if args.prereg:
+            try:
+                plan = load_prereg(args.prereg)
+            except (OSError, ValueError) as e:
+                sys.stderr.write(f"[error] {e}\n")
+                return 1
+        locked = plan["locked"] if plan else None
+
+        def pick(cli_value, key, default):
+            if cli_value is not None:
+                return cli_value
+            return locked["settings"][key] if locked else default
+
+        if args.epsilon is not None:
+            eps = args.epsilon
+        elif args.annotators:
+            eps = EPSILON_PRESETS[args.annotators]
+        elif locked:
+            eps = locked["settings"]["epsilon"]
+        else:
+            parser.error("alt-test needs an epsilon you chose in advance: --epsilon, "
+                         "--annotators expert|skilled|crowd, or --prereg PLAN")
+        settings = dict(
+            epsilon=eps,
+            scoring=pick(args.scoring, "scoring", "accuracy"),
+            q_fdr=pick(args.q, "q_fdr", 0.05),
+            min_instances_per_human=pick(args.min_items, "min_instances_per_human", 30),
+            min_humans_per_instance=locked["settings"]["min_humans_per_instance"] if locked else 2,
+            pass_threshold=pick(args.pass_threshold, "pass_threshold", 0.5),
+        )
+        ai_cols = args.ai_column or (locked["design"]["ai_columns"] if locked else None)
+        if not ai_cols:
+            parser.error("name the AI column(s) with --ai-column, or list them in the --prereg plan")
+        if args.human_columns:
+            human_cols = args.human_columns.split(",")
+        else:
+            human_cols = (locked["design"]["human_columns"] or None) if locked else None
+
         try:
-            humans, llms = load_alttest_csv(args.csv_path, args.ai_column,
+            humans, llms = load_alttest_csv(args.csv_path, ai_cols,
                                             id_column=args.id_column,
                                             human_columns=human_cols)
             sys.stderr.write("human coders: " + ", ".join(humans) + "\n"
                              "AI judge(s):  " + ", ".join(llms) + "\n")
-            settings = dict(scoring=args.scoring, epsilon=eps, q_fdr=args.q,
-                            min_instances_per_human=args.min_items)
-            agreement = human_agreement_summary(humans) if args.scoring == "accuracy" else None
+
+            prereg_check = None
+            if plan:
+                n_items = len({i for labels in humans.values() for i in labels})
+                prereg_check = check_against_prereg(plan, settings, list(llms),
+                                                    list(humans), n_items)
+                if not prereg_check["matches"] and not args.allow_deviation:
+                    sys.stderr.write("[error] this run departs from the preregistered plan:\n")
+                    for d in prereg_check["deviations"]:
+                        sys.stderr.write(f"  - {d}\n")
+                    sys.stderr.write("Fix the command, or rerun with --allow-deviation and "
+                                     "report every deviation in your paper.\n")
+                    return 1
+
+            agreement = (human_agreement_summary(humans)
+                         if settings["scoring"] == "accuracy" else None)
+
+            def robust(llm):
+                if args.bootstrap <= 0:
+                    return None
+                return bootstrap_alt_test(llm, humans, n_resamples=args.bootstrap,
+                                          seed=args.seed, **settings)
+
             if len(llms) == 1:
                 name = next(iter(llms))
                 out = alt_test(llms[name], humans, **settings)
                 out["judge"] = name
+                rb = robust(llms[name])
                 report = format_alttest_report(out, agreement, judge_name=name,
-                                               annotator_profile=args.annotators)
+                                               annotator_profile=args.annotators,
+                                               prereg_check=prereg_check, robustness=rb)
             else:
                 out = compare_judges(llms, humans, **settings)
+                rb = {n: robust(llm) for n, llm in llms.items()} if args.bootstrap > 0 else None
                 report = format_comparison_report(out, agreement,
-                                                  annotator_profile=args.annotators)
+                                                  annotator_profile=args.annotators,
+                                                  prereg_check=prereg_check,
+                                                  robustness_by_judge=rb)
         except ValueError as e:
             sys.stderr.write(f"[error] {e}\n")
             return 1
         if agreement is not None:
             out["human_agreement"] = agreement
+        if prereg_check is not None:
+            out["preregistration"] = prereg_check
+        if rb is not None:
+            out["robustness"] = rb
         print(_json.dumps(out, indent=2, default=str))
         if args.report:
             with open(args.report, "w", encoding="utf-8") as f:

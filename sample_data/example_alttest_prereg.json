@@ -1,0 +1,32 @@
+{
+  "format": "confusion-mapper alt-test preregistration",
+  "format_version": 1,
+  "created": "2026-11-12T23:12:57",
+  "software_version": "2.9.0",
+  "locked": {
+    "test": "alt-test",
+    "settings": {
+      "epsilon": 0.15,
+      "epsilon_source": "authors' preset for skilled coders",
+      "q_fdr": 0.05,
+      "scoring": "accuracy",
+      "min_instances_per_human": 30,
+      "min_humans_per_instance": 2,
+      "pass_threshold": 0.5
+    },
+    "design": {
+      "ai_columns": [
+        "ai_prompt_v1",
+        "ai_prompt_v2"
+      ],
+      "human_columns": [
+        "coder_A",
+        "coder_B",
+        "coder_C"
+      ],
+      "planned_items": 81
+    }
+  },
+  "sha256": "583415c3bd354d7ab2be2e003e9235a30ceafb18ccac69ee8f75565566c19ceb",
+  "notes": "Example plan for sample_data/example_alttest.csv. Skilled coders preset because the three coders are trained but not domain experts."
+}

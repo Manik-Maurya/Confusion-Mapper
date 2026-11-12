@@ -50,10 +50,14 @@ Reference:
 """
 
 import csv
+import datetime
+import hashlib
+import json
 import math
 import random
 
 from .stats import compute_cohens_kappa
+from .storage import installed_package_version
 
 
 CITATION = (
@@ -243,6 +247,21 @@ SCORING_FUNCTIONS = {
 # The test itself
 # -----------------------------------------------------------------------------
 
+def _check_settings(epsilon, q_fdr, min_humans_per_instance,
+                    min_instances_per_human, pass_threshold):
+    if not 0.0 <= epsilon < 1.0:
+        raise ValueError("epsilon must be in [0, 1)")
+    if not 0.0 < q_fdr < 1.0:
+        raise ValueError("q_fdr must be between 0 and 1")
+    if min_humans_per_instance < 2:
+        raise ValueError("min_humans_per_instance must be at least 2, "
+                         "the leave-one-out step needs someone left over")
+    if min_instances_per_human < 2:
+        raise ValueError("min_instances_per_human must be at least 2")
+    if not 0.0 < pass_threshold <= 1.0:
+        raise ValueError("pass_threshold must be in (0, 1]")
+
+
 def alt_test(llm_annotations, human_annotations, scoring="accuracy",
              epsilon=0.2, q_fdr=0.05, min_humans_per_instance=2,
              min_instances_per_human=30, pass_threshold=0.5):
@@ -280,15 +299,8 @@ def alt_test(llm_annotations, human_annotations, scoring="accuracy",
         score_fn, scoring_name = scoring, getattr(scoring, "__name__", "custom")
     else:
         raise ValueError("scoring must be a name or a function")
-    if not 0.0 <= epsilon < 1.0:
-        raise ValueError("epsilon must be in [0, 1)")
-    if not 0.0 < q_fdr < 1.0:
-        raise ValueError("q_fdr must be between 0 and 1")
-    if min_humans_per_instance < 2:
-        raise ValueError("min_humans_per_instance must be at least 2, "
-                         "the leave-one-out step needs someone left over")
-    if min_instances_per_human < 2:
-        raise ValueError("min_instances_per_human must be at least 2")
+    _check_settings(epsilon, q_fdr, min_humans_per_instance,
+                    min_instances_per_human, pass_threshold)
     if len(human_annotations) < 2:
         raise ValueError("the alt-test needs at least 2 human coders "
                          "(the authors recommend 3 or more)")
@@ -694,6 +706,245 @@ def simulate_alt_test_power(n_items_grid=(30, 50, 75, 100, 150, 200), n_coders=3
 
 
 # -----------------------------------------------------------------------------
+# How fragile is the verdict?
+# -----------------------------------------------------------------------------
+#
+# This part is my addition, not part of the authors' procedure. The alt-test
+# gives one verdict on one sample of items. A reviewer will reasonably ask
+# whether a slightly different sample would have flipped it, so I resample
+# the items with replacement, rerun the whole test each time, and count how
+# often the verdict comes out the same. The authors use the same kind of
+# bootstrap in their own analyses to see how results move with the number
+# of items.
+
+def bootstrap_alt_test(llm_annotations, human_annotations, n_resamples=1000,
+                       confidence=0.95, seed=None, **settings):
+    """
+    Rerun the alt-test on bootstrap resamples of the items.
+
+    Each resample draws as many items as there are, with replacement, keeps
+    every coder's label and the AI's label for each draw, and runs the full
+    test, FDR correction included. A resample where no coder has enough
+    items counts as not passing.
+
+    How to read it. verdict_held is the share of resamples that agree with
+    the verdict on the real data. It is not a p-value and it is not power.
+    A verdict that holds in about half the resamples sits right on the
+    edge, and that is normal when a p-value lands near the cutoff, so the
+    honest fix is more items, not a different epsilon.
+
+    Args:
+        llm_annotations, human_annotations: as for alt_test().
+        n_resamples (int): at least 10, 1000 is a sensible default.
+        confidence (float): for the percentile interval of the advantage
+            probability.
+        seed (int | None): for a reproducible result.
+        **settings: passed straight to alt_test() (epsilon, scoring, ...).
+
+    Returns:
+        dict with the observed verdict, pass_rate, verdict_held,
+        advantage_probability_ci, winning_rate_distribution and how often
+        each coder was beaten across resamples.
+    """
+    if n_resamples < 10:
+        raise ValueError("n_resamples must be at least 10")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+    observed = alt_test(llm_annotations, human_annotations, **settings)
+    pool = sorted({item for labels in human_annotations.values() for item in labels
+                   if item in llm_annotations}, key=str)
+    if not pool:
+        raise ValueError("no item has both a human label and an AI label")
+
+    rng = random.Random(seed)
+    passed = untested = 0
+    advantage = []
+    wr_counts = {}
+    beaten = {c: 0 for c in human_annotations}
+    tested = {c: 0 for c in human_annotations}
+    for _ in range(n_resamples):
+        draws = [rng.choice(pool) for _ in pool]
+        humans_b = {c: {} for c in human_annotations}
+        llm_b = {}
+        for k, item in enumerate(draws):
+            key = f"{item}#{k}"   # a repeated item needs its own key
+            llm_b[key] = llm_annotations[item]
+            for c, labels in human_annotations.items():
+                if item in labels:
+                    humans_b[c][key] = labels[item]
+        r = alt_test(llm_b, humans_b, **settings)
+        if r["winning_rate"] is None:
+            untested += 1
+            continue
+        passed += 1 if r["passed"] else 0
+        advantage.append(r["advantage_probability"])
+        wr = round(r["winning_rate"], 4)
+        wr_counts[wr] = wr_counts.get(wr, 0) + 1
+        for a in r["per_annotator"]:
+            tested[a["annotator"]] += 1
+            beaten[a["annotator"]] += 1 if a["rejected"] else 0
+
+    pass_rate = passed / n_resamples
+    held = pass_rate if observed["passed"] else 1.0 - pass_rate
+    ci = None
+    if advantage:
+        advantage.sort()
+        alpha = 1.0 - confidence
+        n = len(advantage)
+        lo = advantage[max(0, int(math.floor(alpha / 2 * n)))]
+        hi = advantage[min(n - 1, int(math.ceil((1 - alpha / 2) * n)) - 1)]
+        ci = [round(lo, 4), round(hi, 4)]
+
+    return {
+        "method": ("bootstrap over items (a robustness check added by "
+                   "ConfusionMapper, not part of the authors' procedure)"),
+        "n_resamples":                n_resamples,
+        "seed":                       seed,
+        "confidence":                 confidence,
+        "observed_passed":            observed["passed"],
+        "observed_advantage_probability": observed["advantage_probability"],
+        "pass_rate":                  round(pass_rate, 4),
+        "verdict_held":               round(held, 4),
+        "untested_resamples":         untested,
+        "advantage_probability_ci":   ci,
+        "winning_rate_distribution":  {str(k): round(v / n_resamples, 4)
+                                       for k, v in sorted(wr_counts.items())},
+        "per_annotator_beaten_rate":  {c: (round(beaten[c] / tested[c], 4) if tested[c] else None)
+                                       for c in human_annotations},
+    }
+
+
+# -----------------------------------------------------------------------------
+# Preregistration lock
+# -----------------------------------------------------------------------------
+#
+# The whole alt-test leans on epsilon being chosen before anyone sees the
+# results. Telling people to do that in a README is not the same as making
+# it easy to prove. So: write the settings to a small plan file before any
+# data exists, put its hash in your OSF preregistration, and later run the
+# test with --prereg. If the settings you are about to use differ from the
+# plan, the run stops. You can override that, but then every deviation is
+# printed in the report, which is what preregistration asks for anyway.
+#
+# The hash covers the decisions (the "locked" block), not the creation
+# date. A date written inside a file proves nothing, the date that counts
+# is the one OSF stamps when you register.
+
+PREREG_FORMAT = "confusion-mapper alt-test preregistration"
+_LOCKED_SETTINGS = ("epsilon", "q_fdr", "scoring", "min_instances_per_human",
+                    "min_humans_per_instance", "pass_threshold")
+
+
+def _prereg_hash(locked):
+    canonical = json.dumps(locked, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def create_prereg(epsilon=None, annotators=None, q_fdr=0.05, scoring="accuracy",
+                  min_instances_per_human=30, min_humans_per_instance=2,
+                  pass_threshold=0.5, ai_columns=None, human_columns=None,
+                  planned_items=None, notes=""):
+    """
+    Build a preregistration plan for an alt-test. Give exactly one of
+    epsilon or annotators ("expert", "skilled" or "crowd").
+
+    Returns:
+        dict ready for save_prereg(). Its "sha256" is what goes into your
+        preregistration.
+    """
+    if (epsilon is None) == (annotators is None):
+        raise ValueError("give exactly one of epsilon or annotators")
+    if annotators is not None:
+        if annotators not in EPSILON_PRESETS:
+            raise ValueError(f"annotators must be one of {sorted(EPSILON_PRESETS)}")
+        epsilon, source = EPSILON_PRESETS[annotators], f"authors' preset for {annotators} coders"
+    else:
+        source = "chosen by the researcher"
+    if scoring not in SCORING_FUNCTIONS:
+        raise ValueError(f"scoring must be one of {sorted(SCORING_FUNCTIONS)}")
+    _check_settings(epsilon, q_fdr, min_humans_per_instance,
+                    min_instances_per_human, pass_threshold)
+    if planned_items is not None and planned_items < 1:
+        raise ValueError("planned_items must be positive")
+
+    locked = {
+        "test": "alt-test",
+        "settings": {
+            "epsilon": epsilon, "epsilon_source": source, "q_fdr": q_fdr,
+            "scoring": scoring, "min_instances_per_human": min_instances_per_human,
+            "min_humans_per_instance": min_humans_per_instance,
+            "pass_threshold": pass_threshold,
+        },
+        "design": {
+            "ai_columns": list(ai_columns or []),
+            "human_columns": list(human_columns or []),
+            "planned_items": planned_items,
+        },
+    }
+    return {
+        "format": PREREG_FORMAT,
+        "format_version": 1,
+        "created": datetime.datetime.now().isoformat(timespec="seconds"),
+        "software_version": installed_package_version(),
+        "locked": locked,
+        "sha256": _prereg_hash(locked),
+        "notes": notes,
+    }
+
+
+def save_prereg(plan, path):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(plan, f, indent=2)
+        f.write("\n")
+    return path
+
+
+def load_prereg(path):
+    """Load a plan and check it was not edited after its hash was taken."""
+    with open(path, "r", encoding="utf-8") as f:
+        plan = json.load(f)
+    if not isinstance(plan, dict) or plan.get("format") != PREREG_FORMAT:
+        raise ValueError(f"{path} is not a ConfusionMapper alt-test preregistration file")
+    if _prereg_hash(plan.get("locked", {})) != plan.get("sha256"):
+        raise ValueError(f"{path}: the locked settings do not match the stored hash. "
+                         f"The plan was edited after it was created.")
+    return plan
+
+
+def check_against_prereg(plan, settings, ai_columns, human_columns, n_items=None):
+    """
+    Compare what is about to be run with what was preregistered.
+
+    Returns:
+        dict with sha256, created, matches (bool), deviations (list of
+        strings, each one a real departure from the plan) and notes (things
+        worth reporting that are not departures, like a different item
+        count than planned).
+    """
+    locked = plan["locked"]
+    deviations, notes = [], []
+    for key in _LOCKED_SETTINGS:
+        planned, used = locked["settings"].get(key), settings.get(key)
+        if planned != used:
+            deviations.append(f"{key}: preregistered {planned}, used {used}")
+    for key, used in (("ai_columns", ai_columns), ("human_columns", human_columns)):
+        planned = locked["design"].get(key) or []
+        if planned and sorted(map(str, planned)) != sorted(map(str, used)):
+            deviations.append(f"{key}: preregistered {planned}, used {list(used)}")
+    planned_n = locked["design"].get("planned_items")
+    if planned_n is not None and n_items is not None and planned_n != n_items:
+        notes.append(f"planned {planned_n} items, analysed {n_items}")
+    return {
+        "sha256": plan["sha256"],
+        "created": plan.get("created"),
+        "epsilon_source": locked["settings"].get("epsilon_source"),
+        "matches": not deviations,
+        "deviations": deviations,
+        "notes": notes,
+    }
+
+
+# -----------------------------------------------------------------------------
 # Reports
 # -----------------------------------------------------------------------------
 
@@ -716,18 +967,67 @@ def _fmt(x, digits=3):
     return str(x)
 
 
+def _prereg_lines(pc):
+    lines = ["## Preregistration", ""]
+    if pc["matches"]:
+        lines.append(f"Every setting matches the preregistered plan "
+                     f"(SHA-256 `{pc['sha256']}`, file created {pc['created']}).")
+    else:
+        lines.append(f"**This run departs from the preregistered plan** "
+                     f"(SHA-256 `{pc['sha256']}`, file created {pc['created']}). "
+                     f"Every deviation has to be reported and justified:")
+        lines.append("")
+        lines += [f"- {d}" for d in pc["deviations"]]
+    if pc["notes"]:
+        lines.append("")
+        lines += [f"- Note: {n}" for n in pc["notes"]]
+    lines += ["", "Compare that hash with the one in your registered plan. The "
+              "date that counts is the one your registry stamped, not the one "
+              "inside the file.", ""]
+    return lines
+
+
+def _robustness_lines(rb):
+    lines = ["## How fragile is this verdict?", "",
+             f"The whole test was rerun on {rb['n_resamples']} bootstrap resamples "
+             f"of the items (seed {rb['seed']}). This check is ConfusionMapper's "
+             f"addition, it is not part of the authors' procedure.", "",
+             f"- The verdict on the real data held in {rb['verdict_held'] * 100:.1f}% "
+             f"of resamples (the AI passed in {rb['pass_rate'] * 100:.1f}%).",
+             ]
+    if rb["advantage_probability_ci"]:
+        lo, hi = rb["advantage_probability_ci"]
+        lines.append(f"- {rb['confidence'] * 100:.0f}% percentile interval for the "
+                     f"advantage probability: {lo:.3f} to {hi:.3f}.")
+    for coder, rate in rb["per_annotator_beaten_rate"].items():
+        if rate is not None:
+            lines.append(f"- {coder} was beaten in {rate * 100:.1f}% of resamples.")
+    if rb["untested_resamples"]:
+        lines.append(f"- {rb['untested_resamples']} resample(s) left no coder with "
+                     f"enough items and count as not passing.")
+    lines += ["", "This is not a p-value and not statistical power. If the "
+              "verdict holds in only about half the resamples, it sits on the "
+              "edge, and the honest fix is more items, not a different epsilon.", ""]
+    return lines
+
+
 def format_alttest_report(result, human_agreement=None, judge_name="AI",
-                          annotator_profile=None, title=None, include_notice=True):
+                          annotator_profile=None, title=None, include_notice=True,
+                          prereg_check=None, robustness=None, include_prereg_section=True):
     """
     Markdown report for one alt-test result: the verdict, the settings,
     a per-coder table, the authors' reporting checklist with what is
-    already filled in, a draft methods paragraph, and the citation.
+    already filled in, a draft methods paragraph, and the citation. If a
+    preregistration check or a bootstrap result is passed in, those get
+    their own sections too.
     """
     r = result
     lines = [f"# {title or 'Can the AI replace a human coder? Alt-test report'}", ""]
     if include_notice:
         lines += [f"*{DRAFT_NOTICE}*", ""]
     lines += ["## Verdict", "", f"**{judge_name}:** {r['verdict']}", ""]
+    if prereg_check is not None and include_prereg_section:
+        lines += _prereg_lines(prereg_check)
 
     lines += ["## Settings", "",
               "| Setting | Value |", "|---|---|",
@@ -757,6 +1057,9 @@ def format_alttest_report(result, human_agreement=None, judge_name="AI",
               "the chance the AI's label is as good as or better than a randomly "
               "chosen human coder's. Use it to compare AI judges or prompts.", ""]
 
+    if robustness is not None:
+        lines += _robustness_lines(robustness)
+
     if human_agreement is not None:
         lines += ["## Human reliability", ""]
         mk = human_agreement.get("mean_pairwise_kappa")
@@ -773,9 +1076,13 @@ def format_alttest_report(result, human_agreement=None, judge_name="AI",
               "Here is where each one stands.", "",
               "1. Who the human coders are, their expertise, guidelines and "
               "training. *You need to write this.*",
-              f"2. Why you chose epsilon = {r['epsilon']}. *You need to write this, "
-              "and ideally it was fixed in your preregistration before you saw "
-              "these numbers.*",
+              (f"2. Why you chose epsilon = {r['epsilon']}: fixed in advance in plan "
+               f"`{prereg_check['sha256'][:12]}` ({prereg_check['epsilon_source']}). "
+               "*Say where the plan was registered and why this value fits your coders.*"
+               if prereg_check is not None and prereg_check["matches"] else
+               f"2. Why you chose epsilon = {r['epsilon']}. *You need to write this, "
+               "and ideally it was fixed in your preregistration before you saw "
+               "these numbers.*"),
               f"3. How many items: {r['n_instances_used']} were used. *Say how they "
               "were sampled.*",
               "4. Reliability of the human coders: "
@@ -794,41 +1101,69 @@ def format_alttest_report(result, human_agreement=None, judge_name="AI",
               "when the humans do not agree with each other much.", ""]
 
     beaten = sum(1 for a in r["per_annotator"] if a["rejected"])
-    lines += ["## Draft methods paragraph", "",
-              f"To decide whether the AI annotator could replace a human coder we "
-              f"ran the Alternative Annotator Test (Calderon et al., 2025) on "
-              f"{r['n_instances_used']} items coded by {r['n_humans_total']} human "
-              f"coders, using {r['scoring']} as the alignment score, epsilon = "
-              f"{r['epsilon']}, and Benjamini-Yekutieli correction at q = {r['q_fdr']}. "
-              f"The AI outperformed {beaten} of {r['n_humans_tested']} coders "
-              f"(winning rate = {_fmt(r['winning_rate'], 2)}; advantage probability = "
-              f"{_fmt(r['advantage_probability'], 2)}) and therefore "
-              f"{'passed' if r['passed'] else 'did not pass'} the test.", "",
+    methods = (f"To decide whether the AI annotator could replace a human coder we "
+               f"ran the Alternative Annotator Test (Calderon et al., 2025) on "
+               f"{r['n_instances_used']} items coded by {r['n_humans_total']} human "
+               f"coders, using {r['scoring']} as the alignment score, epsilon = "
+               f"{r['epsilon']}, and Benjamini-Yekutieli correction at q = {r['q_fdr']}. ")
+    if prereg_check is not None:
+        methods += ("These settings were fixed before data collection in a "
+                    "preregistered analysis plan (SHA-256 "
+                    f"{prereg_check['sha256'][:12]}...)" +
+                    ("." if prereg_check["matches"] else
+                     f", with {len(prereg_check['deviations'])} deviation(s) "
+                     "reported above.") + " ")
+    methods += (f"The AI outperformed {beaten} of {r['n_humans_tested']} coders "
+                f"(winning rate = {_fmt(r['winning_rate'], 2)}; advantage probability = "
+                f"{_fmt(r['advantage_probability'], 2)}) and therefore "
+                f"{'passed' if r['passed'] else 'did not pass'} the test.")
+    if robustness is not None and robustness["advantage_probability_ci"]:
+        lo, hi = robustness["advantage_probability_ci"]
+        methods += (f" Across {robustness['n_resamples']} bootstrap resamples of the "
+                    f"items the verdict held in {robustness['verdict_held'] * 100:.0f}% "
+                    f"of cases, and the {robustness['confidence'] * 100:.0f}% percentile "
+                    f"interval for the advantage probability was {lo:.2f} to {hi:.2f}.")
+    lines += ["## Draft methods paragraph", "", methods, "",
               "## Reference", "", CITATION, "",
               "Computed with ConfusionMapper's `alttest` module, a standard-library "
               "implementation of the procedure above."]
     return "\n".join(lines)
 
 
-def format_comparison_report(comparison, human_agreement=None, annotator_profile=None):
+def format_comparison_report(comparison, human_agreement=None, annotator_profile=None,
+                             prereg_check=None, robustness_by_judge=None):
     """Markdown report for compare_judges(): a ranking, then one section per judge."""
+    rb = robustness_by_judge or {}
     lines = ["# Which AI judge should replace a human coder?", "",
              f"*{DRAFT_NOTICE}*", "",
              "Ranked by advantage probability, as the authors recommend for "
-             "comparing judges. Pass or fail still comes from the winning rate.", "",
-             "| Rank | Judge | Advantage probability | Winning rate | Passed |",
-             "|---|---|---|---|---|"]
+             "comparing judges. Pass or fail still comes from the winning rate.", ""]
+    if rb:
+        lines += ["| Rank | Judge | Advantage probability | Winning rate | Passed | Verdict held (bootstrap) |",
+                  "|---|---|---|---|---|---|"]
+    else:
+        lines += ["| Rank | Judge | Advantage probability | Winning rate | Passed |",
+                  "|---|---|---|---|---|"]
     for k, row in enumerate(comparison["ranking"], start=1):
-        lines.append(f"| {k} | {row['judge']} | {_fmt(row['advantage_probability'], 3)} | "
-                     f"{_fmt(row['winning_rate'], 2)} | {'yes' if row['passed'] else 'no'} |")
+        cells = (f"| {k} | {row['judge']} | {_fmt(row['advantage_probability'], 3)} | "
+                 f"{_fmt(row['winning_rate'], 2)} | {'yes' if row['passed'] else 'no'} |")
+        if rb:
+            held = rb.get(row["judge"])
+            cells += f" {held['verdict_held'] * 100:.1f}% |" if held else " n/a |"
+        lines.append(cells)
     lines.append("")
+    if prereg_check is not None:
+        lines += _prereg_lines(prereg_check)
     for row in comparison["ranking"]:
         body = format_alttest_report(comparison["results"][row["judge"]],
                                      human_agreement=human_agreement,
                                      judge_name=row["judge"],
                                      annotator_profile=annotator_profile,
                                      title=f"Judge: {row['judge']}",
-                                     include_notice=False)
+                                     include_notice=False,
+                                     prereg_check=prereg_check,
+                                     robustness=rb.get(row["judge"]),
+                                     include_prereg_section=False)
         lines += ["---", ""] + ["#" + l if l.startswith("#") else l
                                  for l in body.splitlines()] + [""]
     return "\n".join(lines)
