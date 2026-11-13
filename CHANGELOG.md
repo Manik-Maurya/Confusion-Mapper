@@ -2,6 +2,12 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- CI: the Python 3.9 job had been failing since 13 November 2026, at the step that installs Python, before any code ran. Python 3.9 reached end of life in October 2025 and the hosted runner no longer installs it. It is now tested in the official `python:3.9-slim` Docker image, so the promise of Python 3.9 support is still checked on every push. No code changed.
+
 ## [2.13.0] - 2026-11-14
 
 Hindi. Most children in the government schools of Kanpur Dehat learn maths in Hindi, so until now the worksheets could not really reach them.
