@@ -2,6 +2,12 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The agreement page said the command line has sixteen commands. It has had more since 2.8.0 (24 today). It now lists what the commands cover instead of a number that goes stale.
+
 ## [2.13.1] - 2026-11-14
 
 A patch: the agreement page now handles one-label data properly, and a few small corrections. The Python package's behaviour is unchanged.

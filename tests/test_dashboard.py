@@ -40,6 +40,8 @@ def test_page_has_no_dashes_or_stray_symbols():
                 " -" + "- "):
         assert bad not in html, bad
     assert "<title>ConfusionMapper - " not in html
+    # a count of commands goes stale every time one is added
+    assert "CLI has sixteen" not in html
 
 
 def _expected(h, a):
