@@ -49,13 +49,11 @@ confusion-mapper export sample_data/item_bank_demo.csv \
 
 ## Install
 
-Once a versioned release is on PyPI:
-
 ```bash
 pip install confusion-mapper
 ```
 
-From source (until the first PyPI release, this is the recommended path):
+From source, if you want to change the code or run the tests:
 
 ```bash
 git clone https://github.com/Manik-Maurya/Confusion-Mapper.git
@@ -647,7 +645,7 @@ Archived on Zenodo. This DOI covers every version and always opens the newest on
 
 APA:
 
-> Maurya, M. (2026). *ConfusionMapper* (Version 2.13.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.20807431
+> Maurya, M. (2026). *ConfusionMapper* (Version 2.13.1) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.20807431
 
 BibTeX:
 
@@ -656,7 +654,7 @@ BibTeX:
   author    = {Maurya, Manik},
   title     = {ConfusionMapper},
   year      = {2026},
-  version   = {2.13.0},
+  version   = {2.13.1},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20807431},
   url       = {https://doi.org/10.5281/zenodo.20807431}

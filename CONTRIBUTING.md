@@ -12,7 +12,7 @@ pytest tests/ -v
 python examples/demo.py
 ```
 
-The test suite is 739 tests across 25 files and finishes in well under a minute. Nothing in it needs an API key, network access, or a display.
+The test suite is 741 tests across 26 files and finishes in well under a minute. Nothing in it needs an API key, network access, or a display.
 
 ## Reporting a bug
 

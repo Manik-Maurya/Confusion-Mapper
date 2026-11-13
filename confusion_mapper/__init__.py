@@ -116,7 +116,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.13.0"
+    __version__ = "2.13.1"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ConfusionMapper - inter-rater reliability, computed in your browser</title>
+<title>ConfusionMapper: inter-rater reliability, computed in your browser</title>
 <meta name="description" content="Cohen's kappa, Gwet's AC1, and a confusion matrix, computed on paired labels without leaving this tab. Built in Kanpur, India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -464,12 +464,22 @@ async function compute() {
     return;
   }
 
+  const used = new Set(human.concat(ai));
+  const cfi = ['RF', 'PK', 'CF', 'INT'];
+  if (used.size < 2 && ![...used].every(c => cfi.includes(c))) {
+    statusMsg.textContent = 'Every label in both columns is the same category, so there is nothing for agreement statistics to measure. They need at least two categories.';
+    statusMsg.className = 'status err';
+    return;
+  }
+
   try {
     pyodide.globals.set('_human', human);
     pyodide.globals.set('_ai', ai);
     const resultJson = pyodide.runPython(`
 import json
 categories = sorted(set(_human) | set(_ai), key=lambda c: ERROR_TYPES.index(c) if c in ERROR_TYPES else 99)
+if len(categories) < 2 and set(categories) <= set(ERROR_TYPES):
+    categories = list(ERROR_TYPES)   # one CFI code used throughout: score over all four, as the package does
 _kappa = compute_cohens_kappa(list(_human), list(_ai), categories=categories)
 _ac1 = gwet_ac1(list(_human), list(_ai), categories=categories)
 _diag = compute_kappa_diagnostics(list(_human), list(_ai), categories=categories)
@@ -495,7 +505,7 @@ json.dumps({"kappa": _kappa, "ac1": _ac1, "diag": _diag, "svg": _svg, "categorie
     document.getElementById('matrix-svg').innerHTML = result.svg;
     document.getElementById('results').style.display = 'block';
 
-    statusMsg.textContent = 'computed in-browser \u2014 nothing was uploaded';
+    statusMsg.textContent = 'computed in your browser, nothing was uploaded';
     statusMsg.className = 'status ok';
   } catch (err) {
     statusMsg.textContent = 'Computation failed: ' + err.message;

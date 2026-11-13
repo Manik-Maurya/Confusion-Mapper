@@ -2,7 +2,19 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.13.1] - 2026-11-14
+
+A patch: the agreement page now handles one-label data properly, and a few small corrections. The Python package's behaviour is unchanged.
+
+### Fixed
+
+- The agreement page (`dashboard/index.html`) showed an em dash in its "computed" message and a spaced hyphen in its title. Both are gone.
+- On the agreement page, if both raters used one single label throughout, Gwet's AC1 could not be computed and the page printed "Computation failed" with a raw Python traceback. If that label is a CFI code, the page now scores over all four CFI categories, as the package does by default, and shows perfect agreement. For a scheme of your own with only one label in use, it now says in plain words that agreement statistics need at least two categories.
+- The landing page said the package uses the standard library only. The statistics do; the AI rater needs `openai`. It now says that.
+
+### Added
+
+- `tests/test_dashboard.py` and `dashboard/check_dashboard.js`: the agreement page is run in jsdom with real Pyodide 0.26.1, the version the page loads, and every number it shows (kappa, AC1, PABAK, n) is checked against the Python package on its own example, on random label sets with Unix and Windows line endings, on one-label data and on a scheme of your own. Removing either fix above makes the test fail. The CI job "Every test, nothing skipped" installs Pyodide so this test always runs there.
 
 ### Changed
 
