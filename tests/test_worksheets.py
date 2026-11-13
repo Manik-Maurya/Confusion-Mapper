@@ -137,7 +137,17 @@ const out = jobs.map(job => {
       return { ok: core.parseAnswer(job.cell, "Q", q) };
     }
     if (job.op === "makeSet") {
-      return { ok: core.makeSet(pool, job.n, job.contents, job.contexts, job.setNo).map(u => u.unit_id) };
+      return { ok: core.makeSet(pool, job.n, job.contents, job.contexts, job.setNo, job.opts).map(u => u.unit_id) };
+    }
+    if (job.op === "compare") {
+      const ub = job.before_units.map(i => pool.units[i]), ua = job.after_units.map(i => pool.units[i]);
+      const rb = core.scoreResponses(ub, job.before, pool.error_types);
+      const ra = core.scoreResponses(ua, job.after, pool.error_types);
+      return { ok: core.compareRounds(ub, rb, ua, ra, pool.error_types) };
+    }
+    if (job.op === "followUp") {
+      const units = job.units.map(i => pool.units[i]);
+      return { ok: core.followUpTemplates(units, core.scoreResponses(units, job.responses, pool.error_types), job.max) };
     }
     if (job.op === "csv") {
       return { ok: core.parseCSV(core.toCSV(job.rows)) };
@@ -292,6 +302,90 @@ def test_csv_from_the_page_reads_back_in_python(tmp_path):
     read = load_responses_csv(str(path))
     assert [r["student_id"] for r in read] == ["Riya, S.", 'Aman "A"']
     assert read[0]["Q1.1"] == "B"
+
+
+@needs_node
+def test_follow_up_sets_use_only_the_chosen_kinds_and_never_repeat_a_unit(tmp_path):
+    pool = _embedded_pool()
+    first = [u["unit_id"] for u in pool["units"] if u["template"] == "dal_price"][:24]
+    jobs = [
+        {"op": "makeSet", "n": 2, "contents": [], "contexts": [], "setNo": 5,
+         "opts": {"templates": ["dal_price", "growth"], "exclude": first}},
+        {"op": "makeSet", "n": 2, "contents": [], "contexts": [], "setNo": 5,
+         "opts": {"templates": ["dal_price", "growth"], "exclude": first}},
+        {"op": "makeSet", "n": 1, "contents": [], "contexts": [], "setNo": 5,
+         "opts": {"templates": ["dal_price"],
+                  "exclude": [u["unit_id"] for u in pool["units"] if u["template"] == "dal_price"]}},
+    ]
+    got = _run_js(tmp_path, jobs)
+    by_id = {u["unit_id"]: u for u in pool["units"]}
+    assert got[0] == got[1]
+    assert sorted(by_id[i]["template"] for i in got[0]["ok"]) == ["dal_price", "growth"]
+    dal = next(i for i in got[0]["ok"] if by_id[i]["template"] == "dal_price")
+    assert dal not in first                       # the only dal unit left after excluding 24 of 25
+    assert "Not enough different units" in got[2]["error"]
+
+
+@needs_node
+def test_comparison_in_javascript_matches_python(tmp_path):
+    from confusion_mapper.pisa import compare_rounds
+    pool = _embedded_pool()
+    by_t = {}
+    for i, u in enumerate(pool["units"]):
+        by_t.setdefault(u["template"], []).append(i)
+    rng = random.Random(77)
+    jobs, expected = [], []
+    for _ in range(30):
+        shared = rng.sample(list(TEMPLATES), rng.randint(1, 4))
+        extra_b = rng.sample(list(TEMPLATES), rng.randint(0, 2))
+        before_idx = [rng.choice(by_t[t]) for t in shared + extra_b]
+        after_idx = [rng.choice([j for j in by_t[t] if j not in before_idx]) for t in shared]
+        ub = [pool["units"][i] for i in before_idx]
+        ua = [pool["units"][i] for i in after_idx]
+        rb, ra = _random_class(rng, ub, 25), _random_class(rng, ua, 25)
+        try:
+            want = {"ok": json.loads(json.dumps(compare_rounds(ub, score_responses(ub, rb),
+                                                               ua, score_responses(ua, ra))))}
+        except ValueError as e:
+            want = {"error": str(e)}
+        jobs.append({"op": "compare", "before_units": before_idx, "after_units": after_idx,
+                     "before": rb, "after": ra})
+        expected.append(want)
+    got = _run_js(tmp_path, jobs)
+    compared = 0
+    for i, (want, have) in enumerate(zip(expected, got)):
+        if "error" in want:
+            assert "error" in have
+            continue
+        _same(want["ok"], have["ok"], f"pair {i}")
+        compared += 1
+    assert compared >= 25
+
+
+@needs_node
+def test_follow_up_picks_the_kinds_behind_the_top_mistakes(tmp_path):
+    pool = _embedded_pool()
+    rng = random.Random(5)
+    jobs, expected = [], []
+    for _ in range(20):
+        idx = rng.sample(range(len(pool["units"])), 6)
+        units = [pool["units"][i] for i in idx]
+        responses = _random_class(rng, units, 20)
+        try:
+            r = score_responses(units, responses)
+        except ValueError:
+            continue
+        labels = question_labels(units)
+        want = []
+        for m in r["misconceptions"]:
+            t = labels[m["order"]][1]["template"]
+            if t not in want and len(want) < 4:
+                want.append(t)
+        jobs.append({"op": "followUp", "units": idx, "responses": responses, "max": 4})
+        expected.append(want)
+    got = _run_js(tmp_path, jobs)
+    for want, have in zip(expected, got):
+        assert have["ok"] == want
 
 
 # -----------------------------------------------------------------------------

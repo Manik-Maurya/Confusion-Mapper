@@ -122,9 +122,27 @@ Not part of the authors' procedure. `bootstrap_alt_test` draws B resamples of th
 
 The power simulator (`simulate_alt_test_power`) follows the authors' appendix C: a label prior drawn from a flat Dirichlet, a true label per item from that prior, and each coder (and the AI) reporting the true label with probability 1 - noise, otherwise a draw from the prior.
 
+## Item analysis of classroom answers
+
+Implemented in `itemanalysis.py`. Each child's answers are scored with the same rules as the class report (blank is zero, a row with no answers at all is skipped as absent), giving a students by items matrix of points.
+
+Difficulty of item j is the mean score divided by the item's maximum points. The corrected item-total correlation is the Pearson correlation between the item score and the total score minus that item. For the upper-lower index, students are sorted by total score (ties broken by the order they were entered) and the bottom and top round(0.27 n) students form the two groups (Kelley, 1939); D is the mean item score of the upper group minus that of the lower group, divided by the maximum points. D is read with Ebel's rule of thumb: .40 and above very good, .30 to .39 reasonably good, .20 to .29 marginal, below .20 poor (Ebel, 1972).
+
+For a multiple-choice item, each option's share is the proportion of all students who chose it, and the same proportion within the upper and lower groups. A distractor chosen by fewer than 5% of students is non-functioning (Haladyna and Downing, 1993). A distractor chosen more often by the upper group than the lower group, or an item with negative D or negative corrected correlation, is flagged for review.
+
+Reliability is Cronbach's alpha, k / (k - 1) * (1 - sum of item variances / variance of total scores), with population variances throughout. For right/wrong items it equals KR-20, which the tests check on random matrices.
+
+## Comparing two rounds
+
+`compare_rounds` matches questions across two scored sets by unit template and question position. For every CFI type seen on a shared question in either round, it reports the number of answering students who made that mistake and the rate, count divided by the number who answered that question. It also reports diagnosed errors per child by type for each round. Questions present in only one round are left out.
+
 ## References
 
 - Benjamini, Y. and Yekutieli, D. (2001). The control of the false discovery rate in multiple testing under dependency. Annals of Statistics, 29(4), 1165-1188.
+- Cronbach, L. J. (1951). Coefficient alpha and the internal structure of tests. Psychometrika, 16(3), 297-334.
+- Ebel, R. L. (1972). Essentials of Educational Measurement. Prentice-Hall.
+- Haladyna, T. M. and Downing, S. M. (1993). How many options is enough for a multiple-choice test item? Educational and Psychological Measurement, 53(4), 999-1010.
+- Kelley, T. L. (1939). The selection of upper and lower groups for the validation of test items. Journal of Educational Psychology, 30(1), 17-24.
 - Calderon, N., Reichart, R. and Dror, R. (2025). The Alternative Annotator Test for LLM-as-a-Judge: How to Statistically Justify Replacing Human Annotators with LLMs. Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), 16051-16081.
 
 - Byrt, T., Bishop, J. and Carlin, J. B. (1993). Bias, Prevalence and Kappa. Journal of Clinical Epidemiology, 46(5), 423-429.

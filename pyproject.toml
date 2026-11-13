@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "confusion-mapper"
-version = "2.11.0"
+version = "2.12.0"
 description = "Human-AI hybrid inter-rater reliability tool for cognitive error taxonomy classification in MCQ distractors."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,6 +30,8 @@ keywords = [
     "alt-test",
     "pisa",
     "mathematical-literacy",
+    "item-analysis",
+    "formative-assessment",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

@@ -1,6 +1,6 @@
 # Worksheets for teachers
 
-`index.html` is a single page that makes free PISA-style maths worksheets, a teacher's key that explains every wrong answer, and a class report that says what to reteach first. It needs no installation and no internet once saved, and nothing typed into it leaves the device.
+`index.html` is a single page that makes free PISA-style maths worksheets, a teacher's key that explains every wrong answer, and a class report that says what to reteach first. From the report it makes a follow-up set on the same mistakes with new numbers, and once the class has sat it, it compares the two rounds. It needs no installation and no internet once saved, and nothing typed into it leaves the device.
 
 - Use it online: https://manik-maurya.github.io/Confusion-Mapper/worksheets/
 - Or download `index.html` and open it in any browser.

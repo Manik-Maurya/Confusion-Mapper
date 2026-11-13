@@ -232,7 +232,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-656 tests across twenty-two files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
+699 tests across twenty-four files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
 
 The breakdown, in case you want to know what is being checked:
 
@@ -249,7 +249,9 @@ The breakdown, in case you want to know what is being checked:
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 - `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
 - `test_alttest_bootstrap.py` (15) and `test_alttest_prereg.py` (33): the bootstrap robustness check and the preregistration lock. They include a test that pins the exact bootstrap figures quoted in this README, and tests that a run departing from its plan is stopped, that an edited plan is caught, and that a forced deviation always ends up in the report. Before trusting them I broke the code on purpose three times (repeated items sharing a key, a hash that ignored epsilon, deviations that never blocked) and checked that each break made these tests fail.
-- `test_worksheets.py` (23): the teacher web page and class scoring. It runs the page's JavaScript in Node and compares it with the Python scoring on random classes, checks the page's unit pool against the generator, checks the page needs no internet, scores small hand-built classes whose answers are known, and, where jsdom is installed, drives the whole page the way a teacher would.
+- `test_itemanalysis.py` (31): item analysis. Alpha against a hand-worked example and against KR-20 on 200 random right/wrong matrices, the correlation against the raw-sums formula, the 27% groups and their tie-breaking, Ebel's band edges, difficulty and D on a class worked by hand, item totals that must equal the scoring module's totals child by child, and the flags: a miskeyed question, a distractor nobody picks, and the short-test case described above.
+- `test_pisa_rounds.py` (9): comparing two rounds, including mistakes that disappear, mistakes that appear only in the follow-up, and sets with nothing in common.
+- `test_worksheets.py` (26): the teacher web page and class scoring. It runs the page's JavaScript in Node and compares it with the Python scoring on random classes, checks the page's unit pool against the generator, checks the page needs no internet, scores small hand-built classes whose answers are known, and, where jsdom is installed, drives the whole page the way a teacher would.
 - `test_pisa.py` (69): the PISA-style unit generator. For every template and 300 seeds it takes the raw numbers stored in each unit and works out every answer again with separate code, then checks the options are clean, every wrong answer is diagnosed, the answer letters are spread evenly, the booklet gives nothing away, and the example booklet and key in `examples/` are exactly what the generator produces today.
 - `test_alttest.py` (100): the alt-test. The t distribution against exact closed forms for 1 and 2 degrees of freedom and printed t-table values, Benjamini-Yekutieli on hand-worked cases including its step-up behaviour, a fully hand-worked 3-coder example down to the t statistic, the paper's optimal-judge theorem (majority vote and mean rating both get advantage probability exactly 1), missing data, the power simulator, the reports, the CLI, and a regression test for the column bug described above.
 
@@ -398,6 +400,26 @@ The JSON output also has each child's Confusion Fingerprint Index, using the def
 
 The web page does the same scoring in JavaScript, because it has to work in a browser with no Python. Two copies of one piece of logic drift apart unless something stops them, so `tests/test_worksheets.py` runs the page's own scoring code in Node and compares every number with the Python version on 60 random classes, plus the same check for which answers each version rejects. I made sure that test can fail by breaking the page's code four ways (partial credit worth 2 points, the wrong denominator for CFI-INT, a reversed tie-break, lowercase answers refused). Each one was caught. The page also never computes an answer itself: it carries a pool of 200 units built by the Python generator, and a test fails if the page's pool and the generator ever disagree.
 
+### Reteach, then check
+
+New in 2.12.0. A diagnosis is only worth something if it changes what happens next. So the class report on the worksheets page ends with a button: "Make a follow-up set on these mistakes". It takes the kinds of unit behind the most common mistakes and builds a short set of the same kinds of question with new numbers, guaranteed different from every unit the class has already seen, so nobody can just remember last time's answers. The teacher reteaches, gives the follow-up set, enters the answers, and the report compares the two rounds by itself: for each mistake, how many children made it the first time and how many made it now.
+
+Mistakes are matched by unit, question position and CFI type, not by the exact question, because the numbers have changed on purpose. For Python users the same comparison is `confusion-mapper pisa-compare before_units.json before.csv after_units.json after.csv --report compare.md`. The page and the package compare rounds the same way, checked on 30 random pairs of rounds, and four deliberately planted bugs in the page's comparison code were all caught by that check. The report says it plainly: a drop is encouraging but not proof, since the questions are new and small classes vary a lot by chance.
+
+### Is each question any good? Item analysis
+
+Also new in 2.12.0, and aimed at the biggest honest weakness of these units: nobody knows yet how hard each one really is. The answer files teachers download are exactly the data that fixes that. `pisa-items` runs the classical item analysis an exam board runs before an item goes into a real test, on one class or several classes that sat the same set:
+
+```bash
+confusion-mapper pisa-items units.json class_8a.csv class_8b.csv class_9a.csv --report items.md
+```
+
+For every question it reports the difficulty (share of points earned), two measures of whether stronger students did better on it than weaker ones (the correlation with the rest of the test, and the upper-lower index D from the top and bottom 27% of the class, Kelley 1939, read with Ebel's bands: .40 and up very good, .30 to .39 reasonably good, .20 to .29 marginal, below .20 poor), and who chose each wrong option. A distractor chosen by fewer than 5% of students is flagged as non-functioning (Haladyna and Downing, 1993). A wrong option that the strongest students choose more often than the weakest is flagged too, because that usually means a confusing question or a wrong key. The whole set gets Cronbach's alpha, which also handles the written answers worth 0, 1 or 2.
+
+On a simulated class with one deliberately miskeyed question, that question is the only one flagged. One thing I learned building it: on a short set, a miskeyed question drags down the totals of the very children who answered it "wrong", so the top 27% by total can end up being the next tier down and D can come out near zero. The correlation with the rest of the test leaves the question out of the total, still turns negative, and still raises the flag. There is a test for exactly that case.
+
+With fewer than about 30 students the report says these numbers are a first look, because they move a lot between classes. Pooling classes that used the same set number is the way round that.
+
 ### What comes next
 
 The units are in English for now. Translating the eight templates into Hindi, carefully, with the maths wording a Kanpur Dehat teacher would actually use, is the most useful next step, and it is one for a person who speaks both, not for a generator.
@@ -437,7 +459,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with twenty-two subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with twenty-four subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed
@@ -641,7 +663,8 @@ confusion_mapper/
 ├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
 ├── alttest.py        can the AI replace a human coder? (alt-test, judge comparison, power planning)
 ├── pisa.py           PISA-style maths units in Indian contexts, a CFI-diagnosed teacher's key,
-│                     and class scoring with a 'what to reteach first' report
+│                     class scoring with a 'what to reteach first' report, and round comparison
+├── itemanalysis.py   item analysis of real classroom answers: difficulty, D, distractors, alpha
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
 ├── gui.py            the tkinter results dashboard

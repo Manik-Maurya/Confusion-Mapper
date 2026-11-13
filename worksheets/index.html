@@ -146,8 +146,11 @@ function mulberry32(seed) {
   };
 }
 
-function makeSet(pool, n, contents, contexts, setNo) {
+function makeSet(pool, n, contents, contexts, setNo, opts) {
+  const only = (opts && opts.templates) || [];
+  const exclude = new Set((opts && opts.exclude) || []);
   const names = pool.template_order.filter(t =>
+    (!only.length || only.includes(t)) &&
     (!contents.length || contents.includes(pool.tags[t][0])) &&
     (!contexts.length || contexts.includes(pool.tags[t][1])));
   if (!names.length) throw new Error("No unit matches those choices. Tick more topics or situations, or untick them all.");
@@ -159,7 +162,7 @@ function makeSet(pool, n, contents, contexts, setNo) {
   const chosen = [];
   for (let i = 0; i < n; i++) {
     const t = names[(start + i) % names.length];
-    const free = byTemplate[t].filter(j => !used.has(j));
+    const free = byTemplate[t].filter(j => !used.has(j) && !exclude.has(pool.units[j].unit_id));
     if (!free.length) throw new Error("Not enough different units for that many. Choose fewer units or tick more boxes.");
     const pick = free[Math.floor(rng() * free.length)];
     used.add(pick);
@@ -297,6 +300,61 @@ function scoreResponses(units, responses, errorTypes) {
   };
 }
 
+function typeRates(units, result) {
+  const out = new Map();
+  questionLabels(units).forEach(([label, unit], idx) => {
+    const qr = result.questions[idx];
+    const pos = parseInt(label.split(".")[1], 10);
+    const base = JSON.stringify([unit.template, pos, null]);
+    if (!out.has(base)) out.set(base, { count: 0, answered: qr.n_answered, title: unit.title, note: "" });
+    qr.wrong.forEach(w => {
+      const key = JSON.stringify([unit.template, pos, w.error_type]);
+      if (!out.has(key)) out.set(key, { count: 0, answered: qr.n_answered, title: unit.title, note: w.note });
+      out.get(key).count += w.count;
+    });
+  });
+  return out;
+}
+
+function compareRounds(unitsBefore, before, unitsAfter, after, errorTypes) {
+  const TYPES = errorTypes || ["RF", "PK", "CF", "INT"];
+  const b = typeRates(unitsBefore, before), a = typeRates(unitsAfter, after);
+  const qkeys = m => new Set([...m.keys()].map(k => JSON.parse(k)).filter(k => k[2] === null).map(k => JSON.stringify([k[0], k[1]])));
+  const qb = qkeys(b), qa = qkeys(a);
+  const rows = [];
+  [...qb].filter(k => qa.has(k)).forEach(qk => {
+    const [t, p] = JSON.parse(qk);
+    const types = new Set();
+    [...b.keys(), ...a.keys()].map(k => JSON.parse(k)).forEach(k => { if (k[0] === t && k[1] === p && k[2] !== null) types.add(k[2]); });
+    types.forEach(e => {
+      const eb = b.get(JSON.stringify([t, p, e])), ea = a.get(JSON.stringify([t, p, e]));
+      const nb = b.get(JSON.stringify([t, p, null])).answered, na = a.get(JSON.stringify([t, p, null])).answered;
+      const cb = eb ? eb.count : 0, ca = ea ? ea.count : 0;
+      rows.push({
+        template: t, position: p, error_type: e, title: a.get(JSON.stringify([t, p, null])).title,
+        note: (ea || eb).note,
+        before_count: cb, before_answered: nb, before_rate: nb ? cb / nb : null,
+        after_count: ca, after_answered: na, after_rate: na ? ca / na : null,
+      });
+    });
+  });
+  rows.sort((x, y) => ((y.before_rate || 0) - (x.before_rate || 0)) || cmp(x.template, y.template) ||
+    (x.position - y.position) || cmp(x.error_type, y.error_type));
+  const perChild = {};
+  TYPES.forEach(e => { perChild[e] = { before: before.class_errors[e] / before.n_students, after: after.class_errors[e] / after.n_students }; });
+  return { rows, errors_per_child: perChild, n_before: before.n_students, n_after: after.n_students };
+}
+
+function followUpTemplates(units, result, maxUnits) {
+  const labels = questionLabels(units);
+  const out = [];
+  result.misconceptions.forEach(m => {
+    const unit = labels[m.order][1];
+    if (!out.includes(unit.template) && out.length < maxUnits) out.push(unit.template);
+  });
+  return out;
+}
+
 function parseCSV(text) {
   const rows = []; let row = [], cell = "", inQuotes = false;
   text = text.replace(/^﻿/, "");
@@ -325,7 +383,7 @@ function toCSV(rows) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { mulberry32, makeSet, questionLabels, parseAnswer, maxPoints, cfiIndices, scoreResponses, parseCSV, toCSV };
+  module.exports = { mulberry32, makeSet, questionLabels, parseAnswer, maxPoints, cfiIndices, scoreResponses, typeRates, compareRounds, followUpTemplates, parseCSV, toCSV };
 }
 </script>
 
@@ -336,7 +394,8 @@ if (typeof module !== "undefined") {
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const cfiName = c => `${c}, ${POOL.cfi_names[c]}`;
-  const state = { units: [], setNo: 1, n: 4, contents: [], contexts: [] };
+  const state = { units: [], setNo: 1, n: 4, contents: [], contexts: [], follow: null };
+  const list = v => (v || "").split(",").filter(Boolean);
 
   // ---- setup form ---------------------------------------------------------
   function addChecks(boxId, names, group) {
@@ -351,8 +410,18 @@ if (typeof module !== "undefined") {
   addChecks("context-box", POOL.context_names, "context");
   const ticked = group => [...document.querySelectorAll(`input[name=${group}]:checked`)].map(i => i.value);
 
+  function unitsFromParams(h) {
+    const setNo = parseInt(h.get("set"), 10) || 1;
+    const templates = list(h.get("templates"));
+    if (templates.length) return makeSet(POOL, templates.length, [], [], setNo, { templates, exclude: list(h.get("exclude")) });
+    return makeSet(POOL, parseInt(h.get("n"), 10) || 4, list(h.get("content")), list(h.get("context")), setNo);
+  }
+
   function readHash() {
     const h = new URLSearchParams(location.hash.slice(1));
+    state.follow = list(h.get("templates")).length
+      ? { templates: list(h.get("templates")), exclude: list(h.get("exclude")), from: h.get("from") || "" }
+      : null;
     if (h.get("set")) $("set-no").value = parseInt(h.get("set"), 10) || 1;
     if (h.get("n") && [...$("n-units").options].some(o => o.value === h.get("n"))) $("n-units").value = h.get("n");
     ["content", "context"].forEach(g => {
@@ -367,25 +436,35 @@ if (typeof module !== "undefined") {
     $("set-no").value = setNo;
     const n = parseInt($("n-units").value, 10);
     const contents = ticked("content"), contexts = ticked("context");
+    const f = state.follow;
     try {
-      state.units = makeSet(POOL, n, contents, contexts, setNo);
+      state.units = f
+        ? makeSet(POOL, f.templates.length, [], [], setNo, { templates: f.templates, exclude: f.exclude })
+        : makeSet(POOL, n, contents, contexts, setNo);
     } catch (e) {
       $("setup-error").textContent = e.message; $("setup-error").hidden = false; return;
     }
-    Object.assign(state, { setNo, n, contents, contexts });
-    const params = new URLSearchParams({ set: setNo, n });
-    if (contents.length) params.set("content", contents.join(","));
-    if (contexts.length) params.set("context", contexts.join(","));
+    Object.assign(state, { setNo, n: state.units.length, contents: f ? [] : contents, contexts: f ? [] : contexts });
+    const params = new URLSearchParams({ set: setNo });
+    if (f) {
+      params.set("templates", f.templates.join(","));
+      if (f.exclude.length) params.set("exclude", f.exclude.join(","));
+      if (f.from) params.set("from", f.from);
+    } else {
+      params.set("n", n);
+      if (contents.length) params.set("content", contents.join(","));
+      if (contexts.length) params.set("context", contexts.join(","));
+    }
     history.replaceState(null, "", "#" + params.toString());
     $("share-line").innerHTML = `This is <strong>${esc(setCode())}</strong>. To share it, copy this page's address: it opens the same set.`;
     renderBooklet(); renderKey(); renderAnswers(); $("view-report").innerHTML = '<p class="hint">Enter the class\'s answers first, then press "Make the class report".</p>';
   }
-  const setCode = () => `Set ${state.setNo}, ${state.units.length} units` +
+  const setCode = () => (state.follow ? `Follow-up set ${state.setNo} on ${state.units.map(u => u.title).join(", ")}, with new numbers` : `Set ${state.setNo}, ${state.units.length} units`) +
     (state.contents.length ? `, topics: ${state.contents.map(c => POOL.content_names[c]).join(" + ")}` : "") +
     (state.contexts.length ? `, situations: ${state.contexts.map(c => POOL.context_names[c]).join(" + ")}` : "");
 
-  $("make").addEventListener("click", make);
-  $("new-set").addEventListener("click", () => { $("set-no").value = 1 + Math.floor(Math.random() * 99999); make(); });
+  $("make").addEventListener("click", () => { state.follow = null; make(); });
+  $("new-set").addEventListener("click", () => { state.follow = null; $("set-no").value = 1 + Math.floor(Math.random() * 99999); make(); });
 
   // ---- tabs ---------------------------------------------------------------
   document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
@@ -529,6 +608,7 @@ if (typeof module !== "undefined") {
   const pct = x => x == null ? "n/a" : Math.round(x * 100) + "%";
   function makeReport() {
     showAnswerError("");
+    save();
     const rows = gridRows();
     let r;
     try { r = scoreResponses(state.units, rows, POOL.error_types); }
@@ -543,10 +623,55 @@ if (typeof module !== "undefined") {
     h += `<h3>The class's error profile</h3><table><thead><tr><th>Type</th><th>Wrong answers</th><th>What usually helps</th></tr></thead><tbody>${POOL.error_types.map(c => `<tr><td class="cfi">${esc(cfiName(c))}</td><td>${r.class_errors[c]}</td><td>${esc(POOL.reteach_hints[c])}</td></tr>`).join("")}</tbody></table><p class="hint">These are suggestions. You know your class better than any table does.</p>`;
     h += `<h3>Question by question</h3><table><thead><tr><th>Question</th><th>Answered</th><th>Fully right</th><th>Most common wrong answer</th></tr></thead><tbody>${r.questions.map(q => `<tr><td>${q.label} ${esc(q.unit_title)}</td><td>${q.n_answered}</td><td>${q.n_answered ? pct(q.n_full / q.n_answered) : "n/a"}</td><td>${q.wrong.length ? esc(q.wrong[0].answer) + " (" + q.wrong[0].error_type + ", " + q.wrong[0].count + ")" : ""}</td></tr>`).join("")}</tbody></table>`;
     h += `<h3>Student by student</h3><table><thead><tr><th>Student</th><th>Score</th><th>RF</th><th>PK</th><th>CF</th><th>INT</th><th>Most common error</th></tr></thead><tbody>${r.students.map(s => `<tr><td>${esc(s.student_id)}</td><td>${s.score} / ${s.max_score}</td><td>${s.errors.RF}</td><td>${s.errors.PK}</td><td>${s.errors.CF}</td><td>${s.errors.INT}</td><td>${s.dominant_error || ""}</td></tr>`).join("")}</tbody></table>`;
+    const ups = followUpTemplates(state.units, r, 4);
+    if (ups.length) {
+      h += `<h3>Reteach, then check</h3><p>After you have retaught these ideas, give the class a short follow-up set: the same kinds of question with new numbers, so nobody can just remember last time's answers. Then enter the answers as before, and this report will compare the two rounds.</p><div class="toolbar"><button type="button" id="follow-up">Make a follow-up set on these mistakes</button></div>`;
+    }
+    h += `<div id="compare-box"></div>`;
     const c = r.class_cfi;
     h += `<h3>For researchers</h3><p class="hint">Class Confusion Fingerprint Index: CFI-CF ${pct(c["CFI-CF"])}, CFI-INT ${pct(c["CFI-INT"])}, CFI-RF ${pct(c["CFI-RF"])}. CFI-CF is CF errors over all diagnosed errors, CFI-INT is INT over INT plus RF, CFI-RF is RF over all diagnosed errors. The labels were fixed in the item templates before any child answered. The same numbers per student come from <code>confusion-mapper pisa-score</code> using the downloaded CSV.</p>`;
     $("view-report").innerHTML = h;
+    if ($("follow-up")) $("follow-up").onclick = () => {
+      const params = new URLSearchParams({ set: state.setNo, templates: ups.join(",") });
+      const exclude = state.units.map(u => u.unit_id).concat(state.follow ? state.follow.exclude : []);
+      params.set("exclude", [...new Set(exclude)].join(","));
+      params.set("from", location.hash.slice(1));
+      location.hash = params.toString();
+      document.querySelector('nav.tabs button[data-view="booklet"]').click();
+    };
+    renderComparison(r);
     document.querySelector('nav.tabs button[data-view="report"]').click();
+  }
+
+  function renderComparison(after) {
+    const box = $("compare-box");
+    if (!state.follow || !state.follow.from) { box.innerHTML = ""; return; }
+    let earlierUnits;
+    try { earlierUnits = unitsFromParams(new URLSearchParams(state.follow.from)); }
+    catch (e) { box.innerHTML = ""; return; }
+    let earlierRows = null;
+    try { earlierRows = JSON.parse(localStorage.getItem("cm-pisa-answers|#" + state.follow.from) || "null"); } catch (e) { earlierRows = null; }
+    const show = rows => {
+      let before;
+      try { before = scoreResponses(earlierUnits, rows, POOL.error_types); }
+      catch (e) { box.innerHTML = `<div class="error">The first round's answers could not be read: ${esc(e.message)}</div>`; return; }
+      const cmpR = compareRounds(earlierUnits, before, state.units, after, POOL.error_types);
+      let h = `<h3>Compared with the first round</h3><p>${cmpR.n_before} children in the first round, ${cmpR.n_after} now. Questions are matched by unit and position, so the numbers in them differ on purpose.</p>`;
+      h += `<table><thead><tr><th>Question</th><th>Mistake</th><th>First round</th><th>Now</th></tr></thead><tbody>${cmpR.rows.map(x => `<tr><td>${esc(x.title)}, question ${x.position}</td><td><span class="cfi">${esc(cfiName(x.error_type))}:</span> ${esc(x.note)}</td><td>${x.before_count} of ${x.before_answered} (${pct(x.before_rate)})</td><td>${x.after_count} of ${x.after_answered} (${pct(x.after_rate)})</td></tr>`).join("")}</tbody></table>`;
+      h += `<p class="hint">A drop is encouraging but not proof. The questions are new, children may differ between rounds, and small classes vary a lot by chance.</p>`;
+      box.innerHTML = h;
+    };
+    if (earlierRows && earlierRows.length) { show(earlierRows); return; }
+    box.innerHTML = `<h3>Compared with the first round</h3><p class="hint">The first round's answers are not saved on this device. Load the CSV you downloaded after the first round to compare.</p><input type="file" id="earlier-csv" accept=".csv,text/csv">`;
+    $("earlier-csv").onchange = ev => {
+      const file = ev.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const rowsIn = parseCSV(reader.result); const head = rowsIn.shift() || [];
+        show(rowsIn.map(r => Object.fromEntries(head.map((k, i) => [k, r[i] || ""]))));
+      };
+      reader.readAsText(file);
+    };
   }
 
   readHash();

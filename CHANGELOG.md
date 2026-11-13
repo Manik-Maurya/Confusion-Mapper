@@ -2,6 +2,27 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-11-13
+
+Two things the worksheets were missing: a way to tell whether the reteaching worked, and a way to tell whether each question is any good.
+
+### Added
+
+- Reteach, then check. The class report on the worksheets page now ends with "Make a follow-up set on these mistakes". It builds a short set from the kinds of unit behind the most common mistakes (up to four), with new numbers that are guaranteed different from every unit the class has already seen in that chain of rounds. The follow-up set's address carries the first round, and once the class's follow-up answers are entered, the report compares the two rounds by itself: for each mistake, how many children made it the first time and how many now. Answers are now saved on the device when the report is made, not only while typing, so the comparison finds them. If the first round was on another device, its downloaded CSV can be loaded instead.
+- `compare_rounds()` and `format_comparison()` in `pisa.py`, and `confusion-mapper pisa-compare before_units.json before.csv after_units.json after.csv --report compare.md`. Mistakes are matched by unit template, question position and CFI type, since the numbers change on purpose between rounds.
+- `itemanalysis.py` and `confusion-mapper pisa-items units.json class1.csv [class2.csv ...] --report items.md`: classical item analysis of real classroom answers, pooled over every class that sat the same set (children from different files are kept apart even when their IDs match). For each question: difficulty, the corrected item-total correlation, the upper-lower index D from the top and bottom 27% (Kelley, 1939) read with Ebel's bands, and who chose each option or code overall and in each group. Flags in plain language for questions where stronger students did worse, poor discrimination, a distractor chosen by fewer than 5% (non-functioning, Haladyna and Downing, 1993), a wrong option the strongest students prefer, and a lot of blanks. Cronbach's alpha (1951) for the set. A warning below about 30 students.
+- `tests/test_itemanalysis.py` (31 tests): alpha against a hand-worked example and against KR-20 on 200 random right/wrong matrices, the correlation against the raw-sums formula, the 27% groups and tie-breaking, Ebel's band edges, a class worked by hand, item totals that must match the scoring module child by child, and the flags, including that a planted miskeyed question is the only one flagged.
+- `tests/test_pisa_rounds.py` (9 tests) for the round comparison, and three more page tests in `tests/test_worksheets.py`: the page's comparison matches Python on 30 random pairs of rounds, follow-up sets never repeat a unit and use only the chosen kinds, and the page picks the same follow-up kinds as Python would. Four planted bugs in the page's new code (wrong denominator, wrong sort, exclusions ignored, one kind too few) were each caught. `worksheets/check_page.js` now walks the whole loop: first round, report, follow-up set, second round, comparison.
+- `docs/pisa-teacher-guide.md` gains step 6, "Reteach, then check", and a section for coordinators on pooling classes for item analysis. `docs/methods.md` documents the item analysis and the round comparison with references.
+
+### Learned along the way
+
+- On a short set, a miskeyed question lowers the totals of exactly the children who answered it "wrong", so the top 27% by total can turn out to be the next tier down and D can come out near zero instead of negative. My first test assumed D would go negative and failed. The analysis was right and the test was wrong: the corrected item-total correlation, which leaves the question out of the total, still turns negative and still raises the flag. That case now has its own test.
+
+### Notes
+
+- 699 tests total (656 previous plus 43 new). Still no runtime dependency beyond `openai`.
+
 ## [2.11.0] - 2026-11-13
 
 The PISA-style units were only usable by someone who could install Python. This release is about getting them to teachers.

@@ -27,6 +27,8 @@ A phone or computer with a web browser, and a printer, or a photocopy shop nearb
 
 The answers stay in your browser on that device. To keep them safely, or to move them to another device, press "Download answers (CSV)". You can load the file again later with "Load answers (CSV)".
 
+**6. Reteach, then check.** At the bottom of the class report, press "Make a follow-up set on these mistakes". The page makes a short set with the same kinds of question that caught your class out, but with new numbers, so nobody can just remember last time's answers. Reteach the ideas first, give the follow-up set, and enter the answers the same way. The report then shows, for each mistake, how many children made it the first time and how many made it now. Use the same device for both rounds, or keep the first round's CSV, because the page needs the first round's answers to compare. A drop is encouraging, though not proof on its own: the questions are new, and small classes vary a lot by chance.
+
 ## The four kinds of mistake
 
 Every wrong answer in the key is one of four kinds. They come from the Confusion Fingerprint Index, a way of sorting mistakes by the thinking behind them.
@@ -43,6 +45,10 @@ These are suggestions. You know your children better than any table does.
 ## Honest limits
 
 These are practice items written from original templates that follow the published PISA 2022 maths framework. They are not official PISA questions, and they have not yet been tried with large groups of children, so nobody knows exactly how hard each one is. PISA is for 15-year-olds. These use Class 7 to 9 maths and suit children around Class 8 to 10. The numbers in the tables are made up for practice. The questions are in English for now.
+
+## If you coordinate several classes
+
+When several teachers use the same set number, their answer files can be pooled to see how good the questions themselves are. `confusion-mapper pisa-items units.json class1.csv class2.csv ...` reports, for every question, how hard it was, whether stronger students did better on it than weaker ones, which wrong options nobody chooses, and any question where the strongest students picked a wrong option, which usually means a confusing question or a wrong key. Please send these reports back through the issues page. They are how these questions get better.
 
 ## If you are a researcher
 

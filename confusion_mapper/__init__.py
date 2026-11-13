@@ -90,7 +90,10 @@ a package, split by concern:
                      Plus judge comparison, a power simulator, a bootstrap
                      robustness check and a preregistration lock
   pisa.py           PISA-style maths units in Indian contexts, following the
-                     PISA 2022 framework, with a CFI-diagnosed teacher's key
+                     PISA 2022 framework, with a CFI-diagnosed teacher's key,
+                     class scoring and before/after comparison
+  itemanalysis.py   classical item analysis of real classroom answers:
+                     difficulty, discrimination, distractors, alpha
   ai.py             the ChatGPT rater (classification + question generation)
   storage.py        session load/save (JSON)
   gui.py            the tkinter results dashboard
@@ -112,7 +115,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.11.0"
+    __version__ = "2.12.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -260,6 +263,14 @@ from .pisa import (
     format_class_report as format_pisa_class_report,
     response_sheet_csv as pisa_response_sheet_csv,
     load_responses_csv as load_pisa_responses_csv,
+    compare_rounds as compare_pisa_rounds,
+    format_comparison as format_pisa_comparison,
+)
+
+from .itemanalysis import (
+    analyze_items,
+    format_item_report,
+    cronbach_alpha,
 )
 
 from .cli import cli, main, run
@@ -310,5 +321,7 @@ __all__ = [
     "format_pisa_booklet", "format_pisa_answer_key", "pisa_units_to_item_bank",
     "score_pisa_responses", "format_pisa_class_report", "pisa_response_sheet_csv",
     "load_pisa_responses_csv",
+    "analyze_items", "format_item_report", "cronbach_alpha",
+    "compare_pisa_rounds", "format_pisa_comparison",
     "cli", "main", "run",
 ]

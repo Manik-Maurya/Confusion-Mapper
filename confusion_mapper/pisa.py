@@ -1305,3 +1305,99 @@ def web_pool_json(pool=None):
     """The pool as compact JSON that is safe to put inside a <script> tag."""
     text = json.dumps(pool or build_web_pool(), ensure_ascii=False, separators=(",", ":"))
     return text.replace("</", "<\\/")
+
+
+# -----------------------------------------------------------------------------
+# Did the reteaching work?
+# -----------------------------------------------------------------------------
+#
+# The worksheets page can make a follow-up set: the same unit templates, with
+# new numbers, so children cannot just remember last week's answers. To see
+# whether a misconception went down, mistakes are matched across the two
+# rounds by template, question position and CFI type, not by the exact
+# question, because the numbers in the question have changed on purpose.
+
+def _type_rates(units, result):
+    """{(template, position, type): {count, answered, title, note}}"""
+    out = {}
+    for idx, (label, unit, q) in enumerate(question_labels(units)):
+        qr = result["questions"][idx]
+        pos = int(label.split(".")[1])
+        out.setdefault((unit["template"], pos, None), {
+            "count": 0, "answered": qr["n_answered"], "title": unit["title"], "note": ""})
+        for w in qr["wrong"]:
+            key = (unit["template"], pos, w["error_type"])
+            entry = out.setdefault(key, {"count": 0, "answered": qr["n_answered"],
+                                         "title": unit["title"], "note": w["note"]})
+            entry["count"] += w["count"]
+    return out
+
+
+def compare_rounds(units_before, result_before, units_after, result_after):
+    """
+    Compare two scored rounds. Returns rows for every mistake type seen in
+    either round, on every question the two sets share (same template and
+    position), with the share of answering children who made it before and
+    after, and the class's errors per child by type.
+    """
+    before = _type_rates(units_before, result_before)
+    after = _type_rates(units_after, result_after)
+    shared = {(t, p) for (t, p, e) in before if e is None} & \
+             {(t, p) for (t, p, e) in after if e is None}
+    rows = []
+    for (t, p) in shared:
+        types = {e for (tt, pp, e) in list(before) + list(after)
+                 if (tt, pp) == (t, p) and e is not None}
+        for e in types:
+            b = before.get((t, p, e))
+            a = after.get((t, p, e))
+            nb = before[(t, p, None)]["answered"]
+            na = after[(t, p, None)]["answered"]
+            cb = b["count"] if b else 0
+            ca = a["count"] if a else 0
+            rows.append({
+                "template": t, "position": p, "error_type": e,
+                "title": after[(t, p, None)]["title"],
+                "note": (a or b)["note"],
+                "before_count": cb, "before_answered": nb,
+                "before_rate": cb / nb if nb else None,
+                "after_count": ca, "after_answered": na,
+                "after_rate": ca / na if na else None,
+            })
+    rows.sort(key=lambda r: (-(r["before_rate"] or 0), r["template"], r["position"],
+                             r["error_type"]))
+    per_child = {}
+    for e in ERROR_TYPES:
+        per_child[e] = {
+            "before": result_before["class_errors"][e] / result_before["n_students"],
+            "after": result_after["class_errors"][e] / result_after["n_students"],
+        }
+    return {"rows": rows, "errors_per_child": per_child,
+            "n_before": result_before["n_students"], "n_after": result_after["n_students"]}
+
+
+def format_comparison(cmp, title="Before and after reteaching"):
+    lines = [f"# {title}", "",
+             f"{cmp['n_before']} children in the first round, {cmp['n_after']} in the "
+             f"follow-up. Questions are matched by unit and position, so the numbers in "
+             f"them differ on purpose.", ""]
+    if not cmp["rows"]:
+        lines += ["The two sets share no questions, so there is nothing to compare.", ""]
+    else:
+        lines += ["| Question | Mistake | First round | Follow-up |", "|---|---|---|---|"]
+        for r in cmp["rows"]:
+            lines.append(
+                f"| {r['title']}, question {r['position']} | {_cfi_name(r['error_type'])}: "
+                f"{r['note']} | {r['before_count']} of {r['before_answered']} "
+                f"({_pct(r['before_rate'])}) | {r['after_count']} of {r['after_answered']} "
+                f"({_pct(r['after_rate'])}) |")
+        lines.append("")
+    lines += ["## Mistakes per child, by type", "", "| Type | First round | Follow-up |",
+              "|---|---|---|"]
+    for e in ERROR_TYPES:
+        v = cmp["errors_per_child"][e]
+        lines.append(f"| {_cfi_name(e)} | {v['before']:.2f} | {v['after']:.2f} |")
+    lines += ["", "A drop is encouraging but not proof. The follow-up questions are new, "
+              "children may differ between rounds, and small classes vary a lot by chance.",
+              ""]
+    return "\n".join(lines).rstrip() + "\n"

@@ -5,7 +5,7 @@ below. The subcommands are, in the order I usually reach for them:
     quickstart, kappa, diagnostics, alpha, multirater, alt-test-prereg,
     alt-test, alt-test-plan, refine, export, validate, embed-index, embed-search,
     assist, evidence, codebook, patterns, publication, discovery,
-    generate-bank, pisa, pisa-score
+    generate-bank, pisa, pisa-score, pisa-items, pisa-compare
 
 Argument parsing is done by hand (argparse) not click, because I did
 not want a third-party CLI framework in the dependency list.
@@ -60,7 +60,7 @@ _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
                       "quickstart", "generate-bank", "alt-test", "alt-test-plan",
-                      "alt-test-prereg", "pisa", "pisa-score"}
+                      "alt-test-prereg", "pisa", "pisa-score", "pisa-items", "pisa-compare"}
 
 
 def cli(argv=None):
@@ -77,7 +77,7 @@ def cli(argv=None):
                      "multirater, alt-test, alt-test-plan, alt-test-prereg, export, "
                      "evidence, codebook, "
                      "embed-index, embed-search, discover, patterns, publication, "
-                     "generate-bank, pisa, pisa-score, quickstart."))
+                     "generate-bank, pisa, pisa-score, pisa-items, pisa-compare, quickstart."))
     sub = parser.add_subparsers(dest="cmd", required=False)
 
     def _add_csv(sp, strict=True):
@@ -335,6 +335,23 @@ def cli(argv=None):
     p_ps.add_argument("--report", default=None, help="write the teacher's report (Markdown)")
     p_ps.add_argument("--top", type=int, default=5,
                       help="how many misconceptions to list first (default 5)")
+
+    p_pi = sub.add_parser("pisa-items", help="Item analysis of a PISA-style set from real "
+                                              "classes: difficulty, discrimination, distractors, "
+                                              "reliability")
+    p_pi.add_argument("units_path", help="the units JSON of the set the classes sat")
+    p_pi.add_argument("responses_paths", nargs="+",
+                      help="one or more filled-in answer sheets (CSV) for that same set")
+    p_pi.add_argument("--report", default=None, help="write the item report (Markdown)")
+
+    p_pc = sub.add_parser("pisa-compare", help="Compare two rounds (before and after "
+                                                "reteaching) by template, question and "
+                                                "mistake type")
+    p_pc.add_argument("before_units", help="units JSON of the first round")
+    p_pc.add_argument("before_answers", help="answer sheet (CSV) of the first round")
+    p_pc.add_argument("after_units", help="units JSON of the follow-up round")
+    p_pc.add_argument("after_answers", help="answer sheet (CSV) of the follow-up round")
+    p_pc.add_argument("--report", default=None, help="write the comparison (Markdown)")
 
     p_gb = sub.add_parser("generate-bank", help="Generate a bank of CFI-labelled MCQ items "
                                                   "from deterministic templates or an AI backend")
@@ -764,6 +781,48 @@ def cli(argv=None):
         if args.report:
             with open(args.report, "w", encoding="utf-8") as f:
                 f.write(report)
+            sys.stderr.write(f"wrote {args.report}\n")
+        return 0
+
+    if args.cmd == "pisa-compare":
+        from .pisa import (load_units, load_responses_csv, score_responses,
+                           compare_rounds, format_comparison)
+        try:
+            ub, ua = load_units(args.before_units), load_units(args.after_units)
+            rb = score_responses(ub, load_responses_csv(args.before_answers))
+            ra = score_responses(ua, load_responses_csv(args.after_answers))
+            result = compare_rounds(ub, rb, ua, ra)
+        except (OSError, ValueError) as e:
+            sys.stderr.write(f"[error] {e}\n")
+            return 1
+        print(_json.dumps(result, indent=2, ensure_ascii=False))
+        if args.report:
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(format_comparison(result))
+            sys.stderr.write(f"wrote {args.report}\n")
+        return 0
+
+    if args.cmd == "pisa-items":
+        from .pisa import load_units, load_responses_csv
+        from .itemanalysis import analyze_items, format_item_report
+        try:
+            units = load_units(args.units_path)
+            rows = []
+            many = len(args.responses_paths) > 1
+            for path in args.responses_paths:
+                stem = os.path.splitext(os.path.basename(path))[0]
+                for row in load_responses_csv(path):
+                    if many:            # keep children from different classes apart
+                        row = dict(row, student_id=f"{stem}:{row['student_id']}")
+                    rows.append(row)
+            result = analyze_items(units, rows)
+        except (OSError, ValueError) as e:
+            sys.stderr.write(f"[error] {e}\n")
+            return 1
+        print(_json.dumps(result, indent=2, ensure_ascii=False))
+        if args.report:
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(format_item_report(result))
             sys.stderr.write(f"wrote {args.report}\n")
         return 0
 
