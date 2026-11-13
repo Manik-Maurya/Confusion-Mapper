@@ -14,3 +14,7 @@ Thumbs.db
 *.egg-info/
 __pycache__/
 .pytest_cache/
+
+# jsdom, for worksheets/check_page.js
+node_modules/
+package-lock.json

@@ -13,7 +13,7 @@ authors:
     orcid: 0009-0005-3554-693X
     affiliation: 1
 affiliations:
-  - name: Department of Cognitive Science, Indian Institute of Technology Kanpur, India
+  - name: Independent Researcher, Kanpur, India
     index: 1
 date: 22 June 2026
 bibliography: paper.bib
@@ -147,7 +147,8 @@ ConfusionMapper is the methodological reliability gate for a pre-registered thre
 
 This software originated as a capstone project for Stanford Code in Place 2026 and was
 developed as the methodological reliability validation tool for a pre-registered RCT
-(OSF preregistration: osf.io/ck6nj) at the Department of Cognitive Science, IIT Kanpur.
+(OSF preregistration: osf.io/ck6nj). Early development took place during a research
+internship at the Department of Cognitive Science, Indian Institute of Technology Kanpur.
 The author thanks the Code in Place instructors and community for feedback during the initial development phase.
 
 # References

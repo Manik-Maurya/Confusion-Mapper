@@ -5,25 +5,30 @@ message: >-
 type: software
 title: "ConfusionMapper"
 abstract: >-
-  ConfusionMapper is a Python tool for human-AI hybrid inter-rater
-  reliability (IRR) assessment of cognitive error taxonomy classification
-  in multiple-choice question distractors. It implements the Confusion
-  Fingerprint Index (CFI) taxonomy, computes Cohen's kappa, builds a
-  full 4x4 confusion matrix across all category pairs, and enforces a
-  pre-registration-compliant reliability gate (kappa >= 0.70) before
-  downstream data collection may proceed.
+  ConfusionMapper is a Python tool for classifying wrong answers in
+  multiple-choice questions by the kind of thinking behind them, using the
+  Confusion Fingerprint Index (CFI) taxonomy, and for checking that a human
+  researcher and an AI rater agree on those labels (Cohen's kappa, weighted
+  kappa, Krippendorff's alpha, Fleiss' kappa, Gwet's AC1, a 4x4 confusion
+  matrix and a kappa >= 0.70 reliability gate). It implements the
+  Alternative Annotator Test for deciding whether an AI can replace a human
+  coder. It also writes PISA-style maths units in Indian contexts, in
+  English and Hindi, with a CFI-diagnosed teacher's key, class scoring,
+  item analysis and a before-and-after comparison, plus an offline web page
+  for teachers.
 authors:
   - family-names: "Maurya"
     given-names: "Manik"
     orcid: "https://orcid.org/0009-0005-3554-693X"
     email: "manikmaurya.in@gmail.com"
     affiliation: Independent Researcher, Kanpur, India
-version: "1.0.0"
-date-released: "2026-06-22"
+version: "2.13.0"
+date-released: "2026-11-14"
 license: MIT
 repository-code: "https://github.com/Manik-Maurya/Confusion-Mapper"
 url: "https://github.com/Manik-Maurya/Confusion-Mapper"
-doi: "10.5281/zenodo.20807432"
+# concept DOI: always resolves to the newest archived version
+doi: "10.5281/zenodo.20807431"
 keywords:
   - inter-rater reliability
   - Cohen's kappa
@@ -35,18 +40,10 @@ keywords:
   - human-AI collaboration
   - Python
   - pre-registration
-preferred-citation:
-  type: article
-  title: >-
-    ConfusionMapper: A Human-AI Hybrid Inter-Rater Reliability Tool for
-    Cognitive Error Taxonomy Classification
-  authors:
-    - family-names: "Maurya"
-      given-names: "Manik"
-      orcid: "https://orcid.org/0009-0005-3554-693X"
-  year: 2026
-  journal: "Journal of Open Source Software"
-  # volume and pages to be updated post-publication
+  - PISA
+  - Hindi
+  - item analysis
+  - classroom assessment
 references:
   - type: article
     title: "A coefficient of agreement for nominal scales"
@@ -74,7 +71,7 @@ references:
     start: 159
     end: 174
     doi: "10.2307/2529310"
-  - type: misc
+  - type: generic
     title: >-
       Confusion Fingerprint Index: A Taxonomy of Cognitive Error Types
       in Multiple-Choice Assessment

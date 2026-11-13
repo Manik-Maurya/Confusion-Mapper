@@ -134,7 +134,11 @@ Reliability is Cronbach's alpha, k / (k - 1) * (1 - sum of item variances / vari
 
 ## Comparing two rounds
 
-`compare_rounds` matches questions across two scored sets by unit template and question position. For every CFI type seen on a shared question in either round, it reports the number of answering students who made that mistake and the rate, count divided by the number who answered that question. It also reports diagnosed errors per child by type for each round. Questions present in only one round are left out.
+`compare_rounds` matches questions across two scored sets by unit template and question position. For every CFI type seen on a shared question in either round, it reports the number of answering students who made that mistake and the rate, count divided by the number who answered that question. It also reports diagnosed errors per child by type for each round. Questions present in only one round are left out. Because matching uses the template, the position and the CFI type, never the wording, a round sat in Hindi can be compared with a round sat in English.
+
+## Two languages
+
+A unit in Hindi is the English unit from the same seed with the words changed and nothing else. Every text in a template is written as an (English, Hindi) pair built from the same random draws, the language is chosen only after the unit is complete, and the language never touches the random stream. So the numbers, the option order, the key, the true/false answers and every CFI label are identical, and scoring is identical too. Duplicate options are checked in both languages before a unit is accepted. Only the descriptions of wrong answers in a class report ("option B", "विकल्प B") differ.
 
 ## References
 

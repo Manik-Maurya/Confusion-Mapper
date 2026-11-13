@@ -2,10 +2,18 @@
 
 A Python tool for classifying wrong answer choices in multiple-choice questions by the type of cognitive error they represent, and for computing how well a human researcher and an AI rater agree on those labels.
 
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20807432-1682D4?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.20807432)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20807431-1682D4?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.20807431)
 [![Tests](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml/badge.svg)](https://github.com/Manik-Maurya/Confusion-Mapper/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+
+## Start here
+
+- **You teach maths.** Open the worksheets page, https://manik-maurya.github.io/Confusion-Mapper/worksheets/, in English or हिन्दी. Nothing to install. The two-page guide is [`docs/pisa-teacher-guide.md`](docs/pisa-teacher-guide.md).
+- **You code qualitative data and want to know if your coders agree.** [Install](#install), then [Run](#run). If the question is whether an AI can stand in for one of your coders, go to [the alt-test](#can-the-ai-replace-a-human-coder).
+- **You write or analyse tests.** [PISA-style maths units](#pisa-style-maths-units), with scoring, item analysis and a before-and-after comparison.
+- **You want to check the maths.** [`docs/methods.md`](docs/methods.md) lists every formula with its source.
+- **You speak Hindi and teach maths.** The Hindi is a first draft. [`docs/hindi-review.md`](docs/hindi-review.md) puts every sentence next to its English, with a column for a better version.
 
 ## What it does
 
@@ -398,7 +406,7 @@ In the answer sheet, a multiple-choice cell is the letter the child chose, a tru
 
 The JSON output also has each child's Confusion Fingerprint Index, using the definitions already in this package: CFI-CF is CF errors over all diagnosed errors, CFI-INT is INT over INT plus RF, CFI-RF is RF over all diagnosed errors. Because the labels were fixed in the templates before any child answered, a researcher can use these directly, without a second round of coding.
 
-The web page does the same scoring in JavaScript, because it has to work in a browser with no Python. Two copies of one piece of logic drift apart unless something stops them, so `tests/test_worksheets.py` runs the page's own scoring code in Node and compares every number with the Python version on 60 random classes, plus the same check for which answers each version rejects. I made sure that test can fail by breaking the page's code four ways (partial credit worth 2 points, the wrong denominator for CFI-INT, a reversed tie-break, lowercase answers refused). Each one was caught. The page also never computes an answer itself: it carries a pool of 200 units built by the Python generator, and a test fails if the page's pool and the generator ever disagree.
+The web page does the same scoring in JavaScript, because it has to work in a browser with no Python. Two copies of one piece of logic drift apart unless something stops them, so `tests/test_worksheets.py` runs the page's own scoring code in Node and compares every number with the Python version on 60 random classes, plus the same check for which answers each version rejects. I made sure that test can fail by breaking the page's code four ways (partial credit worth 2 points, the wrong denominator for CFI-INT, a reversed tie-break, lowercase answers refused). Each one was caught. The page also never computes an answer itself: it carries a pool of 200 units in each language, built by the Python generator, and a test fails if the page's pool and the generator ever disagree.
 
 ### Reteach, then check
 
@@ -420,9 +428,22 @@ On a simulated class with one deliberately miskeyed question, that question is t
 
 With fewer than about 30 students the report says these numbers are a first look, because they move a lot between classes. Pooling classes that used the same set number is the way round that.
 
-### What comes next
+### In Hindi
 
-The units are in English for now. Translating the eight templates into Hindi, carefully, with the maths wording a Kanpur Dehat teacher would actually use, is the most useful next step, and it is one for a person who speaks both, not for a generator.
+New in 2.13.0. Most children in the government schools of Kanpur Dehat learn maths in Hindi. An English-only booklet was never going to leave the staff room. So every unit, the booklet, the teacher's key, the class report, the comparison and the whole web page now come in Hindi as well:
+
+```bash
+confusion-mapper pisa 8 --seed 1 --lang hi --out units.json --booklet booklet.md --key key.md
+confusion-mapper pisa-score units.json answers.csv --report report.md   # the report follows the units
+```
+
+On the web page there is an English | हिन्दी switch at the top. Answers already typed in stay put when you switch.
+
+Same seed, same unit. The Hindi version of a unit has the same numbers, the same order of options, the same answer letters and the same true/false answers as the English one. Only the words change. So one answer sheet works for both, and a class where some children read English and some read Hindi can sit the same set and be scored together. This works because every sentence in the templates is written as a pair, English and Hindi, from the same random numbers, and the unit is turned into one language only at the very end. Amounts are written ₹240 and times सुबह 7:30 बजे in Hindi. Answer letters A to D and the answer-sheet codes stay as they are in both languages, on purpose, so the sheet does not change.
+
+Rewriting all eight templates to do this was the riskiest change the units have had, because English could change without anyone noticing. Before touching anything I saved the English output of every template for 300 seeds, plus the example booklet, key and web pool, and the rewrite had to reproduce all 2,403 of them byte for byte. It did. A fingerprint of that English output is now a test, so it cannot drift by accident later. Other tests check, on every template across 40 seeds, that every Hindi sentence carries exactly the same numbers as its English twin, that the keys match, and that no English is left in the Hindi text. The page's Hindi scoring is checked against Python on 40 random classes, and I broke it on purpose (one wrong letter in one Hindi word) to make sure that check fails. It did.
+
+What it is not, yet. The Hindi is a first draft, and it has not been checked by a Hindi-medium maths teacher. The booklet, the key, the report and the page all say so until it has. A few choices in particular need a teacher's eye: Confabulation became पक्की गलत धारणा (a firm wrong belief), Interference became दूसरे विषय का घालमेल (mixing in another topic), and the PISA processes became गणितीय रूप देना, गणित का उपयोग करना, व्याख्या और मूल्यांकन and गणितीय तर्क. [`docs/hindi-review.md`](docs/hindi-review.md) lists every sentence beside its English with an empty column for a better version, and `confusion-mapper pisa --translation-review docs/hindi-review.md` rebuilds it after any change. Many Hindi-medium papers label options क, ख, ग, घ instead of A to D. Whether to switch is a question for the teachers who use it.
 
 ## Generate a calibration bank
 
@@ -622,23 +643,23 @@ The AI rater is a starting point, not a substitute for a second human, unless yo
 
 ## How to cite
 
-Archived release on Zenodo: https://doi.org/10.5281/zenodo.20807432
+Archived on Zenodo. This DOI covers every version and always opens the newest one: https://doi.org/10.5281/zenodo.20807431. Each release also gets its own DOI, listed on that page, if you need to cite the exact version you used. `CITATION.cff` has the same details, and GitHub's "Cite this repository" button reads it.
 
 APA:
 
-> Maurya, M. (2026). *ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research* (Version 1.0.0) [Software]. Zenodo. https://doi.org/10.5281/zenodo.20807432
+> Maurya, M. (2026). *ConfusionMapper* (Version 2.13.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.20807431
 
 BibTeX:
 
 ```bibtex
 @software{maurya2026confusionmapper,
   author    = {Maurya, Manik},
-  title     = {ConfusionMapper: A Python Tool for AI-Assisted Distractor Classification
-               and Inter-Rater Reliability Computation in Cognitive Error Taxonomy Research},
+  title     = {ConfusionMapper},
   year      = {2026},
-  version   = {1.0.0},
-  doi       = {10.5281/zenodo.20807432},
-  url       = {https://doi.org/10.5281/zenodo.20807432}
+  version   = {2.13.0},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.20807431},
+  url       = {https://doi.org/10.5281/zenodo.20807431}
 }
 ```
 
@@ -662,8 +683,9 @@ confusion_mapper/
 │                     blind reliability-check path; never produces a kappa)
 ├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
 ├── alttest.py        can the AI replace a human coder? (alt-test, judge comparison, power planning)
-├── pisa.py           PISA-style maths units in Indian contexts, a CFI-diagnosed teacher's key,
-│                     class scoring with a 'what to reteach first' report, and round comparison
+├── pisa.py           PISA-style maths units in Indian contexts, in English and Hindi, a
+│                     CFI-diagnosed teacher's key, class scoring with a 'what to reteach
+│                     first' report, round comparison, and the Hindi review sheet
 ├── itemanalysis.py   item analysis of real classroom answers: difficulty, D, distractors, alpha
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
@@ -678,13 +700,15 @@ Everything importable from `confusion_mapper` before this split (`compute_cohens
 Repo root, beyond the package itself:
 
 ```
+index.html        the landing page for GitHub Pages: worksheets, agreement page, code
 case_study/       reproducible worked example (see Case study, above)
 benchmarks/       the embedding-backend study and the alt-test cross-check (see Benchmarks, above)
 sample_data/      example CSVs and taxonomy JSONs used throughout this README
 examples/         a minimal headless script, the script that rebuilds example_alttest.csv,
-                  and an example PISA-style booklet with its teacher's key
+                  and example PISA-style booklets with their teacher's keys, in English and Hindi
 worksheets/       the no-install teacher web page (index.html) and the script that builds its unit pool
-docs/             statistical methods, research context, and the guide for teachers
+docs/             statistical methods, research context, the guide for teachers, and the
+                  Hindi review sheet
 dashboard/        index.html, runs kappa/AC1/confusion-matrix in-browser via Pyodide
 quickstart_demo.gif   real, captured `confusion-mapper quickstart` output, not staged
 ```

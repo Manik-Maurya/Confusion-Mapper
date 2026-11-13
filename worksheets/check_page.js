@@ -92,5 +92,89 @@ function fillTwo(pickRight) {
   assert.ok(/No unit matches/.test($("setup-error").textContent));
 
   assert.deepStrictEqual(scriptErrors, []);
+  await hindi();
   console.log("page check passed");
 })().catch(e => { console.error(e); process.exit(1); });
+
+// The same journey in Hindi, plus switching language halfway through.
+async function hindi() {
+  const errors = [];
+  const hd = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true,
+    url: "https://example.org/worksheets/#set=4821&n=4&context=personal,societal&lang=hi" });
+  const hw = hd.window, doc = hw.document;
+  hw.addEventListener("error", e => errors.push(e.message));
+  hw.print = () => {};
+  const g = id => doc.getElementById(id);
+  await wait(300);
+  const devanagari = /[\u0900-\u097F]/;
+
+  assert.strictEqual(doc.documentElement.lang, "hi");
+  assert.ok(!g("draft-note").hidden && devanagari.test(g("draft-note").textContent), "no draft note in Hindi");
+  assert.ok(devanagari.test(g("site-h1").textContent));
+  const titles = [...doc.querySelectorAll("#view-booklet .unit h2")].map(h => h.textContent);
+  assert.strictEqual(titles.length, 4);
+  assert.ok(titles.every(t => devanagari.test(t) && !/[a-z]{4,}/.test(t)), "unit titles not in Hindi: " + titles);
+  ["याद न होना", "अधूरी समझ", "पक्की गलत धारणा", "दूसरे विषय का घालमेल"].forEach(n =>
+    assert.ok(g("view-key").textContent.includes(n), "key misses " + n));
+  assert.ok(!/पक्की गलत धारणा|पूरे अंक:/.test(g("view-booklet").textContent), "Hindi booklet leaks the key");
+
+  // the same set in English has the same answer letters
+  const keysHi = [...doc.querySelectorAll("#view-key .key-answer")].map(x => x.textContent).filter(x => /^[A-D]$/.test(x));
+  doc.querySelector('#lang-switch button[data-lang="en"]').click();
+  await wait(50);
+  assert.strictEqual(doc.documentElement.lang, "en");
+  assert.ok(!/lang=/.test(hw.location.hash), "English address should not carry lang");
+  const keysEn = [...doc.querySelectorAll("#view-key .key-answer")].map(x => x.textContent).filter(x => /^[A-D]$/.test(x));
+  assert.deepStrictEqual(keysHi, keysEn, "answer letters differ between languages");
+
+  // answers typed in English are still there after switching to Hindi
+  let rows = doc.querySelectorAll("#grid tbody tr");
+  const firstSelect = rows[0].querySelector("select[data-q]");
+  firstSelect.value = firstSelect.options[firstSelect.options.length - 1].value;
+  firstSelect.dispatchEvent(new hw.Event("change", { bubbles: true }));
+  const kept = firstSelect.value;
+  doc.querySelector('#lang-switch button[data-lang="hi"]').click();
+  await wait(50);
+  assert.ok(/lang=hi/.test(hw.location.hash));
+  rows = doc.querySelectorAll("#grid tbody tr");
+  assert.strictEqual(rows[0].querySelector("select[data-q]").value, kept, "answers lost on switching language");
+
+  // a bad cell is explained in Hindi
+  const textCell = rows[2].querySelector("input[data-q]");
+  if (textCell) {
+    textCell.value = "XYZ";
+    g("score").click();
+    assert.ok(/विद्यार्थी S03, Q\d+\.\d+/.test(g("answer-error").textContent), "error not in Hindi: " + g("answer-error").textContent);
+    textCell.value = "";
+  }
+
+  // a Hindi report, then a Hindi follow-up and comparison
+  [0, 1].forEach(r => rows[r].querySelectorAll("[data-q]").forEach(el => {
+    el.value = el.tagName === "SELECT" ? el.options[el.options.length - 1].value : "TFT".slice(0, el.maxLength);
+  }));
+  g("score").click();
+  const rep = g("view-report");
+  assert.ok(/2 विद्यार्थी/.test(rep.textContent), "Hindi report summary missing");
+  assert.ok(/विकल्प [A-D]|पंक्ति \d+ को|लिखित उत्तर, कोड/.test(rep.textContent), "wrong answers not described in Hindi");
+  assert.ok(!/ of \d+ students|option [A-D]/.test(rep.textContent), "English left in the Hindi report");
+  g("follow-up").click();
+  await wait(200);
+  assert.ok(/lang=hi/.test(hw.location.hash), "follow-up dropped the language");
+  assert.ok(!/lang/.test(new hw.URLSearchParams(hw.location.hash.slice(1)).get("from")), "from should not carry lang");
+  assert.ok(/फॉलो-अप सेट/.test(g("share-line").textContent));
+  doc.querySelectorAll("#grid tbody tr").forEach((tr, i) => { if (i < 2) tr.querySelectorAll("[data-q]").forEach(el => {
+    el.value = el.tagName === "SELECT" ? el.options[1].value : "TFT".slice(0, el.maxLength);
+  }); });
+  g("score").click();
+  await wait(50);
+  assert.ok(/पहले दौर से तुलना/.test(g("compare-box").textContent), "no Hindi comparison");
+  assert.ok(g("compare-box").querySelector("table"));
+
+  // nothing matches: the message is in Hindi
+  doc.querySelectorAll("input[name=context]").forEach(i => { i.checked = false; });
+  doc.querySelector("input[name=content][value=quantity]").checked = true;
+  doc.querySelector("input[name=context][value=scientific]").checked = true;
+  g("make").click();
+  assert.ok(devanagari.test(g("setup-error").textContent) && !g("setup-error").hidden);
+  assert.deepStrictEqual(errors, []);
+}

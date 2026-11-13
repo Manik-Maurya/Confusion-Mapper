@@ -90,8 +90,9 @@ a package, split by concern:
                      Plus judge comparison, a power simulator, a bootstrap
                      robustness check and a preregistration lock
   pisa.py           PISA-style maths units in Indian contexts, following the
-                     PISA 2022 framework, with a CFI-diagnosed teacher's key,
-                     class scoring and before/after comparison
+                     PISA 2022 framework, in English and Hindi, with a
+                     CFI-diagnosed teacher's key, class scoring and
+                     before/after comparison
   itemanalysis.py   classical item analysis of real classroom answers:
                      difficulty, discrimination, distractors, alpha
   ai.py             the ChatGPT rater (classification + question generation)
@@ -115,7 +116,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.12.0"
+    __version__ = "2.13.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS

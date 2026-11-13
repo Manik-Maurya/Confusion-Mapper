@@ -126,10 +126,11 @@ const fs = require("fs");
 const core = require(process.argv[2]);
 const pool = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const jobs = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
+const from = job => (job.lang === "hi" ? pool.hi.units : pool.units);
 const out = jobs.map(job => {
   try {
     if (job.op === "score") {
-      const units = job.units.map(i => pool.units[i]);
+      const units = job.units.map(i => from(job)[i]);
       return { ok: core.scoreResponses(units, job.responses, pool.error_types) };
     }
     if (job.op === "parse") {
@@ -140,7 +141,7 @@ const out = jobs.map(job => {
       return { ok: core.makeSet(pool, job.n, job.contents, job.contexts, job.setNo, job.opts).map(u => u.unit_id) };
     }
     if (job.op === "compare") {
-      const ub = job.before_units.map(i => pool.units[i]), ua = job.after_units.map(i => pool.units[i]);
+      const ub = job.before_units.map(i => from(job)[i]), ua = job.after_units.map(i => from(job)[i]);
       const rb = core.scoreResponses(ub, job.before, pool.error_types);
       const ra = core.scoreResponses(ua, job.after, pool.error_types);
       return { ok: core.compareRounds(ub, rb, ua, ra, pool.error_types) };
@@ -148,6 +149,9 @@ const out = jobs.map(job => {
     if (job.op === "followUp") {
       const units = job.units.map(i => pool.units[i]);
       return { ok: core.followUpTemplates(units, core.scoreResponses(units, job.responses, pool.error_types), job.max) };
+    }
+    if (job.op === "localize") {
+      return { ok: core.localizeUnits(pool, job.units.map(i => pool.units[i]), job.lang) };
     }
     if (job.op === "csv") {
       return { ok: core.parseCSV(core.toCSV(job.rows)) };
@@ -500,3 +504,131 @@ def test_cli_score_reports_bad_cells(tmp_path, capsys):
     capsys.readouterr()
     assert run(["pisa-score", str(units_path), str(sheet)]) == 1
     assert "student S01, Q1.1" in capsys.readouterr().err
+
+
+# -----------------------------------------------------------------------------
+# Hindi on the page
+# -----------------------------------------------------------------------------
+
+def test_hindi_pool_is_the_english_pool_translated():
+    pool = _embedded_pool()
+    hi = pool["hi"]
+    assert [u["unit_id"] for u in hi["units"]] == [u["unit_id"] for u in pool["units"]]
+    for en, h in zip(pool["units"], hi["units"]):
+        assert h["lang"] == "hi"
+        validate_unit(h)
+        assert [q.get("key") for q in en["questions"]] == [q.get("key") for q in h["questions"]]
+    for table in ("content_names", "context_names", "process_names", "format_names",
+                  "cfi_names", "reteach_hints"):
+        assert set(hi[table]) == set(pool[table]), table
+    assert hi["disclaimer"] and hi["draft_note"]
+
+
+@needs_node
+def test_javascript_swaps_a_set_for_its_hindi_twin(tmp_path):
+    pool = _embedded_pool()
+    idx = [0, 30, 77, 150, 199]
+    got = _run_js(tmp_path, [{"op": "localize", "units": idx, "lang": "hi"},
+                             {"op": "localize", "units": idx, "lang": "en"}])
+    assert got[0]["ok"] == [pool["hi"]["units"][i] for i in idx]
+    assert got[1]["ok"] == [pool["units"][i] for i in idx]
+
+
+@needs_node
+def test_javascript_scoring_matches_python_in_hindi(tmp_path):
+    pool = _embedded_pool()
+    rng = random.Random(1857)
+    jobs, expected = [], []
+    for _ in range(40):
+        idx = rng.sample(range(len(pool["units"])), rng.randint(1, 8))
+        units = [pool["hi"]["units"][i] for i in idx]
+        responses = _random_class(rng, units, rng.randint(1, 30))
+        jobs.append({"op": "score", "units": idx, "responses": responses, "lang": "hi"})
+        try:
+            expected.append({"ok": json.loads(json.dumps(score_responses(units, responses)))})
+        except ValueError as e:
+            expected.append({"error": str(e)})
+    got = _run_js(tmp_path, jobs)
+    scored = 0
+    for i, (want, have) in enumerate(zip(expected, got)):
+        if "error" in want:
+            assert "error" in have
+            continue
+        _same(want["ok"], have["ok"], f"class {i}")
+        assert have["ok"]["lang"] == "hi"
+        scored += 1
+    assert scored >= 30
+
+
+@needs_node
+def test_javascript_comparison_matches_python_in_hindi(tmp_path):
+    from confusion_mapper.pisa import compare_rounds
+    pool = _embedded_pool()
+    rng = random.Random(1947)
+    by_t = {}
+    for i, u in enumerate(pool["units"]):
+        by_t.setdefault(u["template"], []).append(i)
+    jobs, expected = [], []
+    for _ in range(15):
+        shared = rng.sample(list(TEMPLATES), rng.randint(1, 4))
+        before_idx = [rng.choice(by_t[t]) for t in shared]
+        after_idx = [rng.choice([j for j in by_t[t] if j not in before_idx]) for t in shared]
+        ub = [pool["hi"]["units"][i] for i in before_idx]
+        ua = [pool["hi"]["units"][i] for i in after_idx]
+        rb, ra = _random_class(rng, ub, 20), _random_class(rng, ua, 20)
+        try:
+            want = {"ok": json.loads(json.dumps(compare_rounds(ub, score_responses(ub, rb),
+                                                               ua, score_responses(ua, ra))))}
+        except ValueError as e:
+            want = {"error": str(e)}
+        jobs.append({"op": "compare", "before_units": before_idx, "after_units": after_idx,
+                     "before": rb, "after": ra, "lang": "hi"})
+        expected.append(want)
+    got = _run_js(tmp_path, jobs)
+    for i, (want, have) in enumerate(zip(expected, got)):
+        if "error" in want:
+            assert "error" in have
+        else:
+            _same(want["ok"], have["ok"], f"pair {i}")
+
+
+@needs_node
+def test_page_has_every_word_in_both_languages(tmp_path):
+    """The English and Hindi halves of the I18N block must have the same keys,
+    and every function in them the same number of arguments."""
+    page = _page()
+    block = page[page.index("const I18N = {"):page.index("const T = () =>")]
+    script = tmp_path / "i18n.js"
+    script.write_text(block + """
+function shape(o) {
+  if (typeof o === "function") return "fn/" + o.length;
+  if (o && typeof o === "object") {
+    const out = {};
+    Object.keys(o).sort().forEach(k => { out[k] = shape(o[k]); });
+    return out;
+  }
+  return typeof o;
+}
+process.stdout.write(JSON.stringify({ en: shape(I18N.en), hi: shape(I18N.hi),
+  n: Object.keys(I18N.en).length }));
+""", encoding="utf-8")
+    r = subprocess.run([NODE, str(script)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    got = json.loads(r.stdout)
+    assert got["en"] == got["hi"]
+    assert got["n"] > 80
+
+
+def test_landing_page_links_work_and_need_no_internet():
+    """The repo's front page for GitHub Pages: every local link must point at
+    a file that exists, and the page itself must load nothing from outside."""
+    with open(os.path.join(ROOT, "index.html"), encoding="utf-8") as f:
+        page = f.read()
+    links = re.findall(r'href="([^"]+)"', page)
+    local = [h.split("#")[0] for h in links if not h.startswith(("http://", "https://"))]
+    assert "worksheets/" in local and "dashboard/" in local
+    for h in local:
+        target = os.path.join(ROOT, h, "index.html") if h.endswith("/") else os.path.join(ROOT, h)
+        assert os.path.exists(target), h
+    assert "worksheets/#lang=hi" in links
+    assert not re.search(r'<(script|link|img)[^>]+(src|href)="https?://', page)

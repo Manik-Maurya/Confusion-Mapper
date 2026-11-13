@@ -13,7 +13,17 @@ A phone or computer with a web browser, and a printer, or a photocopy shop nearb
 - Online: https://manik-maurya.github.io/Confusion-Mapper/worksheets/
 - Offline: save the page once (Ctrl+S on a computer, or Share and then Save on a phone) and open the saved file any time. You can forward the saved file to other teachers on WhatsApp.
 
-## Five steps
+## In Hindi
+
+Press **हिन्दी** at the top of the page. The booklet, the teacher's key, the answer page and the class report all switch to Hindi. Anything you have already typed stays where it is.
+
+The same set number gives the same questions in both languages, with the same numbers and the same answer letters. So if some children in your class read Hindi and some read English, print each child the booklet they are comfortable with and enter everyone's answers on one sheet. The report comes out in whichever language the page is in.
+
+The Hindi is a first draft. A Hindi-medium maths teacher has not checked it yet, and the page says so. If a word sounds wrong, or too bookish for your children, please tell us. The file [`hindi-review.md`](hindi-review.md) has every sentence next to its English, with space for a better version.
+
+हिन्दी में पढ़ाने वाले शिक्षकों के लिए: पेज के ऊपर "हिन्दी" दबाइए। पुस्तिका, कुंजी, उत्तर दर्ज करने का पेज और कक्षा रिपोर्ट, सब हिन्दी में आ जाएँगे। एक ही सेट नंबर से हिन्दी और अंग्रेजी में वही प्रश्न, वही संख्याएँ और वही उत्तर-अक्षर मिलते हैं, इसलिए एक ही उत्तर-पत्रक दोनों के लिए चलता है। हिन्दी अनुवाद अभी प्रारूप है। कोई शब्द अटपटा लगे तो जरूर बताइए।
+
+## Six steps
 
 **1. Make a set.** Choose how many units. A unit is one situation with three questions, about ten minutes. Four units suit one 40-minute period. Tick topics or situations if you want only some, or leave them all unticked for a mix. Press "Make worksheets". The page shows a set number, for example "Set 4821". Write it down. The same number always gives the same worksheets, so another teacher can use exactly your set.
 
@@ -44,7 +54,7 @@ These are suggestions. You know your children better than any table does.
 
 ## Honest limits
 
-These are practice items written from original templates that follow the published PISA 2022 maths framework. They are not official PISA questions, and they have not yet been tried with large groups of children, so nobody knows exactly how hard each one is. PISA is for 15-year-olds. These use Class 7 to 9 maths and suit children around Class 8 to 10. The numbers in the tables are made up for practice. The questions are in English for now.
+These are practice items written from original templates that follow the published PISA 2022 maths framework. They are not official PISA questions, and they have not yet been tried with large groups of children, so nobody knows exactly how hard each one is. PISA is for 15-year-olds. These use Class 7 to 9 maths and suit children around Class 8 to 10. The numbers in the tables are made up for practice. The questions are in English and Hindi, and the Hindi is a first draft that a Hindi-medium maths teacher has not yet checked.
 
 ## If you coordinate several classes
 

@@ -2,6 +2,40 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-11-14
+
+Hindi. Most children in the government schools of Kanpur Dehat learn maths in Hindi, so until now the worksheets could not really reach them.
+
+### Added
+
+- Every PISA-style unit in Hindi as well as English. `generate_unit(..., lang="hi")`, `generate_units(..., lang="hi")` and `confusion-mapper pisa --lang hi`. The Hindi unit from a seed is the English unit from that seed with only the words changed: same numbers, same option order, same answer letters, same true/false answers, same CFI labels. One answer sheet works for both languages. Amounts are written ₹240 and times सुबह 7:30 बजे; answer letters A to D and the sheet codes are the same in both.
+- The booklet, the teacher's key, the class report and the before-and-after comparison follow the language of the units, with Hindi names for the content categories, processes, contexts, formats, the four CFI types and the reteaching hints. Hindi units carry `"lang": "hi"`; English units are unchanged and carry no tag.
+- The worksheets page has an English | हिन्दी switch. Every button, heading, hint and error message is translated, the page remembers the choice, and answers typed in one language are still there in the other. A follow-up set keeps the language. The page now carries 200 units in each language, which makes it about 1.5 MB.
+- A review sheet for the translation, `docs/hindi-review.md`, with every English text beside its Hindi and an empty column for a better version. `confusion-mapper pisa --translation-review PATH` rebuilds it, and a test fails if the file in the repo falls behind.
+- Example Hindi booklet and key in `examples/`.
+- `index.html` at the top of the repo: a landing page for GitHub Pages with three doors, for teachers, for researchers checking agreement, and for people who write code.
+- A second CI job, "Every test, nothing skipped", that installs scipy, Node and jsdom, runs the whole suite, fails if any test is skipped, and walks the teacher page in English and Hindi.
+
+### Changed
+
+- `CITATION.cff` was still at version 1.0.0 and listed a JOSS article as the preferred citation, which has not been published. It is now at 2.13.0, cites the Zenodo concept DOI (10.5281/zenodo.20807431, which always opens the newest version) and has no preferred-citation block, so GitHub's "Cite this repository" cites the software itself. One reference had the type `misc`, which is not a valid CFF type and failed validation; it is now `generic`. The README's citation and DOI badge, and the archive link in `pyproject.toml`, use the concept DOI too.
+- The JOSS backup manuscript, `paper-joss.md`, gave the affiliation as IIT Kanpur. It now says Independent Researcher, Kanpur, India, like `paper.md`, and its acknowledgement uses the same wording as `paper.md`.
+- The teacher guide said "Five steps" and listed six. It now says six, and has a section on using the page in Hindi.
+
+### How English was kept safe
+
+- Making the templates bilingual meant rewriting all eight of them. Before touching anything I saved the English output of every template for seeds 0 to 299, plus the example booklet, key and web pool, 2,403 outputs in all. The rewrite had to reproduce every one of them byte for byte, and it did. The English class reports and comparisons were checked the same way. A fingerprint of the English output is now a test (`test_english_output_is_exactly_what_it_was_before_hindi`).
+
+### Tests
+
+- `tests/test_pisa_hindi.py` (34 tests): the English fingerprint; on every template across 40 seeds, the Hindi unit has the same numbers in every sentence, the same keys, true/false answers and labels as the English one; no English is left in the Hindi text; money and clock formats; the same answers score the same in both languages; Hindi booklet, key, report and comparison; the command line end to end; the examples and the review sheet are up to date.
+- Six more tests in `tests/test_worksheets.py`: the landing page's links all resolve and it loads nothing from the internet, the Hindi pool is the English pool translated, the page swaps a set for its Hindi twin, the page's Hindi scoring and comparison match Python on random classes, and the English and Hindi halves of the page's wording have exactly the same keys. A one-letter typo planted in a Hindi word in the page's scoring, and the same in Python, were each caught. `worksheets/check_page.js` now also runs the whole journey in Hindi and switches language halfway through.
+
+### Notes
+
+- 739 tests total (699 previous plus 40 new), and with scipy, Node and jsdom installed none are skipped. Still no runtime dependency beyond `openai`.
+- The Hindi is a first draft and has not yet been checked by a Hindi-medium maths teacher. The booklet, key, report and page say so.
+
 ## [2.12.0] - 2026-11-13
 
 Two things the worksheets were missing: a way to tell whether the reteaching worked, and a way to tell whether each question is any good.

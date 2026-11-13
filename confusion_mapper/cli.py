@@ -326,7 +326,15 @@ def cli(argv=None):
                         help="also write a blank answer sheet (CSV) to fill in after the test")
     p_pisa.add_argument("--students", type=int, default=30,
                         help="rows in the answer sheet (default 30)")
-    p_pisa.add_argument("--title", default="Maths in real life: practice units")
+    p_pisa.add_argument("--title", default=None,
+                        help="booklet title (default: Maths in real life: practice units)")
+    p_pisa.add_argument("--lang", choices=["en", "hi"], default="en",
+                        help="language of the units, booklet and key: en (English) or hi "
+                             "(Hindi, a draft translation). Same seed, same numbers and "
+                             "same answer letters in both")
+    p_pisa.add_argument("--translation-review", default=None, metavar="PATH",
+                        help="write every English text beside its Hindi (Markdown), for a "
+                             "Hindi-medium teacher to check, then exit")
 
     p_ps = sub.add_parser("pisa-score", help="Score a class on a PISA-style set and get a "
                                               "'what to reteach first' report")
@@ -848,6 +856,12 @@ def cli(argv=None):
             for name, content, context in list_templates():
                 print(f"{name:15s} {content:26s} {context}")
             return 0
+        if args.translation_review:
+            from .pisa import format_translation_review
+            with open(args.translation_review, "w", encoding="utf-8") as f:
+                f.write(format_translation_review())
+            sys.stderr.write(f"wrote {args.translation_review}\n")
+            return 0
         if args.n is None:
             sys.stderr.write("[error] say how many units to generate, e.g. "
                              "`confusion-mapper pisa 8 --seed 1 --booklet booklet.md "
@@ -860,7 +874,8 @@ def cli(argv=None):
         try:
             units = generate_units(args.n, content=split(args.content),
                                    context=split(args.context),
-                                   templates=split(args.templates), seed=args.seed)
+                                   templates=split(args.templates), seed=args.seed,
+                                   lang=args.lang)
         except ValueError as e:
             sys.stderr.write(f"[error] {e}\n")
             return 1

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "confusion-mapper"
-version = "2.12.0"
+version = "2.13.0"
 description = "Human-AI hybrid inter-rater reliability tool for cognitive error taxonomy classification in MCQ distractors."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -70,7 +70,7 @@ Source        = "https://github.com/Manik-Maurya/Confusion-Mapper"
 Documentation = "https://github.com/Manik-Maurya/Confusion-Mapper#readme"
 Issues        = "https://github.com/Manik-Maurya/Confusion-Mapper/issues"
 Changelog     = "https://github.com/Manik-Maurya/Confusion-Mapper/blob/main/CHANGELOG.md"
-Archive       = "https://doi.org/10.5281/zenodo.20807432"
+Archive       = "https://doi.org/10.5281/zenodo.20807431"
 
 [project.scripts]
 confusion-mapper = "confusion_mapper.cli:run"

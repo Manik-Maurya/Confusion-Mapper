@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConfusionMapper: what a wrong answer says about how a child is thinking</title>
+<meta name="description" content="Free tools built in Kanpur: PISA-style maths worksheets in English and Hindi with a diagnostic teacher's key, and research tools for checking that people and AI agree on how to label children's mistakes.">
+<style>
+  :root { --paper: #faf8f4; --card: #fff; --ink: #1d1d1b; --muted: #66625a; --rule: #ddd6c8; --accent: #9c3b22; --soft: #f3eee4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Nirmala UI", sans-serif; }
+  h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.2; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 48px 0 8px; }
+  header h1 { font-size: clamp(30px, 6vw, 46px); margin: 0 0 12px; }
+  header p { color: var(--muted); margin: 0 0 10px; max-width: 680px; }
+  .doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 28px 0; }
+  .door { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; }
+  .door h2 { font-size: 21px; margin: 0 0 4px; }
+  .door .who { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 0 0 8px; }
+  .door p { margin: 0 0 14px; font-size: 15.5px; }
+  .door .go { margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+  .door a.btn { display: inline-block; text-decoration: none; border-radius: 6px; padding: 8px 14px; background: var(--ink); color: #fff; font-size: 15px; }
+  .door a.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--rule); }
+  code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  section.story { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 22px 24px; margin: 8px 0 24px; }
+  section.story h2 { margin-top: 0; font-size: 22px; }
+  .types { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+  .types div { background: var(--soft); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .types b { display: block; }
+  footer { color: var(--muted); font-size: 14px; padding: 10px 0 44px; }
+  footer a, section.story a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>A wrong answer is not just wrong</h1>
+  <p>When a child picks the wrong option, the option they picked tells you something. Maybe they forgot. Maybe they got halfway. Maybe they believe something that is not true, and believe it firmly. Maybe they used the right idea in the wrong place. Each of those needs different teaching.</p>
+  <p>ConfusionMapper is a set of free tools built around that one idea. I started it in Kanpur, for government schools in Kanpur Dehat.</p>
+</header>
+
+<div class="doors">
+  <div class="door">
+    <p class="who">For teachers</p>
+    <h2>Maths worksheets with a diagnostic key</h2>
+    <p>PISA-style questions about phone plans, the monsoon, the price of dal. The key says what each wrong answer probably means, and the class report tells you what to reteach first. English and Hindi. Works offline, nothing leaves your phone.</p>
+    <div class="go"><a class="btn" href="worksheets/">Open in English</a><a class="btn ghost" href="worksheets/#lang=hi" lang="hi">हिन्दी में खोलें</a></div>
+  </div>
+  <div class="door">
+    <p class="who">For researchers</p>
+    <h2>Do your coders agree?</h2>
+    <p>Paste two columns of labels and get Cohen's kappa, Gwet's AC1 and a confusion matrix, computed in your browser. Your data is not uploaded anywhere.</p>
+    <div class="go"><a class="btn" href="dashboard/">Open the agreement page</a></div>
+  </div>
+  <div class="door">
+    <p class="who">For people who write code</p>
+    <h2>The Python package</h2>
+    <p>Everything above and more: Krippendorff's alpha, the Alternative Annotator Test for replacing a human coder with an AI, item analysis, PISA-style units from the command line. Standard library only, tested against published values.</p>
+    <div class="go"><a class="btn" href="https://github.com/Manik-Maurya/Confusion-Mapper">Code on GitHub</a></div>
+  </div>
+</div>
+
+<section class="story">
+  <h2>The four kinds of mistake</h2>
+  <p>The labels come from the Confusion Fingerprint Index, a taxonomy I wrote for a preregistered study on whether naming the kind of mistake helps children remember the right answer two weeks later.</p>
+  <div class="types">
+    <div><b>RF, Recall Failure</b>Little or nothing remembered. The answer is close to a guess.</div>
+    <div><b>PK, Partial Knowledge</b>The right direction, with a step missing.</div>
+    <div><b>CF, Confabulation</b>A confident wrong belief. Practice alone will not shift it.</div>
+    <div><b>INT, Interference</b>The right answer to a different question.</div>
+  </div>
+  <p>The worksheet questions are original practice items written to follow the published <a href="https://pisa2022-maths.oecd.org/">PISA 2022 mathematics framework</a>. They are not official PISA items and have not been field-tested yet. The Hindi is a first draft and says so on the page until a Hindi-medium maths teacher has checked it. If you are one, the <a href="https://github.com/Manik-Maurya/Confusion-Mapper/blob/main/docs/hindi-review.md">review sheet</a> puts every sentence side by side, and I would be grateful for your corrections.</p>
+</section>
+
+<footer>
+  <p>Made by Manik Maurya, Independent Researcher, Kanpur, India. Free and open source under the MIT licence. Archived on Zenodo: <a href="https://doi.org/10.5281/zenodo.20807431">10.5281/zenodo.20807431</a>.</p>
+</footer>
+</div>
+</body>
+</html>
