@@ -5,7 +5,7 @@ below. The subcommands are, in the order I usually reach for them:
     quickstart, kappa, diagnostics, alpha, multirater, alt-test-prereg,
     alt-test, alt-test-plan, refine, export, validate, embed-index, embed-search,
     assist, evidence, codebook, patterns, publication, discovery,
-    generate-bank
+    generate-bank, pisa
 
 Argument parsing is done by hand (argparse) not click, because I did
 not want a third-party CLI framework in the dependency list.
@@ -37,8 +37,8 @@ from .evidence import (full_panel_report, add_note, revise_label, current_label,
                        load_evidence_log, save_evidence_log)
 from .codebook import generate_codebook
 from .embeddings import (
-    create_index, add_to_index, search as embedding_search,
-    index_stats, load_index, save_index, cluster_index,
+    add_to_index, search as embedding_search,
+    index_stats, load_index, save_index,
 )
 from .discovery import propose_candidate_categories, format_proposal_report
 from .patterns import (
@@ -60,7 +60,7 @@ _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
                       "quickstart", "generate-bank", "alt-test", "alt-test-plan",
-                      "alt-test-prereg"}
+                      "alt-test-prereg", "pisa"}
 
 
 def cli(argv=None):
@@ -77,7 +77,7 @@ def cli(argv=None):
                      "multirater, alt-test, alt-test-plan, alt-test-prereg, export, "
                      "evidence, codebook, "
                      "embed-index, embed-search, discover, patterns, publication, "
-                     "generate-bank, quickstart."))
+                     "generate-bank, pisa, quickstart."))
     sub = parser.add_subparsers(dest="cmd", required=False)
 
     def _add_csv(sp, strict=True):
@@ -300,6 +300,29 @@ def cli(argv=None):
     p_atp.add_argument("--simulations", type=int, default=200)
     p_atp.add_argument("--target-power", type=float, default=0.8)
     p_atp.add_argument("--seed", type=int, default=20260623)
+
+    p_pisa = sub.add_parser("pisa", help="Generate PISA-style maths units (a real-world "
+                                          "situation plus several questions) with a CFI-"
+                                          "diagnosed teacher's key")
+    p_pisa.add_argument("n", type=int, nargs="?", default=None,
+                        help="how many units (each has 3 questions)")
+    p_pisa.add_argument("--list", action="store_true",
+                        help="print the unit templates with their content and context, then exit")
+    p_pisa.add_argument("--content", default=None,
+                        help="comma-separated: quantity, uncertainty_and_data, "
+                             "change_and_relationships, space_and_shape")
+    p_pisa.add_argument("--context", default=None,
+                        help="comma-separated: personal, occupational, societal, scientific")
+    p_pisa.add_argument("--templates", default=None, help="comma-separated template names")
+    p_pisa.add_argument("--seed", type=int, default=None, help="same seed, same units")
+    p_pisa.add_argument("--out", default=None, help="write the units as JSON here")
+    p_pisa.add_argument("--booklet", default=None, help="write the student booklet (Markdown)")
+    p_pisa.add_argument("--key", default=None,
+                        help="write the teacher's key with CFI diagnosis (Markdown)")
+    p_pisa.add_argument("--item-bank", default=None,
+                        help="also write the multiple-choice questions in the plain item "
+                             "format that run_session and generate-bank use")
+    p_pisa.add_argument("--title", default="Maths in real life: practice units")
 
     p_gb = sub.add_parser("generate-bank", help="Generate a bank of CFI-labelled MCQ items "
                                                   "from deterministic templates or an AI backend")
@@ -732,6 +755,53 @@ def cli(argv=None):
             sys.stderr.write(f"wrote {args.report}\n")
         return 0
 
+    if args.cmd == "pisa":
+        from .pisa import (list_templates, generate_units, save_units, format_booklet,
+                           format_answer_key, units_to_item_bank, coverage)
+        if args.list:
+            for name, content, context in list_templates():
+                print(f"{name:15s} {content:26s} {context}")
+            return 0
+        if args.n is None:
+            sys.stderr.write("[error] say how many units to generate, e.g. "
+                             "`confusion-mapper pisa 8 --seed 1 --booklet booklet.md "
+                             "--key key.md`. Use --list to see the templates.\n")
+            return 1
+
+        def split(value):
+            return [v.strip() for v in value.split(",") if v.strip()] if value else None
+
+        try:
+            units = generate_units(args.n, content=split(args.content),
+                                   context=split(args.context),
+                                   templates=split(args.templates), seed=args.seed)
+        except ValueError as e:
+            sys.stderr.write(f"[error] {e}\n")
+            return 1
+        wrote = []
+        if args.out:
+            save_units(units, args.out)
+            wrote.append(args.out)
+        if args.booklet:
+            with open(args.booklet, "w", encoding="utf-8") as f:
+                f.write(format_booklet(units, title=args.title))
+            wrote.append(args.booklet)
+        if args.key:
+            with open(args.key, "w", encoding="utf-8") as f:
+                f.write(format_answer_key(units, title=args.title))
+            wrote.append(args.key)
+        if args.item_bank:
+            with open(args.item_bank, "w", encoding="utf-8") as f:
+                _json.dump(units_to_item_bank(units), f, indent=2, ensure_ascii=False)
+            wrote.append(args.item_bank)
+        if wrote:
+            n_q = sum(len(u["questions"]) for u in units)
+            sys.stderr.write(f"{len(units)} units, {n_q} questions -> {', '.join(wrote)}\n")
+            print(_json.dumps(coverage(units), indent=2))
+        else:
+            print(_json.dumps(units, indent=2, ensure_ascii=False))
+        return 0
+
     if args.cmd == "generate-bank":
         from .itembank import (
             TEMPLATES, generate_bank, generate_bank_with_ai, save_bank,
@@ -966,7 +1036,7 @@ def run_quickstart():
     ]
     for label, cmd in next_steps:
         print(f"  {label:26s} {cmd}")
-    print(f"\n  Full reference: confusion-mapper --help\n")
+    print("\n  Full reference: confusion-mapper --help\n")
     return 0
 
 

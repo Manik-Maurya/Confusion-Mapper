@@ -101,7 +101,7 @@ Respond ONLY with valid JSON, no extra text:
     except json.JSONDecodeError:
         return {
             "label": "RF",
-            "reasoning": f"Could not parse AI response.",
+            "reasoning": "Could not parse AI response.",
             "available": True,
         }
     except Exception as e:

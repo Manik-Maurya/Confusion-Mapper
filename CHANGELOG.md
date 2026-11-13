@@ -2,6 +2,25 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-11-12
+
+### Added
+
+- `pisa.py` and `confusion-mapper pisa`: PISA-style maths units set in Indian contexts. Each unit is a short real-world situation, sometimes with a table, followed by three questions. Eight original templates (mobile data plans, a monsoon rain gauge, a school garden, a bus to the district headquarters, the price of dal, a class travel survey, a rooftop water tank, two kinds of bacterial growth) follow the published PISA 2022 mathematics framework: four content categories, four contexts, the formulate / employ / interpret processes plus mathematical reasoning, and three formats (multiple choice, true/false rows, written answers with a scoring guide). A set of eight units has exactly 6 questions in each content category and each context.
+- Every wrong option, wrong true/false judgement and common wrong written answer carries a CFI label and a note on the thinking behind it. `--key` writes a teacher's key built around those diagnoses, `--booklet` writes the student booklet with no answers or labels, `--out` saves the units as JSON, and `--item-bank` exports the multiple-choice questions in the plain item format so they can go straight into a CFI coding session.
+- `examples/pisa_booklet_example.md` and `examples/pisa_teacher_key_example.md`, a full eight-unit set anyone can read on GitHub without installing anything.
+- `tests/test_pisa.py`, 69 tests. For every template and 300 seeds they recompute every answer from the raw numbers with separate code, and check clean options, full CFI diagnosis, an even spread of answer letters, a booklet that gives nothing away, and that the committed examples match the generator. I checked the tests can fail by planting four bugs in the generator. Three were caught at once. The fourth, a `>=` where `>` belonged in the growth unit, made a tie case (both samples at 160 thousand cells at hour 5) silently disappear instead of producing a wrong answer, so a dedicated test now pins that case.
+- `tests/test_refine.py`, 10 tests for the prompt-refinement engine, which had none.
+
+### Fixed
+
+- `confusion-mapper refine` and `suggest_prompt_refinements()` without an explicit taxonomy crashed with `NameError: name 'TAXONOMY' is not defined`. This was broken from the 2.6.0 package split, when the taxonomy moved to its own module and `stats.py` never imported it. No test caught it because there were no tests for the engine, even though the README said `test_kappa.py` covered it. Found by running pyflakes over the package. The README claim is corrected and the new tests include a regression test that fails if the import is removed again.
+- The rest of the pyflakes report, now clean across the package, tests, examples and benchmarks: unused imports in `cli.py`, `stats.py`, `__init__.py` and three test files, two f-strings with nothing to format, a dead helper in `test_kappa.py` that returned None and was never called, and a duplicated numpy import in the alt-test cross-check.
+
+### Notes
+
+- 633 tests total (554 previous plus 79 new). Still no runtime dependency beyond `openai`.
+
 ## [2.9.0] - 2026-11-12
 
 Two follow-ups a careful reviewer will ask about any alt-test verdict: did you choose epsilon before you saw the data, and would the verdict survive a slightly different sample?

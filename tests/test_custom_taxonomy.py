@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confusion_mapper.stats import load_taxonomy_from_json, compute_cohens_kappa
 from confusion_mapper.codebook import generate_codebook
 from confusion_mapper.export import export_for_r, export_for_spss, export_for_jasp, export_all
-from confusion_mapper.taxonomy import TAXONOMY, ERROR_TYPES
+from confusion_mapper.taxonomy import TAXONOMY
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ITEM_BANK_TAXONOMY = os.path.join(_REPO_ROOT, "sample_data", "item_bank_distractor_taxonomy.json")

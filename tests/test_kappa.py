@@ -15,7 +15,6 @@ Run with:  pytest tests/test_kappa.py -v
 
 import sys
 import os
-import math
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -227,27 +226,15 @@ class TestCohenKappaEdgeCases:
 class TestCohenKappaInterpretation:
     """Interpretation strings map correctly to kappa zones."""
 
-    def _get_interp(self, kappa_val):
-        """Helper: build minimal label arrays that produce a target kappa."""
-        # We construct labels that give the desired approximate kappa
-        # For interpretation tests, exact kappa doesn't matter, we need
-        # to test that the interpretation string matches the zone.
-        # Use the known-kappa test case and scale the agreement level.
-        n = 100
-        # We'll use a parameterised approach:
-        # Force kappa by choosing Po to hit the zone, then verify interpretation.
-        result = compute_cohens_kappa.__wrapped__ if hasattr(compute_cohens_kappa, '__wrapped__') else compute_cohens_kappa
-        return None
-
     def test_above_threshold_contains_check(self):
-        """kappa >= 0.70 interpretation should contain the checkmark."""
+        """kappa >= 0.70 interpretation should say the research threshold is reached."""
         human = ["CF","CF","CF","CF","RF","RF","PK","PK","INT","INT"]
         ai    = ["CF","CF","CF","RF","RF","RF","PK","CF","INT","INT"]
         result = compute_cohens_kappa(human, ai)
         # kappa ~ 0.7222, should be "Substantial"
         assert "threshold" in result["interpretation"]
 
-    def test_below_threshold_no_checkmark(self):
+    def test_below_threshold_does_not_claim_the_threshold(self):
         """kappa < 0.70 interpretation should not mention the research threshold."""
         human = ["CF","CF","RF","RF","PK","PK","INT","INT"]
         ai    = ["CF","RF","RF","CF","PK","INT","INT","RF"]

@@ -22,18 +22,16 @@ Results are written up in ALTTEST_VALIDATION.md next to this file.
 """
 import os
 import sys
-try:
-    import numpy as np  # noqa: F401
-    import scipy  # noqa: F401
-except ImportError:
+import importlib.util
+if not all(importlib.util.find_spec(m) for m in ("numpy", "scipy")):
     sys.exit("this cross-check needs numpy and scipy: pip install numpy scipy")
+import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import random, math, warnings
-import numpy as np
 from scipy import stats
 from scipy.stats import ttest_1samp
 from confusion_mapper.alttest import (t_cdf, alt_test, benjamini_yekutieli,
-                                      generate_synthetic_panel, one_sided_t_test_less)
+                                      generate_synthetic_panel)
 
 # 1) t CDF vs scipy
 worst = 0.0

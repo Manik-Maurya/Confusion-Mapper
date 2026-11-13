@@ -89,6 +89,8 @@ a package, split by concern:
                      Dror, ACL 2025): can the AI replace a human coder?
                      Plus judge comparison, a power simulator, a bootstrap
                      robustness check and a preregistration lock
+  pisa.py           PISA-style maths units in Indian contexts, following the
+                     PISA 2022 framework, with a CFI-diagnosed teacher's key
   ai.py             the ChatGPT rater (classification + question generation)
   storage.py        session load/save (JSON)
   gui.py            the tkinter results dashboard
@@ -105,12 +107,12 @@ now correctly reaches the `kappa/alpha/diagnostics/plan/refine` subcommands
 """
 
 try:
-    from importlib.metadata import version as _installed_version, PackageNotFoundError as _PkgNotFoundError
+    from importlib.metadata import version as _installed_version
     __version__ = _installed_version("confusion-mapper")
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.9.0"
+    __version__ = "2.10.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -246,6 +248,16 @@ from .alttest import (
     check_against_prereg,
 )
 
+from .pisa import (
+    TEMPLATES as PISA_TEMPLATES,
+    generate_unit as generate_pisa_unit,
+    generate_units as generate_pisa_units,
+    validate_unit as validate_pisa_unit,
+    format_booklet as format_pisa_booklet,
+    format_answer_key as format_pisa_answer_key,
+    units_to_item_bank as pisa_units_to_item_bank,
+)
+
 from .cli import cli, main, run
 
 __all__ = [
@@ -290,5 +302,7 @@ __all__ = [
     "format_alttest_report", "format_comparison_report", "EPSILON_PRESETS",
     "bootstrap_alt_test", "create_prereg", "save_prereg", "load_prereg",
     "check_against_prereg",
+    "PISA_TEMPLATES", "generate_pisa_unit", "generate_pisa_units", "validate_pisa_unit",
+    "format_pisa_booklet", "format_pisa_answer_key", "pisa_units_to_item_bank",
     "cli", "main", "run",
 ]

@@ -16,7 +16,7 @@ just the same kappa formula wrapped in a resampling loop.
 import json
 import math
 
-from .taxonomy import ERROR_TYPES
+from .taxonomy import ERROR_TYPES, TAXONOMY
 
 
 def compute_cohens_kappa(human_labels, ai_labels, weights="nominal", categories=None):
@@ -186,7 +186,6 @@ def bootstrap_kappa_ci(human_labels, ai_labels,
             n_resamples    (int): number of resamples used.
     """
     import random
-    import statistics
 
     n = len(human_labels)
     if n != len(ai_labels):

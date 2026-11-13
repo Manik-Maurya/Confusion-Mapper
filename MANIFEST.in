@@ -9,7 +9,7 @@ include paper.bib
 include pyproject.toml
 
 recursive-include sample_data *.csv *.json
-recursive-include examples *.py
+recursive-include examples *.py *.md
 recursive-include benchmarks *.py *.md
 recursive-include case_study *.py *.csv *.json *.md
 recursive-include dashboard *.html

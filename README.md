@@ -232,11 +232,12 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-554 tests across nineteen files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
+633 tests across twenty-one files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
 
 The breakdown, in case you want to know what is being checked:
 
-- `test_kappa.py` (40): the kappa formula against hand-verified worked examples, weighted kappa, bootstrap CIs, PABAK and the bias/prevalence diagnostics, Gwet's AC1, Krippendorff's alpha, the sample-size estimator, custom-taxonomy loading, the confusion matrix, the prompt-refinement engine, Fleiss' kappa, and the CLI router.
+- `test_kappa.py` (40): the kappa formula against hand-verified worked examples, weighted kappa, bootstrap CIs, PABAK and the bias/prevalence diagnostics, Gwet's AC1, Krippendorff's alpha, the sample-size estimator, custom-taxonomy loading, the confusion matrix, Fleiss' kappa, and the CLI router.
+- `test_refine.py` (10): the prompt-refinement engine and the `refine` subcommand. Until 2.10.0 this README claimed `test_kappa.py` covered the engine. It did not, and that gap hid a real bug, see the changelog.
 - `test_validation.py` (15), `test_multirater.py` (20), `test_export.py` (19), `test_provenance.py` (11), `test_evidence.py` (25), `test_codebook.py` (12): one file per module they cover.
 - `test_embeddings.py` (52): both embedding backends, cosine similarity, the full persistent-index lifecycle, and single-linkage clustering.
 - `test_assist.py` (20): the AI-assist loop end to end via simulated stdin. Includes a regression test for a real bug I caught during development.
@@ -248,6 +249,7 @@ The breakdown, in case you want to know what is being checked:
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 - `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
 - `test_alttest_bootstrap.py` (15) and `test_alttest_prereg.py` (33): the bootstrap robustness check and the preregistration lock. They include a test that pins the exact bootstrap figures quoted in this README, and tests that a run departing from its plan is stopped, that an edited plan is caught, and that a forced deviation always ends up in the report. Before trusting them I broke the code on purpose three times (repeated items sharing a key, a hash that ignored epsilon, deviations that never blocked) and checked that each break made these tests fail.
+- `test_pisa.py` (69): the PISA-style unit generator. For every template and 300 seeds it takes the raw numbers stored in each unit and works out every answer again with separate code, then checks the options are clean, every wrong answer is diagnosed, the answer letters are spread evenly, the booklet gives nothing away, and the example booklet and key in `examples/` are exactly what the generator produces today.
 - `test_alttest.py` (100): the alt-test. The t distribution against exact closed forms for 1 and 2 degrees of freedom and printed t-table values, Benjamini-Yekutieli on hand-worked cases including its step-up behaviour, a fully hand-worked 3-coder example down to the t statistic, the paper's optimal-judge theorem (majority vote and mean rating both get advantage probability exactly 1), missing data, the power simulator, the reports, the CLI, and a regression test for the column bug described above.
 
 ## Advanced features
@@ -345,6 +347,39 @@ ratings = [
 print(fleiss_kappa(ratings)['kappa'])
 ```
 
+## PISA-style maths units
+
+New in 2.10.0. PISA does not test maths as a list of sums. Each item is a small unit: a real-world situation, often with a table, and then a few questions about it, each one checking a different part of mathematical literacy. India took part once, in 2009, through about 16,000 students from 400 schools in Himachal Pradesh and Tamil Nadu, and finished 72nd of 74. The government of the day blamed questions that were "out of context" and stayed out of the next two rounds ([The Better India, 2018](https://thebetterindia.com/158849/india-pisa-news-students/)). Whatever you think of that argument, the fix is not to avoid this kind of question. It is to give children practice with it, in situations they actually recognise.
+
+`confusion-mapper pisa` writes units like that, set in Indian contexts: a mobile data plan, a monsoon rain gauge, a school garden, a bus to the district headquarters, the price of dal, a class survey, a rooftop water tank, and two kinds of bacterial growth.
+
+```bash
+# see the 8 unit templates
+confusion-mapper pisa --list
+
+# a full set: student booklet + teacher's key, reproducible under the seed
+confusion-mapper pisa 8 --seed 1 --booklet booklet.md --key teacher_key.md
+
+# only space and shape, or only personal contexts
+confusion-mapper pisa 4 --content space_and_shape --booklet shapes.md --key shapes_key.md
+confusion-mapper pisa 4 --context personal --out units.json
+
+# drop the multiple-choice questions into a normal CFI coding session
+confusion-mapper pisa 8 --seed 1 --item-bank pisa_items.json
+```
+
+The structure follows the published PISA 2022 mathematics framework (https://pisa2022-maths.oecd.org): the four content categories (quantity, uncertainty and data, change and relationships, space and shape), the four contexts (personal, occupational, societal, scientific), and the processes (formulate, employ, interpret and evaluate, plus mathematical reasoning, the 2022 framework's new emphasis). A set of eight units has 24 questions, exactly 6 in each content category and 6 in each context, across all four processes and three formats: multiple choice, true/false rows, and written answers with a scoring guide. The growth unit targets one of the framework's four special emphases, growth phenomena, because seeing that doubling eventually beats steady adding is exactly the kind of thing linear intuition gets wrong.
+
+The part that is ConfusionMapper's own is the teacher's key. Every wrong option, every wrong true/false judgement and every common wrong written answer has a CFI label and a line on the thinking behind it. So the key does not just mark an answer wrong. It says what a child who gave that answer probably believes: that a 20% rise and a 20% fall cancel out (CF, Confabulation), or that the question about the fence was about area (INT, Interference), or it shows they did the division but never turned it into whole kilograms (PK, Partial Knowledge). That is what tells a teacher what to reteach.
+
+Want to see one without installing anything? [`examples/pisa_booklet_example.md`](examples/pisa_booklet_example.md) is a full eight-unit booklet and [`examples/pisa_teacher_key_example.md`](examples/pisa_teacher_key_example.md) is its key. A test regenerates both and fails if they ever drift from what the code produces.
+
+What these are not. They are original templates, not released PISA items. They have not been field-tested, so they have no difficulty estimates. PISA is written for 15-year-olds. These use Class 7 to 9 maths, so they suit students around Class 8 to 10. The numbers in the tables are made up for practice, and the booklet says so. Every booklet and key carries that disclaimer.
+
+How I made sure the answers are right. A generator like this fails quietly: one wrong answer key would go straight into a printed booklet. So the tests do not trust the templates. For every template and 300 seeds, they take the raw numbers stored in each unit and work out every answer again with separate code. They also check that no two options are ever the same, that the correct letter lands on A, B, C and D roughly equally, and that the student booklet contains no answers or labels. Before trusting those tests I broke the generator on purpose four times. Three breaks were caught straight away. The fourth taught me something: with sample A starting at 5 and sample B at 60 gaining 20 an hour, both have exactly 160 thousand cells at hour 5, so "first has more" means hour 6. My planted bug made that tie case silently vanish rather than fail, so there is now a test that pins it.
+
+The units are in English for now. Translating the eight templates into Hindi, carefully, with the maths wording a Kanpur Dehat teacher would actually use, is the most useful next step, and it is one for a person who speaks both, not for a generator.
+
 ## Generate a calibration bank
 
 New in 2.7.0. Writing 90 CFI-labelled distractors by hand for the RCT calibration set was slow and, honestly, biased: the wrong answers I could think of were shaped by the specific mistakes I had recently seen in class. `generate-bank` gives me a bigger, more even calibration pool where every distractor's CFI label traces back to the template rule that produced it.
@@ -380,7 +415,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with twenty subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with twenty-one subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed
@@ -583,6 +618,7 @@ confusion_mapper/
 │                     blind reliability-check path; never produces a kappa)
 ├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
 ├── alttest.py        can the AI replace a human coder? (alt-test, judge comparison, power planning)
+├── pisa.py           PISA-style maths units in Indian contexts, with a CFI-diagnosed teacher's key
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
 ├── gui.py            the tkinter results dashboard
@@ -599,7 +635,8 @@ Repo root, beyond the package itself:
 case_study/       reproducible worked example (see Case study, above)
 benchmarks/       the embedding-backend study and the alt-test cross-check (see Benchmarks, above)
 sample_data/      example CSVs and taxonomy JSONs used throughout this README
-examples/         a minimal headless script, and the script that rebuilds example_alttest.csv
+examples/         a minimal headless script, the script that rebuilds example_alttest.csv,
+                  and an example PISA-style booklet with its teacher's key
 dashboard/        index.html, runs kappa/AC1/confusion-matrix in-browser via Pyodide
 quickstart_demo.gif   real, captured `confusion-mapper quickstart` output, not staged
 ```
