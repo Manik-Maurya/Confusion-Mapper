@@ -232,7 +232,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-633 tests across twenty-one files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
+656 tests across twenty-two files. They finish in well under a minute, none of them touches the network, and none of them needs an API key or a display. One of them only runs if scipy happens to be installed, it cross-checks the alt-test's t distribution against scipy's.
 
 The breakdown, in case you want to know what is being checked:
 
@@ -249,6 +249,7 @@ The breakdown, in case you want to know what is being checked:
 - `test_ari.py` (10): an independent second implementation of Adjusted Rand Index that the embedding-validation benchmark is checked against.
 - `test_itembank.py` (49): the CFI-labelled item generator, including a 200-seed sweep per template that would catch any distractor-vs-correct-answer collision, and explicit regression tests for two real bugs I caught during development.
 - `test_alttest_bootstrap.py` (15) and `test_alttest_prereg.py` (33): the bootstrap robustness check and the preregistration lock. They include a test that pins the exact bootstrap figures quoted in this README, and tests that a run departing from its plan is stopped, that an edited plan is caught, and that a forced deviation always ends up in the report. Before trusting them I broke the code on purpose three times (repeated items sharing a key, a hash that ignored epsilon, deviations that never blocked) and checked that each break made these tests fail.
+- `test_worksheets.py` (23): the teacher web page and class scoring. It runs the page's JavaScript in Node and compares it with the Python scoring on random classes, checks the page's unit pool against the generator, checks the page needs no internet, scores small hand-built classes whose answers are known, and, where jsdom is installed, drives the whole page the way a teacher would.
 - `test_pisa.py` (69): the PISA-style unit generator. For every template and 300 seeds it takes the raw numbers stored in each unit and works out every answer again with separate code, then checks the options are clean, every wrong answer is diagnosed, the answer letters are spread evenly, the booklet gives nothing away, and the example booklet and key in `examples/` are exactly what the generator produces today.
 - `test_alttest.py` (100): the alt-test. The t distribution against exact closed forms for 1 and 2 degrees of freedom and printed t-table values, Benjamini-Yekutieli on hand-worked cases including its step-up behaviour, a fully hand-worked 3-coder example down to the t statistic, the paper's optimal-judge theorem (majority vote and mean rating both get advantage probability exactly 1), missing data, the power simulator, the reports, the CLI, and a regression test for the column bug described above.
 
@@ -349,6 +350,8 @@ print(fleiss_kappa(ratings)['kappa'])
 
 ## PISA-style maths units
 
+> **Teachers: you do not need anything else on this page.** Open the worksheets page, https://manik-maurya.github.io/Confusion-Mapper/worksheets/, or download [`worksheets/index.html`](worksheets/index.html) and open it in any browser. It makes the booklet and the teacher's key, takes your class's answers, and tells you what to reteach first. No installation, no account, works offline once saved, and nothing you type leaves your device. The short guide is [`docs/pisa-teacher-guide.md`](docs/pisa-teacher-guide.md).
+
 New in 2.10.0. PISA does not test maths as a list of sums. Each item is a small unit: a real-world situation, often with a table, and then a few questions about it, each one checking a different part of mathematical literacy. India took part once, in 2009, through about 16,000 students from 400 schools in Himachal Pradesh and Tamil Nadu, and finished 72nd of 74. The government of the day blamed questions that were "out of context" and stayed out of the next two rounds ([The Better India, 2018](https://thebetterindia.com/158849/india-pisa-news-students/)). Whatever you think of that argument, the fix is not to avoid this kind of question. It is to give children practice with it, in situations they actually recognise.
 
 `confusion-mapper pisa` writes units like that, set in Indian contexts: a mobile data plan, a monsoon rain gauge, a school garden, a bus to the district headquarters, the price of dal, a class survey, a rooftop water tank, and two kinds of bacterial growth.
@@ -377,6 +380,25 @@ Want to see one without installing anything? [`examples/pisa_booklet_example.md`
 What these are not. They are original templates, not released PISA items. They have not been field-tested, so they have no difficulty estimates. PISA is written for 15-year-olds. These use Class 7 to 9 maths, so they suit students around Class 8 to 10. The numbers in the tables are made up for practice, and the booklet says so. Every booklet and key carries that disclaimer.
 
 How I made sure the answers are right. A generator like this fails quietly: one wrong answer key would go straight into a printed booklet. So the tests do not trust the templates. For every template and 300 seeds, they take the raw numbers stored in each unit and work out every answer again with separate code. They also check that no two options are ever the same, that the correct letter lands on A, B, C and D roughly equally, and that the student booklet contains no answers or labels. Before trusting those tests I broke the generator on purpose four times. Three breaks were caught straight away. The fourth taught me something: with sample A starting at 5 and sample B at 60 gaining 20 an hour, both have exactly 160 thousand cells at hour 5, so "first has more" means hour 6. My planted bug made that tie case silently vanish rather than fail, so there is now a test that pins it.
+
+### Scoring a class
+
+New in 2.11.0. A worksheet is only half the job. The other half is a teacher with thirty answer sheets deciding what to teach on Monday. So the set can come with a blank answer sheet, and `pisa-score` turns the filled-in sheet into a report that starts with the misconceptions that came up most:
+
+```bash
+confusion-mapper pisa 4 --seed 1 --out units.json --booklet booklet.md --key key.md \
+  --response-sheet answers.csv --students 35
+# ... the class sits the test, someone fills in answers.csv ...
+confusion-mapper pisa-score units.json answers.csv --report class_report.md
+```
+
+In the answer sheet, a multiple-choice cell is the letter the child chose, a true/false cell is one letter per row (TFT), and a written answer is full, partial, none, or the code of the common wrong answer it matched (RF, PK, CF, INT). Blank means no answer, and a row with no answers at all is skipped, since that child was probably absent. Every wrong answer is traced back to its CFI label in the key, so the report can say something like "Q5.2, option B (It is Rs 120, the same as the original price.): 11 of 35 students, CF, Confabulation. Believes a rise and a fall of the same percentage cancel out, a common and confident misconception", followed by what usually helps with that kind of mistake.
+
+The JSON output also has each child's Confusion Fingerprint Index, using the definitions already in this package: CFI-CF is CF errors over all diagnosed errors, CFI-INT is INT over INT plus RF, CFI-RF is RF over all diagnosed errors. Because the labels were fixed in the templates before any child answered, a researcher can use these directly, without a second round of coding.
+
+The web page does the same scoring in JavaScript, because it has to work in a browser with no Python. Two copies of one piece of logic drift apart unless something stops them, so `tests/test_worksheets.py` runs the page's own scoring code in Node and compares every number with the Python version on 60 random classes, plus the same check for which answers each version rejects. I made sure that test can fail by breaking the page's code four ways (partial credit worth 2 points, the wrong denominator for CFI-INT, a reversed tie-break, lowercase answers refused). Each one was caught. The page also never computes an answer itself: it carries a pool of 200 units built by the Python generator, and a test fails if the page's pool and the generator ever disagree.
+
+### What comes next
 
 The units are in English for now. Translating the eight templates into Hindi, carefully, with the maths wording a Kanpur Dehat teacher would actually use, is the most useful next step, and it is one for a person who speaks both, not for a generator.
 
@@ -415,7 +437,7 @@ New here? Run `pip install confusion-mapper && confusion-mapper quickstart`. Tha
 
 Prefer the browser? `dashboard/index.html` runs three of the real functions (Cohen's kappa, Gwet's AC1, and the confusion-matrix heatmap) client-side through [Pyodide](https://pyodide.org). Paste your labels, get the numbers, nothing is uploaded. Open the file directly in a browser, or host it on GitHub Pages.
 
-ConfusionMapper has a Unix-style CLI with twenty-one subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
+ConfusionMapper has a Unix-style CLI with twenty-two subcommands. Pipe any CSV with `human_label, ai_label` columns through it:
 
 ```bash
 python -m confusion_mapper quickstart   # start here, no CSV needed
@@ -618,7 +640,8 @@ confusion_mapper/
 │                     blind reliability-check path; never produces a kappa)
 ├── itembank.py       CFI-labelled MCQ item generator (templates + AI backends)
 ├── alttest.py        can the AI replace a human coder? (alt-test, judge comparison, power planning)
-├── pisa.py           PISA-style maths units in Indian contexts, with a CFI-diagnosed teacher's key
+├── pisa.py           PISA-style maths units in Indian contexts, a CFI-diagnosed teacher's key,
+│                     and class scoring with a 'what to reteach first' report
 ├── ai.py             the ChatGPT rater (classification + question generation)
 ├── storage.py        session load / save (JSON)
 ├── gui.py            the tkinter results dashboard
@@ -637,6 +660,8 @@ benchmarks/       the embedding-backend study and the alt-test cross-check (see 
 sample_data/      example CSVs and taxonomy JSONs used throughout this README
 examples/         a minimal headless script, the script that rebuilds example_alttest.csv,
                   and an example PISA-style booklet with its teacher's key
+worksheets/       the no-install teacher web page (index.html) and the script that builds its unit pool
+docs/             statistical methods, research context, and the guide for teachers
 dashboard/        index.html, runs kappa/AC1/confusion-matrix in-browser via Pyodide
 quickstart_demo.gif   real, captured `confusion-mapper quickstart` output, not staged
 ```

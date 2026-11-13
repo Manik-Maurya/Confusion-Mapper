@@ -112,7 +112,7 @@ try:
 except Exception:
     # Not installed via pip (e.g. running straight from a source checkout) --
     # fall back to a literal rather than raising on import.
-    __version__ = "2.10.0"
+    __version__ = "2.11.0"
 
 from .taxonomy import APP_VERSION, DATA_FILE, ERROR_TYPES, TAXONOMY
 from .question_bank import BUILTIN_QUESTIONS
@@ -256,6 +256,10 @@ from .pisa import (
     format_booklet as format_pisa_booklet,
     format_answer_key as format_pisa_answer_key,
     units_to_item_bank as pisa_units_to_item_bank,
+    score_responses as score_pisa_responses,
+    format_class_report as format_pisa_class_report,
+    response_sheet_csv as pisa_response_sheet_csv,
+    load_responses_csv as load_pisa_responses_csv,
 )
 
 from .cli import cli, main, run
@@ -304,5 +308,7 @@ __all__ = [
     "check_against_prereg",
     "PISA_TEMPLATES", "generate_pisa_unit", "generate_pisa_units", "validate_pisa_unit",
     "format_pisa_booklet", "format_pisa_answer_key", "pisa_units_to_item_bank",
+    "score_pisa_responses", "format_pisa_class_report", "pisa_response_sheet_csv",
+    "load_pisa_responses_csv",
     "cli", "main", "run",
 ]

@@ -13,6 +13,7 @@ recursive-include examples *.py *.md
 recursive-include benchmarks *.py *.md
 recursive-include case_study *.py *.csv *.json *.md
 recursive-include dashboard *.html
+recursive-include worksheets *.html *.py *.md *.js
 recursive-include tests *.py
 recursive-include docs *.md
 include quickstart_demo.gif

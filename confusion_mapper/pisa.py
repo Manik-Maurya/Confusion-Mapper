@@ -37,6 +37,8 @@ maths, so they fit students around Class 8 to 10. Numbers in the tables
 are made up for practice and say so on the page.
 """
 
+import csv
+import io
 import json
 import math
 import random
@@ -961,3 +963,345 @@ def format_answer_key(units, title="Maths in real life: practice units"):
                     lines.append(f"| {w['answer']} | {_cfi(w['error_type'])}: {w['note']} |")
                 lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+# -----------------------------------------------------------------------------
+# Scoring a class
+# -----------------------------------------------------------------------------
+#
+# A worksheet is only half the job. The other half is the teacher sitting
+# with thirty answer sheets and deciding what to teach on Monday. So the
+# teacher types (or the web page collects) one row per child, and this turns
+# it into a short list of the misconceptions that came up most, plus each
+# child's Confusion Fingerprint Index for anyone using this in research.
+#
+# How answers are written, one cell per question:
+#   multiple choice          a letter: A, B, C or D
+#   true/false rows          one letter per row, in order: for example TFT
+#   written answers          full, partial, none, or the CFI code of the
+#                            common wrong answer it matched: RF, PK, CF, INT
+#   blank cell               no response
+#
+# Points: 1 for a multiple-choice question, 1 for a true/false question with
+# every row right, and for a written answer 2 for full credit and 1 for
+# partial credit where the scoring guide has a partial-credit level,
+# otherwise 1 for full credit.
+#
+# The CFI indices use the definitions already in this package:
+#   CFI-CF  = CF errors / all diagnosed errors
+#   CFI-INT = INT errors / (INT + RF errors)
+#   CFI-RF  = RF errors / all diagnosed errors
+# An index is None when its denominator is zero.
+
+WRITTEN_CODES = ("full", "partial", "none") + tuple(c.lower() for c in ERROR_TYPES)
+
+RETEACH_HINTS = {
+    "RF":  "There is little to build on yet. Reteach the idea from the start with a "
+           "concrete example before giving more practice.",
+    "PK":  "The direction is right but steps are missing. A short worked example or a "
+           "checklist of the steps usually closes the gap.",
+    "CF":  "A confident wrong belief. More practice alone will not shift it. Show a case "
+           "where the belief gives an obviously wrong answer and talk it through.",
+    "INT": "An idea from a neighbouring topic is getting in the way. Put the two ideas "
+           "side by side and contrast when each one applies.",
+}
+
+
+def question_labels(units):
+    """[("Q1.1", unit, question), ...] in booklet order."""
+    return [(f"Q{n}.{m}", u, q) for n, u in enumerate(units, start=1)
+            for m, q in enumerate(u["questions"], start=1)]
+
+
+def response_sheet_csv(units, n_students=30):
+    """A blank answer sheet as CSV text: student_id, then one column per question."""
+    labels = [lab for lab, _, _ in question_labels(units)]
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(["student_id"] + labels)
+    for i in range(1, n_students + 1):
+        w.writerow([f"S{i:02d}"] + [""] * len(labels))
+    return out.getvalue()
+
+
+def load_responses_csv(path):
+    """Read a filled-in answer sheet. Rows with no student_id are skipped."""
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or "student_id" not in reader.fieldnames:
+            raise ValueError(f"{path}: the first column must be student_id")
+        return [row for row in reader if (row.get("student_id") or "").strip()]
+
+
+def _parse_answer(cell, label, q):
+    """Return None for blank, or the normalised answer. Raise on nonsense."""
+    raw = "".join(str(cell or "").split()).upper()
+    if not raw:
+        return None
+    fmt = q["format"]
+    if fmt == "multiple_choice":
+        letters = [o["letter"] for o in q["options"]]
+        if raw not in letters:
+            raise ValueError(f"{label}: {cell!r} is not one of {', '.join(letters)}")
+        return raw
+    if fmt == "complex_multiple_choice":
+        n = len(q["statements"])
+        if len(raw) != n or any(c not in "TF" for c in raw):
+            raise ValueError(f"{label}: {cell!r} should be {n} letters, T or F, one per "
+                             f"row, for example {('TFT' * n)[:n]}")
+        return raw
+    code = raw.lower()
+    if code not in WRITTEN_CODES:
+        raise ValueError(f"{label}: {cell!r} should be full, partial, none, RF, PK, CF or INT")
+    if code == "partial" and not q["scoring"].get("partial_credit"):
+        raise ValueError(f"{label}: this question has no partial-credit level")
+    return code
+
+
+def _max_points(q):
+    if q["format"] == "constructed_response" and q["scoring"].get("partial_credit"):
+        return 2
+    return 1
+
+
+def _cfi_indices(errors):
+    total = sum(errors.values())
+    return {
+        "CFI-CF":  errors["CF"] / total if total else None,
+        "CFI-INT": errors["INT"] / (errors["INT"] + errors["RF"])
+                   if errors["INT"] + errors["RF"] else None,
+        "CFI-RF":  errors["RF"] / total if total else None,
+    }
+
+
+def score_responses(units, responses):
+    """
+    Score a class.
+
+    Args:
+        units (list[dict]): the units the class sat, in booklet order.
+        responses (list[dict]): one dict per child, with "student_id" and a
+            key per question label ("Q1.1", "Q1.2", ...). Missing keys and
+            blank cells count as no response. A row with no answers at all
+            is skipped, the child was probably absent or not entered yet.
+
+    Returns:
+        dict with students, questions, misconceptions (every wrong answer
+        given, most common first), class_errors and class_cfi.
+    """
+    labels = question_labels(units)
+    if not responses:
+        raise ValueError("no students to score")
+    max_score = sum(_max_points(q) for _, _, q in labels)
+
+    question_rows = []
+    tallies = []          # per question: answer -> count of wrong answers
+    for idx, (label, u, q) in enumerate(labels):
+        question_rows.append({"label": label, "qid": q["qid"], "unit_title": u["title"],
+                              "format": q["format"], "n_answered": 0, "n_full": 0})
+        tallies.append({})
+
+    students, seen = [], set()
+    class_errors = {c: 0 for c in ERROR_TYPES}
+    for row in responses:
+        sid = str(row.get("student_id", "")).strip()
+        if not sid:
+            continue
+        if all(not str(row.get(label) or "").strip() for label, _, _ in labels):
+            continue          # no answers at all: absent, or not entered yet
+        if sid in seen:
+            raise ValueError(f"student_id {sid!r} appears twice")
+        seen.add(sid)
+        score, errors = 0, {c: 0 for c in ERROR_TYPES}
+        unclassified = no_response = 0
+        for idx, (label, u, q) in enumerate(labels):
+            try:
+                ans = _parse_answer(row.get(label), label, q)
+            except ValueError as e:
+                raise ValueError(f"student {sid}, {e}")
+            if ans is None:
+                no_response += 1
+                continue
+            qr = question_rows[idx]
+            qr["n_answered"] += 1
+            fmt = q["format"]
+            if fmt == "multiple_choice":
+                if ans == q["key"]:
+                    score += 1
+                    qr["n_full"] += 1
+                    continue
+                text = next(o["text"] for o in q["options"] if o["letter"] == ans)
+                d = next(d for d in q["distractors"] if d["option"] == text)
+                errors[d["error_type"]] += 1
+                key = (f"option {ans}", text, d["error_type"], d["note"])
+                tallies[idx][key] = tallies[idx].get(key, 0) + 1
+            elif fmt == "complex_multiple_choice":
+                all_right = True
+                for k, s in enumerate(q["statements"]):
+                    if (ans[k] == "T") != s["answer"]:
+                        all_right = False
+                        w = s["if_wrong"]
+                        errors[w["error_type"]] += 1
+                        key = (f"row {k + 1} marked {'True' if ans[k] == 'T' else 'False'}",
+                               s["text"], w["error_type"], w["note"])
+                        tallies[idx][key] = tallies[idx].get(key, 0) + 1
+                if all_right:
+                    score += 1
+                    qr["n_full"] += 1
+            else:
+                if ans == "full":
+                    score += _max_points(q)
+                    qr["n_full"] += 1
+                elif ans == "partial":
+                    score += 1
+                elif ans == "none":
+                    unclassified += 1
+                else:
+                    code = ans.upper()
+                    errors[code] += 1
+                    match = next((w for w in q["common_wrong_answers"]
+                                  if w["error_type"] == code), None)
+                    key = (f"written answer coded {code}",
+                           match["answer"] if match else "",
+                           code,
+                           match["note"] if match else "matched a common wrong answer")
+                    tallies[idx][key] = tallies[idx].get(key, 0) + 1
+        for c in ERROR_TYPES:
+            class_errors[c] += errors[c]
+        top = max(errors.values())
+        leaders = [c for c in ERROR_TYPES if errors[c] == top]
+        students.append({
+            "student_id": sid, "score": score, "max_score": max_score,
+            "errors": errors, "unclassified_wrong": unclassified,
+            "no_response": no_response, "cfi": _cfi_indices(errors),
+            "dominant_error": (leaders[0] if top and len(leaders) == 1
+                               else ("mixed" if top else None)),
+        })
+    if not students:
+        raise ValueError("no students to score")
+
+    misconceptions = []
+    for idx, (label, u, q) in enumerate(labels):
+        wrong = sorted(({"answer": a, "detail": d, "error_type": e, "note": n, "count": c}
+                        for (a, d, e, n), c in tallies[idx].items()),
+                       key=lambda w: (-w["count"], w["answer"]))
+        question_rows[idx]["wrong"] = wrong
+        for w in wrong:
+            misconceptions.append(dict(w, label=label, order=idx, prompt=q["prompt"]))
+    misconceptions.sort(key=lambda m: (-m["count"], m["order"], m["answer"]))
+
+    return {
+        "n_students":     len(students),
+        "max_score":      max_score,
+        "mean_score":     sum(s["score"] for s in students) / len(students),
+        "students":       students,
+        "questions":      question_rows,
+        "misconceptions": misconceptions,
+        "class_errors":   class_errors,
+        "class_cfi":      _cfi_indices(class_errors),
+    }
+
+
+def _pct(x):
+    return "n/a" if x is None else f"{x * 100:.0f}%"
+
+
+def format_class_report(result, top=5, title="Class report: what to reteach first"):
+    """A teacher-facing Markdown report from score_responses()."""
+    r = result
+    lines = [f"# {title}", "",
+             f"{r['n_students']} student{'' if r['n_students'] == 1 else 's'}. Average "
+             f"score {r['mean_score']:.1f} out of "
+             f"{r['max_score']}.", ""]
+
+    lines += ["## What to reteach first", ""]
+    if not r["misconceptions"]:
+        lines += ["No diagnosed wrong answers. Either the class did very well, or the "
+                  "answers have not been entered yet.", ""]
+    for m in r["misconceptions"][:top]:
+        what = f" ({m['detail']})" if m["detail"] else ""
+        lines += [f"**{m['label']}, {m['answer']}{what}: {m['count']} of {r['n_students']} "
+                  f"students, {_cfi_name(m['error_type'])}.** {m['note'][0].upper()}"
+                  f"{m['note'][1:]}.", ""]
+
+    lines += ["## The class's error profile", "",
+              "| Type | Wrong answers | What usually helps |", "|---|---|---|"]
+    for c in ERROR_TYPES:
+        lines.append(f"| {_cfi_name(c)} | {r['class_errors'][c]} | {RETEACH_HINTS[c]} |")
+    lines += ["", "These are suggestions, you know your class better than any table does.", ""]
+
+    lines += ["## Question by question", "",
+              "| Question | Answered | Fully right | Most common wrong answer |",
+              "|---|---|---|---|"]
+    for qr in r["questions"]:
+        common = (f"{qr['wrong'][0]['answer']} ({qr['wrong'][0]['error_type']}, "
+                  f"{qr['wrong'][0]['count']})" if qr["wrong"] else "")
+        right = _pct(qr["n_full"] / qr["n_answered"]) if qr["n_answered"] else "n/a"
+        lines.append(f"| {qr['label']} {qr['unit_title']} | {qr['n_answered']} | {right} | "
+                     f"{common} |")
+    lines.append("")
+
+    lines += ["## Student by student", "",
+              "| Student | Score | RF | PK | CF | INT | Most common error |",
+              "|---|---|---|---|---|---|---|"]
+    for s in r["students"]:
+        e = s["errors"]
+        lines.append(f"| {s['student_id']} | {s['score']} / {s['max_score']} | {e['RF']} | "
+                     f"{e['PK']} | {e['CF']} | {e['INT']} | {s['dominant_error'] or ''} |")
+    lines.append("")
+
+    cfi = r["class_cfi"]
+    lines += ["## For researchers", "",
+              f"Class Confusion Fingerprint Index: CFI-CF {_pct(cfi['CFI-CF'])}, "
+              f"CFI-INT {_pct(cfi['CFI-INT'])}, CFI-RF {_pct(cfi['CFI-RF'])}. Per-student "
+              f"values are in the JSON output of `confusion-mapper pisa-score`. CFI-CF is "
+              f"CF errors over all diagnosed errors, CFI-INT is INT over INT plus RF, CFI-RF "
+              f"is RF over all diagnosed errors. The labels come from the item templates, "
+              f"decided before any child answered, not from coding the answers afterwards.", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _cfi_name(code):
+    return f"{code}, {TAXONOMY[code]['name']}"
+
+
+# -----------------------------------------------------------------------------
+# The pool behind the web page
+# -----------------------------------------------------------------------------
+#
+# worksheets/index.html is a single offline page for teachers. It does not
+# reimplement the templates. It carries a fixed pool of units built here, so
+# this file stays the only place an answer is ever computed, and the tests
+# that recompute every answer cover the page too.
+
+WEB_POOL_PER_TEMPLATE = 25
+
+
+def build_web_pool(per_template=WEB_POOL_PER_TEMPLATE):
+    """Every template, per_template times, plus the labels the page needs."""
+    units = []
+    for t_index, name in enumerate(TEMPLATES):
+        for k in range(per_template):
+            u = generate_unit(name, seed=10000 + 1000 * t_index + k, unit_index=k + 1)
+            u.pop("data", None)          # raw numbers are for the tests, not the page
+            units.append(u)
+    return {
+        "pool_format":    1,
+        "template_order": list(TEMPLATES),
+        "tags":           {t: list(_TEMPLATE_TAGS[t]) for t in TEMPLATES},
+        "content_names":  CONTENT_CATEGORIES,
+        "context_names":  CONTEXTS,
+        "process_names":  PROCESSES,
+        "format_names":   FORMATS,
+        "cfi_names":      {c: TAXONOMY[c]["name"] for c in ERROR_TYPES},
+        "error_types":    list(ERROR_TYPES),
+        "reteach_hints":  RETEACH_HINTS,
+        "disclaimer":     DISCLAIMER,
+        "units":          units,
+    }
+
+
+def web_pool_json(pool=None):
+    """The pool as compact JSON that is safe to put inside a <script> tag."""
+    text = json.dumps(pool or build_web_pool(), ensure_ascii=False, separators=(",", ":"))
+    return text.replace("</", "<\\/")

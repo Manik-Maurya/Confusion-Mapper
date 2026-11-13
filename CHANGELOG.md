@@ -2,6 +2,24 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-11-13
+
+The PISA-style units were only usable by someone who could install Python. This release is about getting them to teachers.
+
+### Added
+
+- `worksheets/index.html`, a single self-contained page for teachers. Pick how many units and which topics or situations, and it makes the student booklet and the teacher's key, both printable. A set number makes every set reproducible and shareable: the same number gives the same worksheets and key, and the page address carries it. After the test, the teacher enters each child's answers in a grid and gets a class report that starts with "what to reteach first". It needs no installation and no account, works offline once saved, can be forwarded as a file on WhatsApp, and keeps everything typed into it on the device. Answers can be downloaded and loaded again as CSV.
+- The page does not compute any answer itself. It carries a pool of 200 units (25 of each template) built by `build_web_pool()` in `pisa.py`, written into the page by `worksheets/build_pool.py`, so the Python templates and the tests that recompute every answer still cover everything a teacher sees.
+- Class scoring in Python: `response_sheet_csv()`, `load_responses_csv()`, `score_responses()` and `format_class_report()`, with `pisa --response-sheet` and a new `confusion-mapper pisa-score units.json answers.csv --report report.md`. Every wrong answer is traced to its CFI label in the key. The report lists the most common misconceptions with what usually helps for each kind of mistake, then question-by-question and child-by-child tables. The JSON output has each child's Confusion Fingerprint Index (CFI-CF, CFI-INT, CFI-RF), using the definitions already in the package. Rows with no answers at all are skipped as absent.
+- `docs/pisa-teacher-guide.md`, a plain-language guide: five steps from making a set to reading the class report, the four kinds of mistake with what usually helps, and honest limits.
+- `tests/test_worksheets.py`, 23 tests. The central one runs the page's own JavaScript scoring in Node and compares every number with the Python scoring on 60 random classes, and another checks both versions reject exactly the same answers. I confirmed these can fail by breaking the page's code four ways (partial credit worth 2 points, the wrong denominator for CFI-INT, a reversed tie-break, lowercase answers refused). All four were caught. Other tests check the page's pool matches the generator, the page loads nothing from the internet, sets are reproducible and respect the filters, and a CSV downloaded from the page reads back correctly in Python. These tests are skipped where Node is not installed.
+- `.nojekyll` at the repository root, so GitHub Pages serves the page as-is.
+
+### Notes
+
+- 656 tests total (633 previous plus 23 new). Still no runtime dependency beyond `openai`.
+- `worksheets/check_page.js` drives the whole page in jsdom (a browser document running in Node): opening a shared set address, printing views, entering answers, scoring, bad input, and a filter that matches nothing, failing on any script error. `tests/test_worksheets.py` runs it whenever jsdom is installed (`npm install jsdom`).
+
 ## [2.10.0] - 2026-11-12
 
 ### Added

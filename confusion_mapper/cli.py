@@ -5,7 +5,7 @@ below. The subcommands are, in the order I usually reach for them:
     quickstart, kappa, diagnostics, alpha, multirater, alt-test-prereg,
     alt-test, alt-test-plan, refine, export, validate, embed-index, embed-search,
     assist, evidence, codebook, patterns, publication, discovery,
-    generate-bank, pisa
+    generate-bank, pisa, pisa-score
 
 Argument parsing is done by hand (argparse) not click, because I did
 not want a third-party CLI framework in the dependency list.
@@ -60,7 +60,7 @@ _STATS_SUBCOMMANDS = {"kappa", "alpha", "diagnostics", "plan", "refine",
                       "validate", "multirater", "export", "evidence", "codebook",
                       "embed-index", "embed-search", "discover", "patterns", "publication",
                       "quickstart", "generate-bank", "alt-test", "alt-test-plan",
-                      "alt-test-prereg", "pisa"}
+                      "alt-test-prereg", "pisa", "pisa-score"}
 
 
 def cli(argv=None):
@@ -77,7 +77,7 @@ def cli(argv=None):
                      "multirater, alt-test, alt-test-plan, alt-test-prereg, export, "
                      "evidence, codebook, "
                      "embed-index, embed-search, discover, patterns, publication, "
-                     "generate-bank, pisa, quickstart."))
+                     "generate-bank, pisa, pisa-score, quickstart."))
     sub = parser.add_subparsers(dest="cmd", required=False)
 
     def _add_csv(sp, strict=True):
@@ -322,7 +322,19 @@ def cli(argv=None):
     p_pisa.add_argument("--item-bank", default=None,
                         help="also write the multiple-choice questions in the plain item "
                              "format that run_session and generate-bank use")
+    p_pisa.add_argument("--response-sheet", default=None,
+                        help="also write a blank answer sheet (CSV) to fill in after the test")
+    p_pisa.add_argument("--students", type=int, default=30,
+                        help="rows in the answer sheet (default 30)")
     p_pisa.add_argument("--title", default="Maths in real life: practice units")
+
+    p_ps = sub.add_parser("pisa-score", help="Score a class on a PISA-style set and get a "
+                                              "'what to reteach first' report")
+    p_ps.add_argument("units_path", help="the units JSON written by `pisa --out`")
+    p_ps.add_argument("responses_path", help="the filled-in answer sheet (CSV)")
+    p_ps.add_argument("--report", default=None, help="write the teacher's report (Markdown)")
+    p_ps.add_argument("--top", type=int, default=5,
+                      help="how many misconceptions to list first (default 5)")
 
     p_gb = sub.add_parser("generate-bank", help="Generate a bank of CFI-labelled MCQ items "
                                                   "from deterministic templates or an AI backend")
@@ -755,6 +767,21 @@ def cli(argv=None):
             sys.stderr.write(f"wrote {args.report}\n")
         return 0
 
+    if args.cmd == "pisa-score":
+        from .pisa import load_units, load_responses_csv, score_responses, format_class_report
+        try:
+            units = load_units(args.units_path)
+            result = score_responses(units, load_responses_csv(args.responses_path))
+        except (OSError, ValueError) as e:
+            sys.stderr.write(f"[error] {e}\n")
+            return 1
+        print(_json.dumps(result, indent=2, ensure_ascii=False))
+        if args.report:
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(format_class_report(result, top=args.top))
+            sys.stderr.write(f"wrote {args.report}\n")
+        return 0
+
     if args.cmd == "pisa":
         from .pisa import (list_templates, generate_units, save_units, format_booklet,
                            format_answer_key, units_to_item_bank, coverage)
@@ -794,6 +821,14 @@ def cli(argv=None):
             with open(args.item_bank, "w", encoding="utf-8") as f:
                 _json.dump(units_to_item_bank(units), f, indent=2, ensure_ascii=False)
             wrote.append(args.item_bank)
+        if args.response_sheet:
+            from .pisa import response_sheet_csv
+            with open(args.response_sheet, "w", encoding="utf-8", newline="") as f:
+                f.write(response_sheet_csv(units, n_students=args.students))
+            wrote.append(args.response_sheet)
+            if not args.out:
+                sys.stderr.write("[warning] keep the units too (--out units.json), "
+                                 "pisa-score needs them to mark the answer sheet.\n")
         if wrote:
             n_q = sum(len(u["questions"]) for u in units)
             sys.stderr.write(f"{len(units)} units, {n_q} questions -> {', '.join(wrote)}\n")
